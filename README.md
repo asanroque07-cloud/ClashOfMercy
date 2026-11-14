@@ -85,3 +85,13 @@ npm run serve   # preview the production build
 - This is a **static single-page app** — no backend or environment variables required.
 - All assets (sprites, sounds, music) are bundled from `public/` and served from the site root.
 - Player progress is saved in the browser via `localStorage`.
+
+### 📱 Landscape-only play
+
+The game is designed for landscape. It handles orientation automatically:
+
+1. **Native lock (Android/Chrome):** on the first tap, the app requests fullscreen and calls `screen.orientation.lock("landscape")`.
+2. **PWA manifest:** `public/manifest.json` declares `"orientation": "landscape"`, so an installed/added-to-home-screen app always launches in landscape.
+3. **CSS rotation fallback (all browsers, incl. iOS Safari):** if a phone or tablet is held in portrait and the OS refuses to rotate, the whole app is rotated 90° via the `force-landscape` class in `src/index.css` (applied by `App.jsx`). The game is therefore always playable in landscape, with no blocking "rotate your device" screen.
+
+Desktop browsers are never rotated — the fallback only activates on touch devices with phone/tablet-sized screens.

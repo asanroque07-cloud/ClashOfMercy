@@ -1,0 +1,26 @@
+{
+  "name": "Clash Of Mercy",
+  "short_name": "Clash of Mercy",
+  "description": "Browser-based tactical shooter. Built for landscape play.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#0a0c0a",
+  "theme_color": "#76a035",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "611x615",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

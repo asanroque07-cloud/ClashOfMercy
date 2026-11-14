@@ -81,6 +81,74 @@ export default function App() {
     };
   }, []);
 
+  // ── Forced landscape ────────────────────────────────────────────────────
+  // Phones/tablets must always play in landscape. Native orientation lock only
+  // works in fullscreen on Android and is unsupported on iOS, so as a reliable
+  // fallback we rotate the entire app 90° with CSS whenever a touch device is
+  // held in portrait. This makes the game landscape even when the OS won't
+  // rotate the screen for us.
+  useEffect(() => {
+    const root = document.documentElement;
+
+    const isTouchDevice =
+      (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) ||
+      (typeof window !== "undefined" &&
+        window.matchMedia?.("(pointer: coarse)").matches);
+
+    const applyOrientation = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const portrait = h > w;
+      // Only rotate phone/tablet-sized screens — never a desktop window that
+      // merely happens to be narrow or has a touchscreen.
+      const mobileSized = Math.max(w, h) <= 1400;
+      const shouldForce = Boolean(isTouchDevice) && portrait && mobileSized;
+      root.classList.toggle("force-landscape", shouldForce);
+    };
+
+    applyOrientation();
+    window.addEventListener("resize", applyOrientation);
+    window.addEventListener("orientationchange", applyOrientation);
+    // Some mobile browsers report stale sizes right after rotation.
+    const t = setTimeout(applyOrientation, 250);
+
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", applyOrientation);
+      window.removeEventListener("orientationchange", applyOrientation);
+      root.classList.remove("force-landscape");
+    };
+  }, []);
+
+  // Try to lock the screen to landscape on the first user gesture. Browsers
+  // require a gesture (and usually fullscreen) before honoring the lock, so we
+  // opportunistically request it once, then stop listening.
+  useEffect(() => {
+    let done = false;
+    const tryLock = async () => {
+      if (done) return;
+      done = true;
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen?.();
+        }
+      } catch {
+        /* best effort */
+      }
+      try {
+        await window.screen?.orientation?.lock?.("landscape");
+      } catch {
+        /* best effort — CSS rotation fallback covers this */
+      }
+    };
+    window.addEventListener("pointerdown", tryLock, { once: true });
+    window.addEventListener("touchstart", tryLock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", tryLock);
+      window.removeEventListener("touchstart", tryLock);
+    };
+  }, []);
+
   // this is for showing a short-lived toast message, which removes itself after 3.5 seconds
   const pushAlert = useCallback((alert) => {
     const id = `alert_${Date.now()}`;
@@ -417,8 +485,9 @@ export default function App() {
         : prevScreen === "rank"
           ? "rank"
           : "classic";
-  const showRotateOverlay =
-    viewport.width <= 1024 && viewport.height > viewport.width;
+  // The app now auto-rotates into landscape (see the forced-landscape effect
+  // above), so the blocking "rotate your device" overlay is no longer needed.
+  const showRotateOverlay = false;
 
   // ── Full-screen real GameCanvas (the actual playable match) ────
   if (screen === "game") {

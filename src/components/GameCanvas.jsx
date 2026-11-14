@@ -937,8 +937,9 @@ export default function GameCanvas({
   );
   const [pressedControls, setPressedControls] = useState({});
   const showTouchControls = isTouchDevice || viewport.width <= 900;
-  const showRotatePrompt =
-    showTouchControls && viewport.height > viewport.width;
+  // The app auto-rotates into landscape at the root (see App.jsx), so the
+  // in-match "rotate to fight" prompt is no longer required.
+  const showRotatePrompt = false;
 
   const ensureAudioUnlocked = useCallback(() => {
     const ctx = audioCtxRef.current;
