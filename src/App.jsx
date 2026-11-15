@@ -430,9 +430,8 @@ export default function App() {
       !onlineMatch.room &&
       screen === "game"
     ) {
-      const returnScreen =
-        previousRoom.mode === "custom" ? "custom" : previousRoom.mode;
-      setScreen(returnScreen);
+      setTeamConfig(null);
+      setScreen("home");
       pushAlert({
         message: "The match host ended the online match.",
         type: "warning",
