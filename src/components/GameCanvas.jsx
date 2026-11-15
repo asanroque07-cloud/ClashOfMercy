@@ -5004,6 +5004,17 @@ export default function GameCanvas({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {showTouchControls && (
+            <button
+              type="button"
+              aria-label="Controller settings"
+              title="Configure controller layout"
+              onClick={() => setEditingControls((editing) => !editing)}
+              className={`game-toolbar-button ${editingControls ? "game-toolbar-button--primary" : ""}`}
+            >
+              Controls
+            </button>
+          )}
           <button
             onClick={() => void requestImmersiveMode()}
             className="game-toolbar-button game-toolbar-button--primary"
@@ -5030,62 +5041,50 @@ export default function GameCanvas({
           style={{ cursor: showTouchControls ? "default" : "crosshair" }}
         />
 
-        {showTouchControls && (
+        {showTouchControls && editingControls && (
           <div className="touch-layout-editor">
-            {editingControls ? (
-              <>
-                <span>Drag controls · Size</span>
-                <button
-                  type="button"
-                  className="touch-layout-editor__button"
-                  aria-label="Make controls smaller"
-                  onClick={() =>
-                    setTouchLayout((current) => ({
-                      ...current,
-                      scale: Math.max(0.65, current.scale - 0.1),
-                    }))
-                  }
-                >
-                  −
-                </button>
-                <span>{Math.round(touchLayout.scale * 100)}%</span>
-                <button
-                  type="button"
-                  className="touch-layout-editor__button"
-                  aria-label="Make controls larger"
-                  onClick={() =>
-                    setTouchLayout((current) => ({
-                      ...current,
-                      scale: Math.min(1.5, current.scale + 0.1),
-                    }))
-                  }
-                >
-                  +
-                </button>
-                <button
-                  type="button"
-                  className="touch-layout-editor__button"
-                  onClick={() => setTouchLayout(DEFAULT_TOUCH_LAYOUT)}
-                >
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  className="touch-layout-editor__button touch-layout-editor__button--primary"
-                  onClick={() => setEditingControls(false)}
-                >
-                  Done
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="touch-layout-editor__button"
-                onClick={() => setEditingControls(true)}
-              >
-                Edit controls
-              </button>
-            )}
+            <span>Drag controls · Size</span>
+            <button
+              type="button"
+              className="touch-layout-editor__button"
+              aria-label="Make controls smaller"
+              onClick={() =>
+                setTouchLayout((current) => ({
+                  ...current,
+                  scale: Math.max(0.65, current.scale - 0.1),
+                }))
+              }
+            >
+              −
+            </button>
+            <span>{Math.round(touchLayout.scale * 100)}%</span>
+            <button
+              type="button"
+              className="touch-layout-editor__button"
+              aria-label="Make controls larger"
+              onClick={() =>
+                setTouchLayout((current) => ({
+                  ...current,
+                  scale: Math.min(1.5, current.scale + 0.1),
+                }))
+              }
+            >
+              +
+            </button>
+            <button
+              type="button"
+              className="touch-layout-editor__button"
+              onClick={() => setTouchLayout(DEFAULT_TOUCH_LAYOUT)}
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              className="touch-layout-editor__button touch-layout-editor__button--primary"
+              onClick={() => setEditingControls(false)}
+            >
+              Done
+            </button>
           </div>
         )}
 
