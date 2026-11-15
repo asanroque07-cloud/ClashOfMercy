@@ -102,11 +102,11 @@ export function LobbyHeader({
   const rankBadge = getRankStats(profile.rankName);
 
   return (
-    <div className="px-3 py-2.5 bg-stone-950/95 border-b border-military flex flex-col md:flex-row gap-3 md:gap-0 justify-between items-center select-none shadow-lg relative z-20">
+    <div className="lobby-header px-3 py-2.5 bg-stone-950/95 border-b border-military flex flex-col md:flex-row gap-3 md:gap-0 justify-between items-center select-none shadow-lg relative z-20">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(118,160,53,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(118,160,53,0.02)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
       <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#76a035]/40 to-transparent pointer-events-none" />
 
-      <div className="flex items-center gap-3 w-full md:w-auto">
+      <div className="lobby-header__identity flex items-center gap-3 w-full md:w-auto">
         {/* Avatar — opens profile modal */}
         <div
           onClick={onOpenSettings}
@@ -170,7 +170,7 @@ export function LobbyHeader({
         </div>
       </div>
 
-      <div className="flex flex-wrap md:flex-nowrap items-center justify-between md:justify-end gap-2.5 w-full md:w-auto mt-2 md:mt-0">
+      <div className="lobby-header__economy flex flex-wrap md:flex-nowrap items-center justify-between md:justify-end gap-2.5 w-full md:w-auto mt-2 md:mt-0">
         <div
           onClick={onOpenSettings}
           className={`flex items-center gap-2 bg-white/5 border px-2.5 py-1.5 rounded cursor-pointer hover:bg-white/10 transition-colors ${rankBadge.color}`}

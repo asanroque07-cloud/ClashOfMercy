@@ -102,8 +102,9 @@ export default function App() {
       // Only rotate phone/tablet-sized screens — never a desktop window that
       // merely happens to be narrow or has a touchscreen.
       const mobileSized = Math.max(w, h) <= 1400;
-      const shouldForce = Boolean(isTouchDevice) && portrait && mobileSized;
-      root.classList.toggle("force-landscape", shouldForce);
+      const shouldUseMobileLayout = Boolean(isTouchDevice) && mobileSized;
+      root.classList.toggle("mobile-game-ui", shouldUseMobileLayout);
+      root.classList.toggle("force-landscape", shouldUseMobileLayout && portrait);
     };
 
     applyOrientation();
@@ -116,7 +117,7 @@ export default function App() {
       clearTimeout(t);
       window.removeEventListener("resize", applyOrientation);
       window.removeEventListener("orientationchange", applyOrientation);
-      root.classList.remove("force-landscape");
+      root.classList.remove("force-landscape", "mobile-game-ui");
     };
   }, [screen]);
 

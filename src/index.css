@@ -537,3 +537,296 @@ html.force-landscape .screen-shell {
 html.force-landscape .rotate-device-overlay {
   display: none !important;
 }
+
+html.mobile-game-ui .screen-shell {
+  overflow: hidden !important;
+}
+
+html.mobile-game-ui .app-shell {
+  min-height: 0 !important;
+}
+
+html.mobile-game-ui .lobby-header {
+  flex: 0 0 auto;
+  min-height: 58px;
+  padding: 5px 9px;
+  gap: 8px;
+}
+
+html.mobile-game-ui .lobby-header__identity {
+  width: auto;
+  min-width: 0;
+  gap: 8px;
+  flex: 1 1 auto;
+}
+
+html.mobile-game-ui .lobby-header__identity > div:first-of-type {
+  width: 36px;
+  height: 36px;
+}
+
+html.mobile-game-ui .lobby-header__identity h1 {
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+html.mobile-game-ui .lobby-header__economy {
+  width: auto;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin-top: 0;
+}
+
+html.mobile-game-ui .lobby-header__economy > div:not(:last-child) {
+  padding: 5px 7px;
+  gap: 5px;
+}
+
+html.mobile-game-ui .lobby-header__economy > div:not(:last-child) svg {
+  width: 13px;
+  height: 13px;
+}
+
+html.mobile-game-ui .lobby-header__economy > div:not(:last-child) div {
+  min-width: 0;
+}
+
+html.mobile-game-ui .lobby-header__economy button {
+  height: 32px;
+  width: 32px;
+  padding: 6px;
+}
+
+html.mobile-game-ui .mobile-audio-toggle {
+  top: 11px;
+  right: auto;
+  bottom: auto;
+  left: 218px;
+  width: 34px;
+  height: 34px;
+  justify-content: center;
+  padding: 8px;
+  gap: 0;
+  letter-spacing: 0;
+}
+
+html.mobile-game-ui .mobile-audio-toggle span {
+  display: none;
+}
+
+html.mobile-game-ui .lobby-home {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.9fr) minmax(190px, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 8px;
+  overflow: hidden !important;
+  padding: 8px;
+}
+
+html.mobile-game-ui .lobby-home__main {
+  grid-column: auto;
+  min-width: 0;
+  min-height: 0;
+  gap: 8px;
+}
+
+html.mobile-game-ui .lobby-home__main > div:first-child {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+}
+
+html.mobile-game-ui .lobby-home__main > div:first-child > div:first-child {
+  width: auto;
+  flex: 1 1 42%;
+  gap: 6px;
+}
+
+html.mobile-game-ui .lobby-home__main > div:first-child > div:nth-child(2) {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: 5px;
+  font-size: 9px;
+}
+
+html.mobile-game-ui .lobby-home__main > .lobby-menu {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+}
+
+html.mobile-game-ui .lobby-home__friends {
+  grid-column: auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+html.mobile-game-ui .friend-list__header {
+  min-height: 38px;
+  padding: 5px 8px;
+}
+
+html.mobile-game-ui .friend-list__items {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 4px;
+  overflow: hidden;
+  padding: 5px;
+}
+
+html.mobile-game-ui .friend-list__item {
+  min-height: 0;
+  padding: 4px;
+  gap: 4px;
+}
+
+html.mobile-game-ui .friend-list__item img {
+  width: 24px;
+  height: 24px;
+}
+
+html.mobile-game-ui .friend-list__item > div:first-child {
+  gap: 5px;
+}
+
+html.mobile-game-ui .friend-list__item > div:first-child > div:last-child {
+  font-size: 9px;
+}
+
+html.mobile-game-ui .friend-list__footer {
+  padding: 4px;
+  font-size: 7px;
+}
+
+html.mobile-game-ui .lobby-menu__content {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 7px;
+  height: 100%;
+}
+
+html.mobile-game-ui .lobby-menu__stats {
+  gap: 4px;
+  padding: 4px 7px;
+  font-size: 9px;
+}
+
+html.mobile-game-ui .lobby-menu__stats > div:not(:first-child) {
+  padding: 3px 6px;
+}
+
+html.mobile-game-ui .lobby-menu__panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 50px minmax(0, 1fr);
+  gap: 7px;
+  min-height: 0;
+}
+
+html.mobile-game-ui .lobby-menu__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-height: 0;
+}
+
+html.mobile-game-ui .lobby-menu__actions button {
+  height: 50px;
+  min-width: 0;
+  padding: 6px;
+  gap: 2px;
+}
+
+html.mobile-game-ui .lobby-menu__actions button > div:nth-child(2) {
+  font-size: 11px;
+  line-height: 1;
+}
+
+html.mobile-game-ui .lobby-menu__actions button > div:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 7px;
+}
+
+html.mobile-game-ui .lobby-menu__actions button svg {
+  width: 13px;
+  height: 13px;
+}
+
+html.mobile-game-ui .lobby-menu__modes {
+  display: grid;
+  grid-column: 1;
+  grid-row: 2;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  min-height: 0;
+}
+
+html.mobile-game-ui .lobby-menu__mode-grid,
+html.mobile-game-ui .lobby-menu__offline {
+  display: contents;
+}
+
+html.mobile-game-ui .lobby-menu__mode-grid button,
+html.mobile-game-ui .lobby-menu__offline button {
+  grid-column: auto !important;
+  height: 100%;
+  min-height: 0;
+  padding: 7px;
+}
+
+html.mobile-game-ui .lobby-menu__offline {
+  width: auto;
+}
+
+html.mobile-game-ui .operator-setup {
+  overflow-y: auto;
+}
+
+html.mobile-game-ui .operator-setup__content {
+  min-height: 100%;
+  height: auto;
+  align-items: flex-start;
+  padding: 10px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:first-child {
+  padding: 10px 16px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) {
+  gap: 10px;
+  padding: 12px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:first-child > div:last-child {
+  margin-top: 10px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:first-child > div:last-child > label + label {
+  margin-top: 8px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:last-child > div {
+  padding: 12px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:last-child button {
+  margin-top: 12px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:last-child {
+  padding: 8px 16px;
+}
+
+html.mobile-game-ui .lobby-menu__mode-grid button > div:first-child svg,
+html.mobile-game-ui .lobby-menu__offline button > div:first-child svg {
+  width: 15px;
+  height: 15px;
+}
