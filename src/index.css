@@ -1040,6 +1040,11 @@ html.force-landscape .rotate-device-overlay {
 
 html.mobile-game-ui .screen-shell {
   overflow: hidden !important;
+  min-height: 0;
+}
+
+html.mobile-game-ui .screen-shell.p-4 {
+  padding: 6px;
 }
 
 html.mobile-game-ui .app-shell {
@@ -1306,10 +1311,17 @@ html.mobile-game-ui .operator-setup {
 }
 
 html.mobile-game-ui .operator-setup__content {
-  min-height: 100%;
-  height: auto;
-  align-items: flex-start;
-  padding: 10px;
+  min-height: 0;
+  height: 100%;
+  align-items: center;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+html.mobile-game-ui .operator-setup__card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: 100%;
 }
 
 html.mobile-game-ui .operator-setup__card > div:first-child {
@@ -1317,24 +1329,32 @@ html.mobile-game-ui .operator-setup__card > div:first-child {
 }
 
 html.mobile-game-ui .operator-setup__card > div:nth-child(2) {
-  gap: 10px;
-  padding: 12px;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div {
+  min-width: 0;
+  grid-column: auto;
 }
 
 html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:first-child > div:last-child {
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
 html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:first-child > div:last-child > label + label {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:last-child > div {
-  padding: 12px;
+  padding: 8px;
 }
 
 html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:last-child button {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 html.mobile-game-ui .operator-setup__card > div:last-child {
@@ -1998,6 +2018,400 @@ html.mobile-game-ui .match-lobby-shell {
   padding: 6px;
 }
 
+html.mobile-game-ui .match-lobby {
+  gap: 6px;
+  padding-right: 0;
+}
+
 html.mobile-game-ui .match-lobby__squad-grid {
+  height: clamp(88px, 28vh, 104px);
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 4px;
+}
+
+html.mobile-game-ui .match-lobby__player-card {
+  height: 100%;
+  overflow: hidden;
+}
+
+html.mobile-game-ui .match-lobby--rank .match-lobby__player-card > svg {
+  width: 14px;
+  height: 14px;
+  margin-bottom: 2px;
+}
+
+html.mobile-game-ui .match-lobby--rank .match-lobby__player-card > span:first-of-type {
+  font-size: 8px;
+  line-height: 1;
+}
+
+html.mobile-game-ui .match-lobby--rank .match-lobby__player-card > span:nth-of-type(2) {
+  display: none;
+}
+
+html.mobile-game-ui .match-lobby--rank .match-lobby__player-card > button {
+  margin-top: 4px;
+  padding: 3px 4px;
+  font-size: 7px;
+}
+
+html.mobile-game-ui .match-lobby__map-panel {
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+html.mobile-game-ui .match-lobby__map-panel > div:nth-child(2) {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+html.mobile-game-ui .match-lobby__map-panel > div:last-child {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+html.mobile-game-ui .match-lobby__map-panel > div:nth-child(2) > div:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html.mobile-game-ui .custom-lobby__header {
+  min-height: 34px;
+  padding: 4px 6px;
+}
+
+html.mobile-game-ui .custom-lobby__main {
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 6px;
+  padding: 6px;
+}
+
+html.mobile-game-ui .custom-lobby__teams {
+  grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
+}
+
+html.mobile-game-ui .custom-lobby__slot {
+  width: 58px;
+  height: 58px;
+}
+
+html.mobile-game-ui .custom-lobby__slot > div:first-child {
+  width: 24px;
+  height: 24px;
+}
+
+html.mobile-game-ui .custom-lobby__sidebar {
+  gap: 6px;
+}
+
+html.mobile-game-ui .offline-lobby {
+  gap: 6px;
+}
+
+html.mobile-game-ui .offline-lobby__header {
+  min-height: 34px;
+  padding: 5px 8px;
+}
+
+html.mobile-game-ui .offline-lobby__content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 50px minmax(0, 1fr) 38px;
+  gap: 4px;
+  padding: 6px;
+  overflow: hidden;
+}
+
+html.mobile-game-ui .offline-lobby__content > * {
+  margin: 0;
+}
+
+html.mobile-game-ui .offline-lobby__controls {
+  grid-column: 1;
+  grid-row: 1;
+  flex-direction: row;
+  justify-content: space-evenly;
+  gap: 8px;
+}
+
+html.mobile-game-ui .offline-lobby__controls > div {
+  gap: 2px;
+}
+
+html.mobile-game-ui .offline-lobby__controls .lobby-section-tag {
+  font-size: 7px;
+}
+
+html.mobile-game-ui .offline-lobby__controls button {
+  width: 24px;
+  height: 24px;
+}
+
+html.mobile-game-ui .offline-lobby__controls .font-display {
+  font-size: 20px;
+}
+
+html.mobile-game-ui .offline-lobby__controls > div > div {
+  gap: 4px;
+  padding: 4px;
+}
+
+html.mobile-game-ui .offline-lobby__teams {
+  grid-column: 1;
+  grid-row: 2;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 4px;
+  align-content: start;
+  overflow: hidden;
+}
+
+html.mobile-game-ui .offline-lobby__teams > div:first-child,
+html.mobile-game-ui .offline-lobby__teams > div:last-child {
+  grid-column: span 6;
+  min-width: 0;
+}
+
+html.mobile-game-ui .offline-lobby__teams > div:nth-child(2) {
+  display: none;
+}
+
+html.mobile-game-ui .offline-lobby__teams > div:first-child > div,
+html.mobile-game-ui .offline-lobby__teams > div:last-child > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+html.mobile-game-ui .offline-lobby__teams > div:first-child > div > *,
+html.mobile-game-ui .offline-lobby__teams > div:last-child > div > * {
+  margin: 0;
+}
+
+html.mobile-game-ui .offline-lobby__teams > div:first-child > div > div:last-child,
+html.mobile-game-ui .offline-lobby__teams > div:last-child > div > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+}
+
+html.mobile-game-ui .offline-lobby__teams > div:first-child > div > div:last-child > div,
+html.mobile-game-ui .offline-lobby__teams > div:last-child > div > div:last-child > div {
+  min-width: 0;
+  gap: 3px;
+  padding: 2px;
+}
+
+html.mobile-game-ui .offline-lobby__teams > div:first-child > div > div:last-child > div > div:first-child,
+html.mobile-game-ui .offline-lobby__teams > div:last-child > div > div:last-child > div > div:first-child {
+  width: 16px;
+  height: 16px;
+}
+
+html.mobile-game-ui .offline-lobby__teams > div:first-child > div > div:last-child > div > div:last-child,
+html.mobile-game-ui .offline-lobby__teams > div:last-child > div > div:last-child > div > div:last-child {
+  font-size: 7px;
+  line-height: 1;
+}
+
+html.mobile-game-ui .offline-lobby__map {
+  grid-column: 1;
+  grid-row: 3;
+  width: 100%;
+  max-width: none;
+  padding: 4px;
+  gap: 6px;
+}
+
+html.mobile-game-ui .offline-lobby__map > svg {
+  width: 14px;
+  height: 14px;
+}
+
+html.mobile-game-ui .offline-lobby__map p,
+html.mobile-game-ui .offline-lobby__map > div > div:last-child {
+  display: none;
+}
+
+html.mobile-game-ui .offline-lobby__start {
+  padding-top: 0;
+}
+
+html.mobile-game-ui .offline-lobby__start > button {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+html.mobile-game-ui .matchmaker__shell {
+  min-height: 0;
+  height: 100%;
+  padding: 6px;
+}
+
+html.mobile-game-ui .matchmaker__card {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: 100%;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) minmax(150px, 0.7fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: center;
+  justify-items: stretch;
+  gap: 8px;
+  padding: 10px;
+}
+
+html.mobile-game-ui .matchmaker__avatar {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  justify-self: center;
+  margin: 0;
+}
+
+html.mobile-game-ui .matchmaker__avatar > div:nth-child(2) {
+  width: 56px;
+  height: 56px;
+}
+
+html.mobile-game-ui .matchmaker__title {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+}
+
+html.mobile-game-ui .matchmaker__phase {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  max-height: 100%;
+  overflow: auto;
+  margin: 0;
+  padding: 8px;
+}
+
+html.mobile-game-ui .matchmaker__actions {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  margin: 0;
+}
+
+html.mobile-game-ui .matchmaker__phase .grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+html.mobile-game-ui .matchmaker__phase .grid > div {
+  min-width: 0;
+  padding: 3px;
+}
+
+html.mobile-game-ui .matchmaker__phase > div:first-child {
+  padding: 4px 6px;
+}
+
+html.mobile-game-ui .matchmaker__phase > div:first-child > div:last-child {
+  font-size: 18px;
+  line-height: 1;
+}
+
+html.mobile-game-ui .matchmaker__phase .grid > div > div:first-child {
+  width: 20px;
+  height: 20px;
+}
+
+html.mobile-game-ui .matchmaker__actions > button {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  font-size: 10px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div {
+  grid-column: auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+html.mobile-game-ui .operator-setup__content {
+  padding: 6px;
+}
+
+html.mobile-game-ui .operator-setup__card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  max-height: 100%;
+}
+
+html.mobile-game-ui .operator-setup__card > div:first-child {
+  padding: 6px 12px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:first-child .display {
+  font-size: 16px;
+  line-height: 1;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) {
+  min-height: 0;
+  gap: 8px;
+  padding: 8px 12px;
+  overflow: hidden;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:first-child > div:first-child {
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:first-child > div:nth-child(2) {
+  margin-top: 8px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:first-child > div:nth-child(2) > label {
+  margin-bottom: 4px;
+}
+
+html.mobile-game-ui .operator-setup__card input,
+html.mobile-game-ui .operator-setup__card select {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 11px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:last-child > div {
+  padding: 8px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:last-child > div > div:nth-child(2) {
+  margin-top: 4px;
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:last-child > div > div:nth-child(3) {
+  margin-top: 6px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:nth-child(2) > div:last-child button {
+  margin-top: 8px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+html.mobile-game-ui .operator-setup__card > div:last-child {
+  padding: 5px 12px;
+  font-size: 8px;
+}
+
+html.mobile-game-ui .home-settings-menu {
+  top: calc(100% + 4px);
+  max-height: calc(100dvh - 56px);
 }

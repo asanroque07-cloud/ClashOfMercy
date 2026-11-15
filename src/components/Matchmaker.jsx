@@ -165,13 +165,13 @@ export function Matchmaker({
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[60vh] select-none text-stone-100">
-      <div className="w-full max-w-lg bg-stone-950 border border-military-active p-8 rounded-lg shadow-2xl relative overflow-hidden flex flex-col items-center">
+    <div className="matchmaker__shell flex items-center justify-center min-h-[60vh] select-none text-stone-100">
+      <div className="matchmaker__card w-full max-w-lg bg-stone-950 border border-military-active p-8 rounded-lg shadow-2xl relative overflow-hidden flex flex-col items-center">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(118,160,53,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(118,160,53,0.015)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
         <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#76a035] to-transparent animate-pulse" />
 
         {/* Avatar */}
-        <div className="relative mb-6">
+        <div className="matchmaker__avatar relative mb-6">
           <div className="absolute inset-0 -m-4 border border-military/15 rounded-full animate-ping" />
           <div className="w-24 h-24 rounded-full border-2 border-military-active overflow-hidden relative bg-stone-900 z-10">
             <img
@@ -189,7 +189,7 @@ export function Matchmaker({
         </div>
 
         {/* Title */}
-        <div className="text-center font-mono space-y-1.5 mb-6 z-10">
+        <div className="matchmaker__title text-center font-mono space-y-1.5 mb-6 z-10">
           <h2 className="text-sm font-bold text-stone-400 uppercase tracking-widest leading-none">
             {status === "searching" && "Lobby Matchmaking"}
             {status === "lobby" && "Match Found — Ready Up!"}
@@ -205,7 +205,7 @@ export function Matchmaker({
 
         {/* Searching phase */}
         {status === "searching" && (
-          <div className="bg-stone-900/60 border border-military/60 px-8 py-3 rounded mb-8 text-center min-w-[140px] font-mono shadow-inner z-10 relative">
+          <div className="matchmaker__phase bg-stone-900/60 border border-military/60 px-8 py-3 rounded mb-8 text-center min-w-[140px] font-mono shadow-inner z-10 relative">
             <div className="text-[10px] text-stone-500 font-bold tracking-wider leading-none mb-1">
               PLAYERS FOUND
             </div>
@@ -220,7 +220,7 @@ export function Matchmaker({
 
         {/* Lobby phase — all 10 found */}
         {status === "lobby" && (
-          <div className="w-full mb-6 z-10 space-y-3">
+          <div className="matchmaker__phase w-full mb-6 z-10 space-y-3">
             <div className="bg-stone-900/60 border border-military/60 px-6 py-2 rounded text-center font-mono">
               <div className="text-[10px] text-stone-500 font-bold tracking-wider mb-0.5">
                 PLAYERS FOUND
@@ -262,7 +262,7 @@ export function Matchmaker({
 
         {/* Entering phase — countdown + who has entered */}
         {status === "entering" && (
-          <div className="w-full mb-6 z-10 space-y-3">
+          <div className="matchmaker__phase w-full mb-6 z-10 space-y-3">
             <div className="flex items-center justify-between bg-stone-900/60 border border-military/60 px-4 py-2 rounded font-mono">
               <div className="text-center">
                 <div className="text-[9px] text-stone-500 font-bold tracking-wider">
@@ -330,7 +330,7 @@ export function Matchmaker({
 
         {/* Cancelled */}
         {status === "cancelled" && (
-          <div className="mb-8 text-center z-10 space-y-2">
+          <div className="matchmaker__phase mb-8 text-center z-10 space-y-2">
             <div className="text-red-400 text-4xl">✗</div>
             <div className="font-mono text-sm font-bold text-red-400 tracking-wider">
               MATCH CANCELLED
@@ -344,7 +344,7 @@ export function Matchmaker({
         )}
 
         {/* Actions */}
-        <div className="w-full space-y-3 z-10 mt-2">
+        <div className="matchmaker__actions w-full space-y-3 z-10 mt-2">
           {status === "searching" && (
             <button
               onClick={handleCancel}
