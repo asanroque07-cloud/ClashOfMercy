@@ -844,9 +844,6 @@ export default function App() {
     setTeamConfig(null);
     setScreen("home");
     void onlineMatch.leaveRoom();
-    if (document.fullscreenElement) {
-      document.exitFullscreen?.().catch(() => {});
-    }
     pushAlert({
       message: "Returned to HQ.",
       type: "info",
