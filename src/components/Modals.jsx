@@ -85,8 +85,8 @@ export function LoadoutModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
-      <div className="w-full max-w-4xl bg-stone-950 border border-military-active text-stone-100 rounded-lg overflow-hidden flex flex-col max-h-[88vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-2 sm:p-4 short:p-2">
+      <div className="w-full max-w-4xl bg-stone-950 border border-military-active text-stone-100 rounded-lg overflow-hidden flex flex-col max-h-full">
         {/* Header */}
         <div className="p-4 bg-zinc-900/90 border-b border-military flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -482,8 +482,8 @@ export function StoreModal({
     type === "coins" ? coins >= cost : diamonds >= cost;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
-      <div className="w-full max-w-5xl bg-stone-950 border border-military-active text-stone-100 rounded-lg overflow-hidden flex flex-col max-h-[88vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-2 sm:p-4 short:p-2">
+      <div className="w-full max-w-5xl bg-stone-950 border border-military-active text-stone-100 rounded-lg overflow-hidden flex flex-col max-h-full">
         <div className="p-4 bg-zinc-900/90 border-b border-military flex flex-wrap justify-between items-center gap-3">
           <div className="flex items-center gap-3">
             <Shield className="text-amber-500 w-6 h-6 animate-pulse" />
@@ -751,8 +751,8 @@ export function StoreModal({
 export function HistoryModal({ isOpen, onClose, matches, onClearHistory }) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
-      <div className="w-full max-w-3xl bg-stone-950 border border-military-active text-stone-100 rounded-lg overflow-hidden flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-2 sm:p-4 short:p-2">
+      <div className="w-full max-w-3xl bg-stone-950 border border-military-active text-stone-100 rounded-lg overflow-hidden flex flex-col max-h-full">
         <div className="p-4 bg-zinc-900/90 border-b border-military flex justify-between items-center">
           <div className="flex items-center gap-3">
             <Trophy className="text-[#76a035] w-6 h-6" />
@@ -980,8 +980,8 @@ export function MenuModal({ isOpen, onClose, profile, onUpdateProfile }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-stone-950 border border-military-active text-stone-100 rounded-lg overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-2 sm:p-4 short:p-2">
+      <div className="w-full max-w-lg bg-stone-950 border border-military-active text-stone-100 rounded-lg overflow-hidden flex flex-col max-h-full">
         {/* Header */}
         <div className="p-4 bg-zinc-900/90 border-b border-military flex justify-between items-center">
           <div className="flex items-center gap-3">

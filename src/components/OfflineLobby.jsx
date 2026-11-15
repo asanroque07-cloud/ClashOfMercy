@@ -209,7 +209,7 @@ export function OfflineLobby({
   void activeWeapon;
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4 w-full select-none animate-in fade-in duration-300 text-stone-100">
+    <div className="h-full min-h-0 overflow-y-auto flex flex-col gap-4 short:gap-2.5 w-full select-none animate-in fade-in duration-300 text-stone-100">
       {/* ── Bot Setup Panel ── */}
       <div className="lobby-panel flex-1 min-h-0 flex flex-col">
         <div className="lobby-panel-header">

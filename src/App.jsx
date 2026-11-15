@@ -547,11 +547,11 @@ export default function App() {
         />
 
         {/* Alert toasts */}
-        <div className="fixed top-20 right-4 z-[100] space-y-2 pointer-events-none">
+        <div className="fixed top-14 right-3 z-[100] space-y-2 pointer-events-none">
           {alerts.map((a) => (
             <div
               key={a.id}
-              className={`alert-slide-in px-4 py-2.5 rounded border font-mono text-xs font-bold shadow-xl max-w-xs ${
+              className={`alert-slide-in px-3 py-2 rounded border font-mono text-xs font-bold shadow-xl max-w-xs ${
                 a.type === "success"
                   ? "bg-emerald-950 border-emerald-500 text-emerald-300"
                   : a.type === "error"
@@ -596,8 +596,8 @@ export default function App() {
           )}
 
           {screen === "rank" && (
-            <div className="screen-shell p-4 md:p-5 grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-8 xl:col-span-9 min-h-0">
+            <div className="screen-shell p-2.5 md:p-4 grid grid-cols-[minmax(0,1fr)_170px] sm:grid-cols-[minmax(0,1fr)_190px] md:grid-cols-[minmax(0,1fr)_230px] xl:grid-cols-[minmax(0,1fr)_300px] gap-2.5 md:gap-3">
+              <div className="min-h-0">
                 <RankLobby
                   profile={lobbyProfile}
                   friends={friends}
@@ -610,9 +610,9 @@ export default function App() {
                   onLaunchQueue={handleLaunchRankQueue}
                 />
               </div>
-              <div className="md:col-span-4 xl:col-span-3 min-h-0">
+              <div className="min-h-0">
                 <div className="bg-stone-950/80 border border-military text-stone-100 flex flex-col h-full rounded overflow-hidden shadow-2xl">
-                  <div className="p-3 bg-zinc-900/60 border-b border-military text-[#76a035] text-xs font-mono font-black uppercase tracking-widest">
+                  <div className="px-3 py-2 bg-zinc-900/60 border-b border-military text-[#76a035] text-[10px] font-mono font-black uppercase tracking-widest">
                     SQUAD INVITE
                   </div>
                   <div className="flex-1 overflow-y-auto p-2 space-y-2">
@@ -631,7 +631,7 @@ export default function App() {
                           <button
                             onClick={() => handleInviteToSquad(friend)}
                             disabled={!!squad.find((s) => s.id === friend.id)}
-                            className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded border transition-all ${
+                            className={`text-[9px] font-mono font-bold uppercase px-2.5 py-1.5 rounded border transition-all ${
                               squad.find((s) => s.id === friend.id)
                                 ? "border-stone-700 text-stone-600 cursor-not-allowed"
                                 : "border-military-active text-[#76a035] hover:bg-[#76a035] hover:text-black cursor-pointer"
@@ -657,8 +657,8 @@ export default function App() {
           )}
 
           {screen === "classic" && (
-            <div className="screen-shell p-4 md:p-5 grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-8 xl:col-span-9 min-h-0">
+            <div className="screen-shell p-2.5 md:p-4 grid grid-cols-[minmax(0,1fr)_170px] sm:grid-cols-[minmax(0,1fr)_190px] md:grid-cols-[minmax(0,1fr)_230px] xl:grid-cols-[minmax(0,1fr)_300px] gap-2.5 md:gap-3">
+              <div className="min-h-0">
                 <ClassicLobby
                   profile={lobbyProfile}
                   friends={friends}
@@ -670,9 +670,9 @@ export default function App() {
                   onFindMatch={handleLaunchClassicQueue}
                 />
               </div>
-              <div className="md:col-span-4 xl:col-span-3 min-h-0">
+              <div className="min-h-0">
                 <div className="bg-stone-950/80 border border-military text-stone-100 flex flex-col h-full rounded overflow-hidden shadow-2xl">
-                  <div className="p-3 bg-zinc-900/60 border-b border-military text-[#76a035] text-xs font-mono font-black uppercase tracking-widest">
+                  <div className="px-3 py-2 bg-zinc-900/60 border-b border-military text-[#76a035] text-[10px] font-mono font-black uppercase tracking-widest">
                     SQUAD INVITE
                   </div>
                   <div className="flex-1 overflow-y-auto p-2 space-y-2">
@@ -691,7 +691,7 @@ export default function App() {
                           <button
                             onClick={() => handleInviteToSquad(friend)}
                             disabled={!!squad.find((s) => s.id === friend.id)}
-                            className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded border transition-all ${
+                            className={`text-[9px] font-mono font-bold uppercase px-2.5 py-1.5 rounded border transition-all ${
                               squad.find((s) => s.id === friend.id)
                                 ? "border-stone-700 text-stone-600 cursor-not-allowed"
                                 : "border-military-active text-[#76a035] hover:bg-[#76a035] hover:text-black cursor-pointer"

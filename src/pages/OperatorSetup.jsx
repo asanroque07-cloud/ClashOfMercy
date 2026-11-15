@@ -69,10 +69,10 @@ export default function OperatorSetup({
       <div className="absolute inset-0 pointer-events-none opacity-60 bg-[linear-gradient(to_right,rgba(118,160,53,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(118,160,53,0.05)_1px,transparent_1px)] bg-[size:28px_28px]" />
 
       {/* Content */}
-      <div className="relative h-full w-full flex items-center justify-center p-5">
-        <div className="w-full max-w-2xl border border-military bg-stone-950/70 backdrop-blur-sm shadow-2xl rounded overflow-hidden">
-          <div className="px-5 py-4 border-b border-military bg-zinc-900/50">
-            <div className="display text-[#76a035] text-2xl tracking-widest uppercase">
+      <div className="relative h-full w-full overflow-y-auto flex items-center justify-center p-3 short:p-2">
+        <div className="w-full max-w-2xl my-auto border border-military bg-stone-950/70 backdrop-blur-sm shadow-2xl rounded overflow-hidden">
+          <div className="px-4 py-3 short:py-2 border-b border-military bg-zinc-900/50">
+            <div className="display text-[#76a035] text-xl md:text-2xl tracking-widest uppercase">
               OP:WARTACTICS
             </div>
             <div className="font-mono text-[10px] text-stone-400 tracking-widest uppercase mt-1">
@@ -80,14 +80,14 @@ export default function OperatorSetup({
             </div>
           </div>
 
-          <div className="p-5 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-5">
-            <div className="md:col-span-7">
+          <div className="p-4 short:p-3 grid grid-cols-12 gap-4">
+            <div className="col-span-7">
               <div className="font-mono text-xs text-stone-300 leading-relaxed">
                 Enter your callsign and choose your country. This will be used
                 in the lobby and during matches.
               </div>
 
-              <div className="mt-5 space-y-4">
+              <div className="mt-4 short:mt-2.5 space-y-3 short:space-y-2">
                 <label className="block">
                   <div className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-widest text-stone-400 mb-2">
                     <User size={14} className="text-[#76a035]" />
@@ -144,7 +144,7 @@ export default function OperatorSetup({
               </div>
             </div>
 
-            <div className="md:col-span-5">
+            <div className="col-span-5">
               <div className="h-full border border-military/60 bg-black/30 rounded p-4">
                 <div className="text-[10px] font-mono font-black text-[#76a035] uppercase tracking-widest">
                   Mission briefing
@@ -168,7 +168,7 @@ export default function OperatorSetup({
                   type="button"
                   disabled={!canContinue}
                   onClick={() => onComplete(name.trim(), resolvedCountry)}
-                  className={`mt-6 w-full py-2.5 rounded border font-mono font-bold uppercase tracking-widest text-xs transition-all ${
+                  className={`mt-4 short:mt-3 w-full py-3 rounded border font-mono font-bold uppercase tracking-widest text-xs transition-all ${
                     canContinue
                       ? "border-military-active bg-[#76a035]/15 text-[#76a035] hover:bg-[#76a035] hover:text-black cursor-pointer"
                       : "border-stone-800 bg-stone-900/30 text-stone-600 cursor-not-allowed"

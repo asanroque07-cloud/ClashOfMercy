@@ -165,15 +165,15 @@ export function Matchmaker({
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[60vh] select-none text-stone-100">
-      <div className="w-full max-w-lg bg-stone-950 border border-military-active p-8 rounded-lg shadow-2xl relative overflow-hidden flex flex-col items-center">
+    <div className="h-full min-h-0 overflow-y-auto flex items-center justify-center select-none text-stone-100 py-2">
+      <div className="w-full max-w-lg bg-stone-950 border border-military-active p-8 rounded-lg shadow-2xl relative overflow-hidden flex flex-col items-center my-auto short:p-4">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(118,160,53,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(118,160,53,0.015)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
         <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#76a035] to-transparent animate-pulse" />
 
         {/* Avatar */}
-        <div className="relative mb-6">
+        <div className="relative mb-6 short:mb-3">
           <div className="absolute inset-0 -m-4 border border-military/15 rounded-full animate-ping" />
-          <div className="w-24 h-24 rounded-full border-2 border-military-active overflow-hidden relative bg-stone-900 z-10">
+          <div className="w-24 h-24 short:w-16 short:h-16 rounded-full border-2 border-military-active overflow-hidden relative bg-stone-900 z-10">
             <img
               src={currentAvatar.url}
               alt="Profile"
@@ -189,7 +189,7 @@ export function Matchmaker({
         </div>
 
         {/* Title */}
-        <div className="text-center font-mono space-y-1.5 mb-6 z-10">
+        <div className="text-center font-mono space-y-1.5 mb-6 short:mb-3 z-10">
           <h2 className="text-sm font-bold text-stone-400 uppercase tracking-widest leading-none">
             {status === "searching" && "Lobby Matchmaking"}
             {status === "lobby" && "Match Found — Ready Up!"}

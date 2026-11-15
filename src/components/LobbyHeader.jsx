@@ -102,144 +102,148 @@ export function LobbyHeader({
   const rankBadge = getRankStats(profile.rankName);
 
   return (
-    <div className="px-3 py-2.5 bg-stone-950/95 border-b border-military flex flex-col md:flex-row gap-3 md:gap-0 justify-between items-center select-none shadow-lg relative z-20">
+    <header className="px-3 py-2 short:py-1.5 bg-stone-950/95 border-b border-military flex flex-row gap-2 justify-between items-center select-none shadow-lg relative z-20 flex-shrink-0">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(118,160,53,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(118,160,53,0.02)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
       <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#76a035]/40 to-transparent pointer-events-none" />
 
-      <div className="flex items-center gap-3 w-full md:w-auto">
+      <div className="flex items-center gap-2.5 min-w-0 relative">
         {/* Avatar — opens profile modal */}
-        <div
+        <button
+          type="button"
           onClick={onOpenSettings}
           className="relative group cursor-pointer flex-shrink-0"
-          title="Commander Profile"
+          aria-label="Open commander profile"
         >
           <div
-            className={`w-11 h-11 rounded border-2 ${borderClass} group-hover:border-emerald-500 overflow-hidden transition-all bg-stone-900`}
+            className={`w-10 h-10 short:w-9 short:h-9 rounded border-2 ${borderClass} group-hover:border-emerald-500 overflow-hidden transition-all bg-stone-900`}
           >
             <img
               src={avatar.url}
-              alt={profile.name}
+              alt=""
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
             />
           </div>
-          <div className="absolute -bottom-1 -right-1 bg-black text-emerald-400 border border-[#76a035] font-mono text-[9px] px-1 font-bold rounded">
+          <div className="absolute -bottom-1 -right-1 bg-black text-emerald-400 border border-[#76a035] font-mono text-[8px] px-1 font-bold rounded">
             L{profile.level}
           </div>
           <span className="absolute -top-1 -left-1 flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
-        </div>
+        </button>
 
-        <div>
-          <div className="flex items-center gap-2">
-            {activeScreen === "home" ? (
-              <h1 className="text-lg md:text-2xl font-display font-extrabold tracking-widest text-[#76a035] glow-green uppercase">
-                OT:WARTACTICS
+        <div className="min-w-0">
+          {activeScreen === "home" ? (
+            <h1 className="text-base md:text-xl font-display tracking-widest text-[#76a035] glow-green uppercase leading-none truncate">
+              OT:WARTACTICS
+            </h1>
+          ) : (
+            <div className="flex items-center gap-1 min-w-0">
+              <button
+                type="button"
+                onClick={() => onChangeScreen("home")}
+                className="text-stone-500 hover:text-stone-300 cursor-pointer text-[10px] font-mono font-bold uppercase transition-colors"
+              >
+                LOBBY
+              </button>
+              <ChevronRight size={12} className="text-stone-600 flex-shrink-0" aria-hidden="true" />
+              <h1 className="text-base md:text-xl font-display tracking-widest text-[#76a035] glow-green uppercase leading-none truncate">
+                {activeScreen === "rank"
+                  ? "RANK"
+                  : activeScreen === "offline"
+                    ? "OFFLINE"
+                    : activeScreen === "classic"
+                      ? "CLASSIC"
+                      : activeScreen === "custom"
+                        ? "CUSTOM"
+                        : "QUEUEING"}
               </h1>
-            ) : (
-              <div className="flex items-center gap-1">
-                <span
-                  onClick={() => onChangeScreen("home")}
-                  className="text-stone-500 hover:text-stone-300 cursor-pointer text-xs font-mono font-bold uppercase transition-colors"
-                >
-                  LOBBY
-                </span>
-                <ChevronRight size={14} className="text-stone-600" />
-                <h1 className="text-lg md:text-2xl font-display font-extrabold tracking-widest text-[#76a035] glow-green uppercase">
-                  {activeScreen === "rank"
-                    ? "RANK"
-                    : activeScreen === "offline"
-                      ? "OFFLINE"
-                      : activeScreen === "classic"
-                        ? "CLASSIC"
-                        : activeScreen === "custom"
-                          ? "CUSTOM"
-                          : "QUEUEING"}
-                </h1>
-              </div>
-            )}
-          </div>
-          <p
+            </div>
+          )}
+          <button
+            type="button"
             onClick={onOpenSettings}
-            className="text-[10px] font-mono text-stone-400 tracking-wider hover:text-white cursor-pointer uppercase"
+            className="block mt-1 text-[9px] font-mono text-stone-400 tracking-wider hover:text-white cursor-pointer uppercase truncate max-w-[160px]"
           >
             CMD: {profile.name}
-          </p>
+          </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap md:flex-nowrap items-center justify-between md:justify-end gap-2.5 w-full md:w-auto mt-2 md:mt-0">
-        <div
+      <div className="flex flex-nowrap items-center justify-end gap-1.5 sm:gap-2 relative flex-shrink-0">
+        <button
+          type="button"
           onClick={onOpenSettings}
-          className={`flex items-center gap-2 bg-white/5 border px-2.5 py-1.5 rounded cursor-pointer hover:bg-white/10 transition-colors ${rankBadge.color}`}
+          className={`flex items-center gap-1.5 bg-white/5 border px-2 h-9 rounded cursor-pointer hover:bg-white/10 transition-colors ${rankBadge.color}`}
+          aria-label={`Rank ${profile.rankName} ${profile.rankTier}`}
         >
-          <Award size={15} className="animate-pulse" />
+          <Award size={14} aria-hidden="true" />
           <div className="font-mono text-left">
-            <div className="text-[9px] text-stone-400 font-bold leading-none uppercase">
-              RANK BADGE
+            <div className="text-[8px] text-stone-400 font-bold leading-none uppercase short:hidden">
+              RANK
             </div>
-            <div className="text-xs font-bold leading-tight flex items-center gap-1">
+            <div className="text-[11px] font-bold leading-tight flex items-center gap-1">
               <span>{profile.rankName}</span>
               <span className="text-emerald-400 text-[10px]">
                 {profile.rankTier}
               </span>
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="flex items-center gap-2 bg-white/5 border border-amber-500/20 px-2.5 py-1.5 rounded relative group overflow-hidden">
-          <Coins className="text-amber-500 w-4 h-4" />
-          <div className="font-mono text-left min-w-[70px]">
-            <div className="text-[9px] text-stone-400 font-bold leading-none uppercase">
-              COIN RESERVES
+        <div className="flex items-center gap-1.5 bg-white/5 border border-amber-500/20 pl-2 h-9 rounded overflow-hidden">
+          <Coins className="text-amber-500 w-3.5 h-3.5" aria-hidden="true" />
+          <div className="font-mono text-left">
+            <div className="text-[8px] text-stone-400 font-bold leading-none uppercase short:hidden">
+              COINS
             </div>
-            <div className="text-xs font-bold text-amber-400 leading-tight">
+            <div className="text-[11px] font-bold text-amber-400 leading-tight tabular-nums">
               ${profile.coins.toLocaleString()}
             </div>
           </div>
           <button
+            type="button"
             onClick={() => onAddCurrency("coins", 2500)}
-            className="opacity-0 group-hover:opacity-100 absolute inset-y-0 right-0 bg-amber-500 hover:bg-amber-400 text-stone-900 w-6 flex items-center justify-center font-bold text-xs transition-opacity duration-200"
-            title="Add $2500"
+            className="h-full ml-0.5 bg-amber-500/15 hover:bg-amber-500 active:bg-amber-500 text-amber-400 hover:text-stone-900 active:text-stone-900 w-7 flex items-center justify-center font-bold text-sm transition-colors border-l border-amber-500/20"
+            aria-label="Add 2500 coins"
           >
             +
           </button>
         </div>
 
-        <div className="flex items-center gap-2 bg-white/5 border border-cyan-500/20 px-2.5 py-1.5 rounded relative group overflow-hidden">
-          <Sparkles className="text-cyan-400 w-4 h-4" />
-          <div className="font-mono text-left min-w-[50px]">
-            <div className="text-[9px] text-stone-400 font-bold leading-none uppercase">
+        <div className="flex items-center gap-1.5 bg-white/5 border border-cyan-500/20 pl-2 h-9 rounded overflow-hidden">
+          <Sparkles className="text-cyan-400 w-3.5 h-3.5" aria-hidden="true" />
+          <div className="font-mono text-left">
+            <div className="text-[8px] text-stone-400 font-bold leading-none uppercase short:hidden">
               DIAMONDS
             </div>
-            <div className="text-xs font-bold text-cyan-400 leading-tight">
+            <div className="text-[11px] font-bold text-cyan-400 leading-tight tabular-nums">
               {profile.diamonds.toLocaleString()}
             </div>
           </div>
           <button
+            type="button"
             onClick={() => onAddCurrency("diamonds", 50)}
-            className="opacity-0 group-hover:opacity-100 absolute inset-y-0 right-0 bg-cyan-500 hover:bg-cyan-400 text-stone-900 w-6 flex items-center justify-center font-bold text-xs transition-opacity duration-200"
-            title="Add 50 Diamonds"
+            className="h-full ml-0.5 bg-cyan-500/15 hover:bg-cyan-500 active:bg-cyan-500 text-cyan-400 hover:text-stone-900 active:text-stone-900 w-7 flex items-center justify-center font-bold text-sm transition-colors border-l border-cyan-500/20"
+            aria-label="Add 50 diamonds"
           >
             +
           </button>
         </div>
-
         {/* Menu button with dropdown */}
         <div className="flex-shrink-0 relative" ref={menuRef}>
           {activeScreen === "home" ? (
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className={`bg-white/5 hover:bg-[#76a035]/20 hover:border-[#76a035]/50 border border-military text-[#76a035] p-2 rounded transition-all flex items-center justify-center cursor-pointer h-[38px] w-[38px] ${menuOpen ? "bg-[#76a035]/20 border-[#76a035]/50" : ""}`}
+              className={`bg-white/5 hover:bg-[#76a035]/20 hover:border-[#76a035]/50 border border-military text-[#76a035] p-2 rounded transition-all flex items-center justify-center cursor-pointer h-9 w-9 ${menuOpen ? "bg-[#76a035]/20 border-[#76a035]/50" : ""}`}
             >
               <Menu size={18} />
             </button>
           ) : (
             <button
               onClick={() => onChangeScreen("home")}
-              className="bg-[#76a035]/10 hover:bg-[#76a035]/25 border border-military-active text-[#76a035] p-2 rounded transition-all flex items-center justify-center cursor-pointer h-[38px] w-[38px] animate-pulse"
+              className="bg-[#76a035]/10 hover:bg-[#76a035]/25 border border-military-active text-[#76a035] p-2 rounded transition-all flex items-center justify-center cursor-pointer h-9 w-9 animate-pulse"
             >
               <Home size={18} />
             </button>
@@ -247,7 +251,7 @@ export function LobbyHeader({
 
           {/* Settings dropdown */}
           {menuOpen && activeScreen === "home" && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-stone-950 border border-military rounded-lg shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute right-0 top-full mt-2 w-56 max-h-[calc(100cqh-64px)] overflow-y-auto bg-stone-950 border border-military rounded-lg shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-3 py-2 bg-zinc-900/80 border-b border-military/50">
                 <div className="text-[9px] font-mono font-black text-stone-500 uppercase tracking-widest">
                   SETTINGS
@@ -312,17 +316,16 @@ export function LobbyHeader({
                 </div>
                 <div className="font-mono text-[9px] text-stone-600 space-y-0.5 pl-5">
                   <div>
-                    <span className="text-stone-500">Move</span> — WASD / Arrow
-                    keys
+                    <span className="text-stone-500">Move</span> — Left pad
                   </div>
                   <div>
-                    <span className="text-stone-500">Aim</span> — Mouse
+                    <span className="text-stone-500">Jump / Crouch</span> — Up / Down
                   </div>
                   <div>
-                    <span className="text-stone-500">Fire</span> — Left click
+                    <span className="text-stone-500">Fire</span> — Big red button
                   </div>
                   <div>
-                    <span className="text-stone-500">Reload</span> — R key
+                    <span className="text-stone-500">Reload</span> — Right pad
                   </div>
                 </div>
               </div>
@@ -346,6 +349,6 @@ export function LobbyHeader({
           )}
         </div>
       </div>
-    </div>
+    </header>
   );
 }

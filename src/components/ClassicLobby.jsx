@@ -47,7 +47,7 @@ export function ClassicLobby({
   );
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4 w-full select-none animate-in fade-in duration-300">
+    <div className="h-full min-h-0 overflow-y-auto flex flex-col gap-4 short:gap-2.5 w-full select-none animate-in fade-in duration-300">
       {/* Classic banner */}
       <div className="lobby-panel flex items-center gap-3 px-4 py-3">
         <Crosshair size={20} className="text-amber-400 flex-shrink-0" />
@@ -74,13 +74,13 @@ export function ClassicLobby({
       {/* 5-player squad cards */}
       <div className="grid grid-cols-5 gap-2.5">
         {/* Leader slot */}
-        <div className="lobby-panel p-2.5 flex flex-col justify-between items-center text-center h-44 lg:h-48 relative overflow-hidden">
+        <div className="lobby-panel p-2.5 flex flex-col justify-between items-center text-center h-44 lg:h-48 short:h-40 relative overflow-hidden">
           <div className="absolute top-0 inset-x-0 h-[2px] bg-emerald-500" />
           <div className="text-[9px] font-mono font-black text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded uppercase tracking-wider">
             SQUAD LEADER
           </div>
           <div className="relative my-2">
-            <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-full border-2 border-emerald-500/60 overflow-hidden bg-stone-950">
+            <div className="w-14 h-14 lg:w-16 lg:h-16 short:w-11 short:h-11 rounded-full border-2 border-emerald-500/60 overflow-hidden bg-stone-950">
               <img
                 src={currentAvatar.url}
                 alt="Leader"
@@ -116,13 +116,13 @@ export function ClassicLobby({
             return (
               <div
                 key={member.id}
-                className="lobby-panel p-2.5 flex flex-col justify-between items-center text-center h-44 lg:h-48 relative group transition-all hover:border-emerald-500/40"
+                className="lobby-panel p-2.5 flex flex-col justify-between items-center text-center h-44 lg:h-48 short:h-40 relative group transition-all hover:border-emerald-500/40"
               >
                 <div className="text-[8px] font-mono font-bold bg-stone-950 px-1.5 py-0.5 border border-military/30 rounded uppercase tracking-wider text-stone-400 flex items-center gap-1">
                   <Users size={8} /> TEAMMATE
                 </div>
                 <div className="relative my-2">
-                  <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-full border border-military/60 overflow-hidden bg-stone-950">
+                  <div className="w-14 h-14 lg:w-16 lg:h-16 short:w-11 short:h-11 rounded-full border border-military/60 overflow-hidden bg-stone-950">
                     <img
                       src={mbAvatar.url}
                       alt={member.name}
@@ -148,7 +148,7 @@ export function ClassicLobby({
                 </div>
                 <button
                   onClick={() => onRemoveSquadMember(member.id)}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-red-950/40 border border-red-500/30 text-red-400 p-1 rounded hover:bg-red-500 hover:text-black transition-all cursor-pointer"
+                  className="absolute top-2 right-2 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 bg-red-950/40 border border-red-500/30 text-red-400 p-1 rounded hover:bg-red-500 hover:text-black transition-all cursor-pointer"
                 >
                   <UserMinus size={11} />
                 </button>
@@ -158,7 +158,7 @@ export function ClassicLobby({
           return (
             <div
               key={`empty-${index}`}
-              className="border-2 border-dashed border-military/40 bg-stone-900/5 hover:bg-stone-900/20 p-3 rounded flex flex-col items-center justify-center text-center h-44 lg:h-48 transition-all"
+              className="border-2 border-dashed border-military/40 bg-stone-900/5 hover:bg-stone-900/20 p-3 rounded flex flex-col items-center justify-center text-center h-44 lg:h-48 short:h-40 transition-all"
             >
               <Plus size={22} className="text-[#76a035]/40 mb-2 animate-pulse" />
               <span className="text-[10px] font-mono font-bold text-stone-500 uppercase leading-normal">
@@ -248,7 +248,7 @@ export function ClassicLobby({
       <div className="flex justify-center pt-1 mt-auto">
         <button
           onClick={onFindMatch}
-          className="lobby-btn-primary w-full md:w-1/2 flex items-center justify-center gap-3 text-base py-3.5 rounded-lg"
+          className="lobby-btn-primary w-full md:w-1/2 flex items-center justify-center gap-3 text-base py-3.5 short:py-2.5 rounded-lg flex-shrink-0"
         >
           🎯 Find Match
         </button>

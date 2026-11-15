@@ -87,7 +87,7 @@ export default function LoadingScreen({ onDone }) {
           phase === "sub" ||
           phase === "bar") && (
           <div
-            className="absolute top-6 right-6 z-30 font-mono text-[11px] font-black tracking-widest"
+            className="absolute top-4 right-4 z-30 font-mono text-[11px] font-black tracking-widest"
             style={{
               color: "oklch(0.70 0.18 130)",
               opacity: visible ? 0.95 : 0,
@@ -104,13 +104,13 @@ export default function LoadingScreen({ onDone }) {
           </div>
         )}
 
-      <div className="relative flex flex-col items-center gap-6 z-20">
+      <div className="relative flex flex-col items-center gap-6 short:gap-2 z-20 px-4">
         {(phase === "logo" ||
           phase === "title" ||
           phase === "sub" ||
           phase === "bar") && (
           <div
-            className="text-7xl mb-2"
+            className="text-7xl short:text-4xl mb-2 short:mb-0"
             style={{
               opacity: visible ? 1 : 0,
               transition: "opacity 0.5s ease",
@@ -177,7 +177,7 @@ export default function LoadingScreen({ onDone }) {
 
         {phase === "bar" && (
           <div
-            className="w-80 mt-4"
+            className="w-80 max-w-[80vw] mt-4 short:mt-1"
             style={{
               opacity: visible ? 1 : 0,
               transition: "opacity 0.3s ease",
