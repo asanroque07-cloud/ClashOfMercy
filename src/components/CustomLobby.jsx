@@ -25,7 +25,7 @@ const MAX_TEAM_SIZE = 5;
 const BOT_NAMES_BLUE = ["Ghost", "Viper", "Thorn", "Rook"];
 const BOT_NAMES_RED = ["Ares", "Blaze", "Reaper", "Spectre"];
 
-function PlayerSlot({ player, staggerRight, team, onRemove, isHost }) {
+function PlayerSlot({ player, team, onRemove, isHost }) {
   const borderColor =
     team === "alpha" ? "border-emerald-500/70" : "border-red-500/70";
   const bgColor = team === "alpha" ? "bg-emerald-950/40" : "bg-red-950/40";
@@ -34,16 +34,10 @@ function PlayerSlot({ player, staggerRight, team, onRemove, isHost }) {
     team === "alpha" ? "border-emerald-900/50" : "border-red-900/50";
 
   return (
-    <div
-      className={`flex ${team === "bravo" ? "justify-end" : "justify-start"}`}
-      style={{
-        paddingLeft: staggerRight && team === "alpha" ? "52px" : 0,
-        paddingRight: staggerRight && team === "bravo" ? "52px" : 0,
-      }}
-    >
+    <div className="flex justify-center">
       {player ? (
         <div
-          className={`relative w-[88px] h-[88px] border-2 ${borderColor} ${bgColor} rounded flex flex-col items-center justify-center gap-1 shadow-lg`}
+          className={`custom-lobby__slot relative w-[88px] h-[88px] border-2 ${borderColor} ${bgColor} rounded flex flex-col items-center justify-center gap-1 shadow-lg`}
         >
           <div
             className={`w-9 h-9 rounded-full border ${borderColor} flex items-center justify-center font-mono font-black text-lg ${textColor}`}
@@ -81,7 +75,7 @@ function PlayerSlot({ player, staggerRight, team, onRemove, isHost }) {
         </div>
       ) : (
         <div
-          className={`w-[88px] h-[88px] border-2 border-dashed ${emptyBorder} rounded flex items-center justify-center opacity-40`}
+          className={`custom-lobby__slot w-[88px] h-[88px] border-2 border-dashed ${emptyBorder} rounded flex items-center justify-center opacity-40`}
         >
           <span className="text-stone-600 text-2xl font-light">+</span>
         </div>
@@ -279,11 +273,11 @@ export function CustomLobby({
 
   return (
     <div
-      className="h-full min-h-0 overflow-hidden w-full select-none animate-in fade-in duration-300 text-stone-100"
+      className="custom-lobby h-full min-h-0 overflow-hidden w-full flex flex-col select-none animate-in fade-in duration-300 text-stone-100"
       style={{ background: "oklch(0.10 0.018 120)" }}
     >
       {/* Top header bar */}
-      <div className="flex items-center gap-0 border-b border-stone-800 bg-stone-950/70 px-4 py-2 mb-4">
+      <div className="custom-lobby__header flex flex-none items-center gap-0 border-b border-stone-800 bg-stone-950/70 px-4 py-2">
         <div className="font-mono font-black text-sm tracking-widest uppercase text-[#76a035] px-3 py-1 border border-[#76a035]/40 bg-[#76a035]/10 rounded mr-4">
           CUSTOM
         </div>
@@ -307,11 +301,11 @@ export function CustomLobby({
       </div>
 
       {/* Main content */}
-      <div className="flex gap-4 px-4 h-[calc(100%-56px)] min-h-0">
+      <div className="custom-lobby__main flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_240px] gap-3 px-3 py-3">
         {/* Team Alpha + VS + Team Bravo */}
-        <div className="flex-1 flex gap-0 items-stretch min-h-0">
+        <div className="custom-lobby__teams min-w-0 grid grid-cols-[minmax(0,1fr)_112px_minmax(0,1fr)] items-stretch min-h-0">
           {/* Team Alpha (left) */}
-          <div className="flex-1 flex flex-col justify-between py-3 min-h-0">
+          <div className="custom-lobby__team min-w-0 flex flex-col justify-between py-2 min-h-0">
             <div className="flex items-center justify-between mb-3">
               <div className="font-mono text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-1">
                 <Shield size={10} /> TEAM ALPHA
@@ -333,12 +327,11 @@ export function CustomLobby({
                 </button>
               </div>
             </div>
-            <div className="flex flex-col gap-3 flex-1 justify-center">
+            <div className="custom-lobby__roster flex flex-1 flex-wrap content-center justify-center gap-2 min-h-0 overflow-y-auto py-1">
               {teamAlpha.map((player, i) => (
                 <PlayerSlot
                   key={i}
                   player={player}
-                  staggerRight={i % 2 === 1}
                   team="alpha"
                   isHost={player?.isHost}
                   onRemove={
@@ -360,7 +353,7 @@ export function CustomLobby({
           </div>
 
           {/* VS center */}
-          <div className="flex flex-col items-center justify-center px-4 gap-4 min-w-[120px]">
+          <div className="custom-lobby__versus flex flex-col items-center justify-center px-2 gap-4 min-w-0">
             <div
               className="font-black text-5xl tracking-widest select-none"
               style={{
@@ -393,7 +386,7 @@ export function CustomLobby({
           </div>
 
           {/* Team Bravo (right) */}
-          <div className="flex-1 flex flex-col justify-between py-3 min-h-0">
+          <div className="custom-lobby__team min-w-0 flex flex-col justify-between py-2 min-h-0">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">
                 <button
@@ -415,12 +408,11 @@ export function CustomLobby({
                 TEAM BRAVO <Sword size={10} />
               </div>
             </div>
-            <div className="flex flex-col gap-3 flex-1 justify-center">
+            <div className="custom-lobby__roster flex flex-1 flex-wrap content-center justify-center gap-2 min-h-0 overflow-y-auto py-1">
               {teamBravo.map((player, i) => (
                 <PlayerSlot
                   key={i}
                   player={player}
-                  staggerRight={i % 2 === 1}
                   team="bravo"
                   onRemove={
                     player ? () => removeFromTeam("bravo", i) : undefined
@@ -440,7 +432,7 @@ export function CustomLobby({
         </div>
 
         {/* Right sidebar */}
-        <div className="w-56 flex flex-col gap-3 flex-shrink-0 min-h-0">
+        <div className="custom-lobby__sidebar min-w-0 flex flex-col gap-3 min-h-0">
           {/* Friend list */}
           <div className="flex-1 min-h-0 border border-stone-700 rounded overflow-hidden flex flex-col bg-stone-950/60">
             <div className="px-3 py-2 bg-stone-900/60 border-b border-stone-700 font-mono text-[10px] font-black uppercase tracking-widest text-stone-400 flex items-center gap-1">
