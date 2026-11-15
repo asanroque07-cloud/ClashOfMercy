@@ -1073,9 +1073,22 @@ html.mobile-game-ui .lobby-header__identity > div:first-of-type {
   height: 32px;
 }
 
+html.mobile-game-ui .lobby-header__identity > div:first-child > div:first-child {
+  width: 32px;
+  height: 32px;
+}
+
+html.mobile-game-ui .lobby-header__identity > div:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+}
+
 html.mobile-game-ui .lobby-header__identity h1 {
   font-size: 13px;
   line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 html.mobile-game-ui .lobby-header__economy {
