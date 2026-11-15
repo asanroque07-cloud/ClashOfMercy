@@ -61,7 +61,7 @@ export default function Home({
   }
 
   return (
-    <div className="h-full min-h-0 overflow-hidden p-4 md:p-5 grid grid-cols-1 md:grid-cols-12 gap-4 w-full">
+    <div className="h-full min-h-0 overflow-y-auto overscroll-contain p-2 sm:p-4 md:p-5 grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 w-full">
       {/* Main content */}
       <div className="md:col-span-8 xl:col-span-9 min-h-0 flex flex-col gap-4 overflow-hidden">
         {/* XP bar + status bar */}

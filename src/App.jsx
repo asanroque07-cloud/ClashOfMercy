@@ -102,7 +102,7 @@ export default function App() {
       // Only rotate phone/tablet-sized screens — never a desktop window that
       // merely happens to be narrow or has a touchscreen.
       const mobileSized = Math.max(w, h) <= 1400;
-      const shouldForce = Boolean(isTouchDevice) && portrait && mobileSized;
+      const shouldForce = screen === "game" && Boolean(isTouchDevice) && portrait && mobileSized;
       root.classList.toggle("force-landscape", shouldForce);
     };
 
@@ -118,36 +118,7 @@ export default function App() {
       window.removeEventListener("orientationchange", applyOrientation);
       root.classList.remove("force-landscape");
     };
-  }, []);
-
-  // Try to lock the screen to landscape on the first user gesture. Browsers
-  // require a gesture (and usually fullscreen) before honoring the lock, so we
-  // opportunistically request it once, then stop listening.
-  useEffect(() => {
-    let done = false;
-    const tryLock = async () => {
-      if (done) return;
-      done = true;
-      try {
-        if (!document.fullscreenElement) {
-          await document.documentElement.requestFullscreen?.();
-        }
-      } catch {
-        /* best effort */
-      }
-      try {
-        await window.screen?.orientation?.lock?.("landscape");
-      } catch {
-        /* best effort — CSS rotation fallback covers this */
-      }
-    };
-    window.addEventListener("pointerdown", tryLock, { once: true });
-    window.addEventListener("touchstart", tryLock, { once: true });
-    return () => {
-      window.removeEventListener("pointerdown", tryLock);
-      window.removeEventListener("touchstart", tryLock);
-    };
-  }, []);
+  }, [screen]);
 
   // this is for showing a short-lived toast message, which removes itself after 3.5 seconds
   const pushAlert = useCallback((alert) => {
