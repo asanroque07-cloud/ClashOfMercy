@@ -329,18 +329,35 @@ export function useOnlineMatch(user, displayName) {
 
   const leaveRoom = useCallback(async () => {
     const activeRoom = roomRef.current;
+    const activeChannel = roomChannel;
+    const userId = user?.id;
+
+    if (activeRoom?.role === "host") {
+      Array.from(inviteTeamsRef.current.keys()).forEach((invitedUserId) => {
+        void sendBroadcast(`game-invites:${invitedUserId}`, "cancel", {
+          roomId: activeRoom.id,
+        }).catch((cancelError) => {
+          setError(getErrorMessage(cancelError));
+        });
+      });
+    }
+    inviteTeamsRef.current.clear();
+    roomRef.current = null;
+    setRoom(null);
+    setRoomChannel(null);
+
     try {
-      if (roomChannel && activeRoom?.role === "guest" && user?.id) {
-        const status = await roomChannel.send({
+      if (activeChannel && activeRoom?.role === "guest" && userId) {
+        const status = await activeChannel.send({
           type: "broadcast",
           event: "leave",
-          payload: { userId: user.id },
+          payload: { userId },
         });
         if (status !== "ok") {
           setError("Could not notify the host that you left the match.");
         }
-      } else if (roomChannel && activeRoom?.role === "host") {
-        const status = await roomChannel.send({
+      } else if (activeChannel && activeRoom?.role === "host") {
+        const status = await activeChannel.send({
           type: "broadcast",
           event: "end",
           payload: { roomId: activeRoom.id },
@@ -352,18 +369,6 @@ export function useOnlineMatch(user, displayName) {
     } catch (leaveError) {
       setError(getErrorMessage(leaveError));
     }
-    if (activeRoom?.role === "host") {
-      Array.from(inviteTeamsRef.current.keys()).forEach((userId) => {
-        void sendBroadcast(`game-invites:${userId}`, "cancel", {
-          roomId: activeRoom.id,
-        }).catch((cancelError) => {
-          setError(getErrorMessage(cancelError));
-        });
-      });
-    }
-    inviteTeamsRef.current.clear();
-    setRoom(null);
-    setRoomChannel(null);
   }, [roomChannel, user?.id]);
   leaveRoomRef.current = leaveRoom;
 
