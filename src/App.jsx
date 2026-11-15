@@ -102,7 +102,7 @@ export default function App() {
       // Only rotate phone/tablet-sized screens — never a desktop window that
       // merely happens to be narrow or has a touchscreen.
       const mobileSized = Math.max(w, h) <= 1400;
-      const shouldForce = screen === "game" && Boolean(isTouchDevice) && portrait && mobileSized;
+      const shouldForce = Boolean(isTouchDevice) && portrait && mobileSized;
       root.classList.toggle("force-landscape", shouldForce);
     };
 
