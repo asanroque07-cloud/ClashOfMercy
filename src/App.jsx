@@ -2,7 +2,13 @@
 // player is looking at (home, lobby, live match, etc.) and all of their saved
 // data (profile, friends, shop, match history). Every other screen is a smaller
 // component that App shows and hands data/handlers to.
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { flushSync } from "react-dom";
 import { useCloudAccount } from "@/hooks/useCloudAccount";
 import { useOnlineMatch } from "@/hooks/useOnlineMatch";
@@ -423,7 +429,8 @@ export default function App() {
     onlineMatch.room?.status,
   ]);
 
-  useEffect(() => {
+  // Avoid painting a guest game frame after its host has already ended the room.
+  useLayoutEffect(() => {
     const previousRoom = previousOnlineRoomRef.current;
     previousOnlineRoomRef.current = onlineMatch.room;
     if (
