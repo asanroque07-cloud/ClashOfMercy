@@ -13,8 +13,7 @@ import {
 } from "../lib/gameTypes";
 import { addMatch } from "../lib/storage";
 import {
-  DEFAULT_TOUCH_LAYOUT,
-  clampTouchOffset,
+  getTouchControlPosition,
   loadTouchLayout,
   saveTouchLayout,
 } from "../lib/touchControls";
@@ -947,9 +946,7 @@ export default function GameCanvas({
   const [pressedControls, setPressedControls] = useState({});
   const [moveStick, setMoveStick] = useState({ x: 0, y: 0, active: false });
   const [aimStick, setAimStick] = useState({ x: 0, y: 0, active: false });
-  const [editingControls, setEditingControls] = useState(false);
   const [touchLayout, setTouchLayout] = useState(loadTouchLayout);
-  const controlDragRef = useRef(null);
   const showTouchControls = isTouchDevice || viewport.width <= 900;
   // The app auto-rotates into landscape at the root (see App.jsx), so the
   // in-match "rotate to fight" prompt is no longer required.
@@ -4898,90 +4895,22 @@ export default function GameCanvas({
     [ensureAudioUnlocked, requestImmersiveMode, runPlayerAction],
   );
 
-  const startControlDrag = (event) => {
-    if (!editingControls) return;
-    const target = event.target.closest("[data-control-id]");
-    if (!target || !event.currentTarget.contains(target)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    target.setPointerCapture(event.pointerId);
-    const id = target.dataset.controlId;
-    controlDragRef.current = {
-      id,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      origin: touchLayout.positions[id] || { x: 0, y: 0 },
-    };
-  };
-
-  const moveControlDrag = (event) => {
-    const drag = controlDragRef.current;
-    if (!editingControls || !drag || drag.pointerId !== event.pointerId)
-      return;
-    event.preventDefault();
-    event.stopPropagation();
-    const position = {
-      x: clampTouchOffset(
-        drag.origin.x + (event.clientX - drag.startX) / window.innerWidth,
-      ),
-      y: clampTouchOffset(
-        drag.origin.y + (event.clientY - drag.startY) / window.innerHeight,
-      ),
-    };
-    setTouchLayout((current) => ({
-      ...current,
-      positions: {
-        ...current.positions,
-        [drag.id]: position,
-      },
-    }));
-  };
-
-  const finishControlDrag = (event) => {
-    if (controlDragRef.current?.pointerId !== event.pointerId) return;
-    event.stopPropagation();
-    controlDragRef.current = null;
-  };
-
   const touchControlStyle = (id) => {
     const position = touchLayout.positions[id] || { x: 0, y: 0 };
+    const controlPosition = getTouchControlPosition(id, position);
     return {
-      translate: `${position.x * 100}vw ${position.y * 100}vh`,
+      left: `${controlPosition.x * 100}%`,
+      top: `${controlPosition.y * 100}%`,
       "--touch-control-scale": String(touchLayout.scale),
-      cursor: editingControls ? "grab" : undefined,
     };
   };
 
   return (
     <div className="game-frame">
       <div
-        className="flex items-center justify-between gap-3 px-3 py-2 text-xs border-b border-[#1a2a1a]"
-        style={{ background: "#0a0a0a" }}
+        className="game-toolbar flex items-center justify-end gap-2 px-3 py-2 text-xs"
       >
-        <div className="min-w-0">
-          <div
-            className="display text-sm"
-            style={{ color: "oklch(0.70 0.18 130)" }}
-          >
-            ⚔ OP:WARTACTICS
-          </div>
-          <div className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.2em]">
-            {mapDef.name} · {mode}
-          </div>
-        </div>
         <div className="flex items-center gap-2">
-          {showTouchControls && (
-            <button
-              type="button"
-              aria-label="Controller settings"
-              title="Configure controller layout"
-              onClick={() => setEditingControls((editing) => !editing)}
-              className={`game-toolbar-button ${editingControls ? "game-toolbar-button--primary" : ""}`}
-            >
-              Controls
-            </button>
-          )}
           <button
             onClick={() => void requestImmersiveMode()}
             className="game-toolbar-button game-toolbar-button--primary"
@@ -5008,67 +4937,8 @@ export default function GameCanvas({
           style={{ cursor: showTouchControls ? "default" : "crosshair" }}
         />
 
-        {showTouchControls && editingControls && (
-          <div className="touch-layout-editor">
-            <span>Drag controls · Size</span>
-            <button
-              type="button"
-              className="touch-layout-editor__button"
-              aria-label="Make controls smaller"
-              onClick={() =>
-                setTouchLayout((current) => ({
-                  ...current,
-                  scale: Math.max(0.65, current.scale - 0.1),
-                }))
-              }
-            >
-              −
-            </button>
-            <span>{Math.round(touchLayout.scale * 100)}%</span>
-            <button
-              type="button"
-              className="touch-layout-editor__button"
-              aria-label="Make controls larger"
-              onClick={() =>
-                setTouchLayout((current) => ({
-                  ...current,
-                  scale: Math.min(1.5, current.scale + 0.1),
-                }))
-              }
-            >
-              +
-            </button>
-            <button
-              type="button"
-              className="touch-layout-editor__button"
-              onClick={() => setTouchLayout(DEFAULT_TOUCH_LAYOUT)}
-            >
-              Reset
-            </button>
-            <button
-              type="button"
-              className="touch-layout-editor__button touch-layout-editor__button--primary"
-              onClick={() => setEditingControls(false)}
-            >
-              Done
-            </button>
-          </div>
-        )}
-
         {showTouchControls && (
-          <div
-            className={`touch-controls ${editingControls ? "is-editing" : ""}`}
-            onPointerDownCapture={startControlDrag}
-            onPointerMoveCapture={moveControlDrag}
-            onPointerUpCapture={finishControlDrag}
-            onPointerCancelCapture={finishControlDrag}
-            onClickCapture={(event) => {
-              if (!editingControls) return;
-              if (!event.target.closest("[data-control-id]")) return;
-              event.preventDefault();
-              event.stopPropagation();
-            }}
-          >
+          <div className="touch-controls">
             <div className="touch-controls__cluster">
               <button
                 type="button"
@@ -5077,7 +4947,6 @@ export default function GameCanvas({
                 className={`touch-stick touch-stick--move ${moveStick.active ? "is-active" : ""}`}
                 style={touchControlStyle("move")}
                 onPointerDown={(event) => {
-                  if (editingControls) return;
                   ensureAudioUnlocked();
                   void requestImmersiveMode();
                   event.currentTarget.setPointerCapture(event.pointerId);
@@ -5164,7 +5033,6 @@ export default function GameCanvas({
                 className={`touch-stick touch-stick--aim ${aimStick.active ? "is-active" : ""}`}
                 style={touchControlStyle("aim")}
                 onPointerDown={(event) => {
-                  if (editingControls) return;
                   ensureAudioUnlocked();
                   void requestImmersiveMode();
                   event.currentTarget.setPointerCapture(event.pointerId);

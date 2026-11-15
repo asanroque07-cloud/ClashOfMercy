@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_TOUCH_LAYOUT,
+  TOUCH_CONTROL_ANCHORS,
   TOUCH_CONTROL_IDS,
   clampTouchOffset,
+  getTouchControlPosition,
   loadTouchLayout,
   saveTouchLayout,
 } from "@/lib/touchControls";
@@ -16,17 +18,6 @@ const CONTROL_LABELS = {
   grenade: "GRENADE",
   aim: "AIM / FIRE",
   use: "USE",
-};
-
-const CONTROL_ANCHORS = {
-  move: { x: 0.1, y: 0.76 },
-  jump: { x: 0.22, y: 0.64 },
-  down: { x: 0.22, y: 0.78 },
-  swap: { x: 0.22, y: 0.92 },
-  reload: { x: 0.72, y: 0.64 },
-  grenade: { x: 0.72, y: 0.78 },
-  aim: { x: 0.87, y: 0.76 },
-  use: { x: 0.97, y: 0.76 },
 };
 
 export default function ControllerSettingsModal({ onClose }) {
@@ -60,12 +51,29 @@ export default function ControllerSettingsModal({ onClose }) {
     if (!drag || drag.pointerId !== event.pointerId || !rect) return;
     event.preventDefault();
     event.stopPropagation();
+    const anchor = TOUCH_CONTROL_ANCHORS[drag.id];
     const position = {
       x: clampTouchOffset(
-        drag.origin.x + (event.clientX - drag.startX) / rect.width,
+        Math.max(
+          0.06,
+          Math.min(
+            0.94,
+            anchor.x +
+              drag.origin.x +
+              (event.clientX - drag.startX) / rect.width,
+          ),
+        ) - anchor.x,
       ),
       y: clampTouchOffset(
-        drag.origin.y + (event.clientY - drag.startY) / rect.height,
+        Math.max(
+          0.1,
+          Math.min(
+            0.9,
+            anchor.y +
+              drag.origin.y +
+              (event.clientY - drag.startY) / rect.height,
+          ),
+        ) - anchor.y,
       ),
     };
     setLayout((current) => ({
@@ -125,8 +133,9 @@ export default function ControllerSettingsModal({ onClose }) {
             TOUCH LAYOUT PREVIEW
           </span>
           {TOUCH_CONTROL_IDS.map((id) => {
-            const anchor = CONTROL_ANCHORS[id];
+            const anchor = TOUCH_CONTROL_ANCHORS[id];
             const position = layout.positions[id] || { x: 0, y: 0 };
+            const controlPosition = getTouchControlPosition(id, position);
             const isStick = id === "move" || id === "aim";
             return (
               <button
@@ -136,8 +145,8 @@ export default function ControllerSettingsModal({ onClose }) {
                 aria-label={`Move ${CONTROL_LABELS[id]} control`}
                 className={`controller-settings-control ${isStick ? "controller-settings-control--stick" : ""} ${id === "aim" ? "controller-settings-control--aim" : ""}`}
                 style={{
-                  left: `${(anchor.x + position.x) * 100}%`,
-                  top: `${(anchor.y + position.y) * 100}%`,
+                  left: `${controlPosition.x * 100}%`,
+                  top: `${controlPosition.y * 100}%`,
                   transform: `translate(-50%, -50%) scale(${layout.scale})`,
                 }}
               >

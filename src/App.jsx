@@ -556,7 +556,7 @@ export default function App() {
           {alerts.map((a) => (
             <div
               key={a.id}
-              className={`alert-slide-in px-4 py-2.5 rounded border font-mono text-xs font-bold shadow-xl max-w-xs ${
+              className={`alert-slide-in alert-toast rounded border font-mono font-bold shadow-xl ${
                 a.type === "success"
                   ? "bg-emerald-950 border-emerald-500 text-emerald-300"
                   : a.type === "error"
