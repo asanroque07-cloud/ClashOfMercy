@@ -936,6 +936,8 @@ export default function GameCanvas({
       : false,
   );
   const [pressedControls, setPressedControls] = useState({});
+  const [moveStick, setMoveStick] = useState({ x: 0, y: 0, active: false });
+  const [aimStick, setAimStick] = useState({ x: 0, y: 0, active: false });
   const showTouchControls = isTouchDevice || viewport.width <= 900;
   // The app auto-rotates into landscape at the root (see App.jsx), so the
   // in-match "rotate to fight" prompt is no longer required.
@@ -1182,7 +1184,16 @@ export default function GameCanvas({
       score: { blue: 0, red: 0, msg: "", msgUntil: 0 },
       keys: new Set(),
       mouse: { x: VIEW_W / 2, y: VIEW_H / 2, down: false },
-      mobile: { left: false, right: false, jump: false, fire: false, down: false },
+      mobile: {
+        left: false,
+        right: false,
+        jump: false,
+        fire: false,
+        down: false,
+        moveX: 0,
+        aimX: 0,
+        aimY: 0,
+      },
       cameraX: 0,
       over: false,
       inHouse: false,
@@ -1998,15 +2009,20 @@ export default function GameCanvas({
       me.aimAngle = Math.atan2(s.mouse.y - (me.y - PH / 2 - 4), wx - me.x);
       me.facing = wx > me.x ? 1 : -1;
     } else if (!me.inHouse && showTouchControls) {
-      const target = findBestTarget(me, s);
-      if (target) {
-        me.aimAngle = Math.atan2(
-          target.y - PH / 2 - (me.y - PH / 2 - 4),
-          target.x - me.x,
-        );
-        me.facing = target.x >= me.x ? 1 : -1;
+      if (s.mobile.fire) {
+        me.aimAngle = Math.atan2(s.mobile.aimY, s.mobile.aimX);
+        me.facing = s.mobile.aimX >= 0 ? 1 : -1;
       } else {
-        me.aimAngle = me.facing > 0 ? 0 : Math.PI;
+        const target = findBestTarget(me, s);
+        if (target) {
+          me.aimAngle = Math.atan2(
+            target.y - PH / 2 - (me.y - PH / 2 - 4),
+            target.x - me.x,
+          );
+          me.facing = target.x >= me.x ? 1 : -1;
+        } else {
+          me.aimAngle = me.facing > 0 ? 0 : Math.PI;
+        }
       }
     }
 
@@ -2015,15 +2031,16 @@ export default function GameCanvas({
 
     // During round transitions the player is frozen at base — ignore input.
     if (me.alive && !me.inHouse && !roundFrozen) {
-      if (s.keys.has("a") || s.keys.has("arrowleft") || s.mobile.left) {
-        me.vx = -SPD;
+      const moveLeft =
+        s.keys.has("a") || s.keys.has("arrowleft") || s.mobile.left;
+      const moveRight =
+        s.keys.has("d") || s.keys.has("arrowright") || s.mobile.right;
+      const moveX = moveLeft ? -1 : moveRight ? 1 : s.mobile.moveX;
+      if (moveX < -0.18) {
+        me.vx = SPD * moveX;
         me.facing = -1;
-      } else if (
-        s.keys.has("d") ||
-        s.keys.has("arrowright") ||
-        s.mobile.right
-      ) {
-        me.vx = SPD;
+      } else if (moveX > 0.18) {
+        me.vx = SPD * moveX;
         me.facing = 1;
       } else me.vx = 0;
 
@@ -2076,10 +2093,13 @@ export default function GameCanvas({
       if (s.mouse.down || s.mobile.fire) fire(me, s);
     }
     if (me.alive && me.inHouse && !roundFrozen) {
-      if (s.keys.has("a") || s.keys.has("arrowleft") || s.mobile.left)
-        me.vx = -SPD;
-      else if (s.keys.has("d") || s.keys.has("arrowright") || s.mobile.right)
-        me.vx = SPD;
+      const moveLeft =
+        s.keys.has("a") || s.keys.has("arrowleft") || s.mobile.left;
+      const moveRight =
+        s.keys.has("d") || s.keys.has("arrowright") || s.mobile.right;
+      const moveX = moveLeft ? -1 : moveRight ? 1 : s.mobile.moveX;
+      if (moveX < -0.18) me.vx = SPD * moveX;
+      else if (moveX > 0.18) me.vx = SPD * moveX;
       else me.vx = 0;
     }
     if (roundFrozen) me.vx = 0;
@@ -4789,6 +4809,62 @@ export default function GameCanvas({
     [ensureAudioUnlocked, requestImmersiveMode, setMobilePressed],
   );
 
+  const updateMoveStick = useCallback((event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const radius = Math.max(1, Math.min(rect.width, rect.height) / 2 - 20);
+    let x = event.clientX - (rect.left + rect.width / 2);
+    let y = event.clientY - (rect.top + rect.height / 2);
+    const distance = Math.hypot(x, y);
+    if (distance > radius) {
+      x = (x / distance) * radius;
+      y = (y / distance) * radius;
+    }
+
+    const moveX = x / radius;
+    const s = stateRef.current;
+    if (s) s.mobile.moveX = moveX;
+    setMoveStick({ x, y, active: true });
+  }, []);
+
+  const releaseMoveStick = useCallback(() => {
+    const s = stateRef.current;
+    if (s) s.mobile.moveX = 0;
+    setMoveStick({ x: 0, y: 0, active: false });
+  }, []);
+
+  const updateAimStick = useCallback((event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const radius = Math.max(1, Math.min(rect.width, rect.height) / 2 - 20);
+    let x = event.clientX - (rect.left + rect.width / 2);
+    let y = event.clientY - (rect.top + rect.height / 2);
+    const distance = Math.hypot(x, y);
+    if (distance > radius) {
+      x = (x / distance) * radius;
+      y = (y / distance) * radius;
+    }
+
+    const aimX = x / radius;
+    const aimY = y / radius;
+    const active = Math.hypot(aimX, aimY) > 0.18;
+    const s = stateRef.current;
+    if (s) {
+      s.mobile.aimX = aimX;
+      s.mobile.aimY = aimY;
+      s.mobile.fire = active;
+    }
+    setAimStick({ x, y, active: true });
+  }, []);
+
+  const releaseAimStick = useCallback(() => {
+    const s = stateRef.current;
+    if (s) {
+      s.mobile.aimX = 0;
+      s.mobile.aimY = 0;
+      s.mobile.fire = false;
+    }
+    setAimStick({ x: 0, y: 0, active: false });
+  }, []);
+
   const tapAction = useCallback(
     (action) => {
       ensureAudioUnlocked();
@@ -4853,23 +4929,29 @@ export default function GameCanvas({
             <div className="touch-controls__cluster">
               <button
                 type="button"
-                className={`touch-button ${pressedControls.left ? "is-active" : ""}`}
-                onPointerDown={() => holdControl("left", true)}
-                onPointerUp={() => holdControl("left", false)}
-                onPointerLeave={() => holdControl("left", false)}
-                onPointerCancel={() => holdControl("left", false)}
+                aria-label="Movement joystick"
+                className={`touch-stick touch-stick--move ${moveStick.active ? "is-active" : ""}`}
+                onPointerDown={(event) => {
+                  ensureAudioUnlocked();
+                  void requestImmersiveMode();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  updateMoveStick(event);
+                }}
+                onPointerMove={(event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId))
+                    updateMoveStick(event);
+                }}
+                onPointerUp={releaseMoveStick}
+                onPointerCancel={releaseMoveStick}
+                onLostPointerCapture={releaseMoveStick}
               >
-                Left
-              </button>
-              <button
-                type="button"
-                className={`touch-button ${pressedControls.right ? "is-active" : ""}`}
-                onPointerDown={() => holdControl("right", true)}
-                onPointerUp={() => holdControl("right", false)}
-                onPointerLeave={() => holdControl("right", false)}
-                onPointerCancel={() => holdControl("right", false)}
-              >
-                Right
+                <span className="touch-stick__label">Move</span>
+                <span
+                  className="touch-stick__thumb"
+                  style={{
+                    transform: `translate(${moveStick.x}px, ${moveStick.y}px)`,
+                  }}
+                />
               </button>
               <div className="touch-controls__stack">
                 <button
@@ -4921,13 +5003,29 @@ export default function GameCanvas({
               </div>
               <button
                 type="button"
-                className={`touch-button touch-button--fire ${pressedControls.fire ? "is-active" : ""}`}
-                onPointerDown={() => holdControl("fire", true)}
-                onPointerUp={() => holdControl("fire", false)}
-                onPointerLeave={() => holdControl("fire", false)}
-                onPointerCancel={() => holdControl("fire", false)}
+                aria-label="Aim and fire joystick"
+                className={`touch-stick touch-stick--aim ${aimStick.active ? "is-active" : ""}`}
+                onPointerDown={(event) => {
+                  ensureAudioUnlocked();
+                  void requestImmersiveMode();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  updateAimStick(event);
+                }}
+                onPointerMove={(event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId))
+                    updateAimStick(event);
+                }}
+                onPointerUp={releaseAimStick}
+                onPointerCancel={releaseAimStick}
+                onLostPointerCapture={releaseAimStick}
               >
-                Fire
+                <span className="touch-stick__label">Aim / Fire</span>
+                <span
+                  className="touch-stick__thumb"
+                  style={{
+                    transform: `translate(${aimStick.x}px, ${aimStick.y}px)`,
+                  }}
+                />
               </button>
               <button
                 type="button"
