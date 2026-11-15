@@ -24,17 +24,21 @@ export default function Home({
   ownedEmoteIds,
   pendingModal,
   onClearModal,
+  accountConnected,
+  cloudConfigured,
+  incomingFriendRequests,
   onNavigate,
   onStartMatchmaking,
   onUpdateProfile,
-  onAddFriend,
+  onSearchPlayer,
+  onSendFriendRequest,
+  onAcceptFriendRequest,
   onRemoveFriend,
   onEquipWeapon,
   onBuyItem,
   onBuyEmote,
   onSelectEmote,
   onClearHistory,
-  onPushAlert,
 }) {
   // Each modal (loadout/store/history/settings) has its own open/closed flag
   const [loadoutOpen, setLoadoutOpen] = useState(false);
@@ -118,15 +122,13 @@ export default function Home({
       <div className="lobby-home__friends md:col-span-4 xl:col-span-3 min-h-0 flex flex-col overflow-hidden">
         <FriendList
           friends={friends}
-          onAddFriend={(f) => {
-            onAddFriend(f);
-            onPushAlert({
-              message: `${f.name} added to friends!`,
-              type: "success",
-            });
-          }}
+          incomingRequests={incomingFriendRequests}
+          accountConnected={accountConnected}
+          cloudConfigured={cloudConfigured}
+          onSearchPlayer={onSearchPlayer}
+          onSendFriendRequest={onSendFriendRequest}
+          onAcceptRequest={onAcceptFriendRequest}
           onRemoveFriend={onRemoveFriend}
-          canInvite={false}
         />
       </div>
 

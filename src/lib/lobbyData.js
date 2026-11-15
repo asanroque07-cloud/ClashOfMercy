@@ -506,60 +506,6 @@ export const LOBBY_EMOTES = [
   },
 ];
 
-// this is the default friends/squad list shown in the lobby before the player adds real friends
-export const INITIAL_FRIENDS = [
-  {
-    id: "friend_1",
-    name: "Sgt_Bravo",
-    avatarId: "avatar_2",
-    level: 24,
-    rankName: "Gold",
-    rankTier: 2,
-    status: "online",
-    role: "Scout",
-  },
-  {
-    id: "friend_2",
-    name: "OT_Reaper",
-    avatarId: "avatar_3",
-    level: 45,
-    rankName: "Diamond",
-    rankTier: 4,
-    status: "playing",
-    role: "Sniper",
-  },
-  {
-    id: "friend_3",
-    name: "Viper_9",
-    avatarId: "avatar_1",
-    level: 15,
-    rankName: "Silver",
-    rankTier: 1,
-    status: "lobby",
-    role: "Core",
-  },
-  {
-    id: "friend_4",
-    name: "Alpha_Actual",
-    avatarId: "avatar_4",
-    level: 18,
-    rankName: "Gold",
-    rankTier: 4,
-    status: "online",
-    role: "Gunner",
-  },
-  {
-    id: "friend_5",
-    name: "Ghost_Spec",
-    avatarId: "avatar_5",
-    level: 32,
-    rankName: "Platinum",
-    rankTier: 3,
-    status: "offline",
-    role: "Marksman",
-  },
-];
-
 // this is for choosing a profile avatar — each entry pairs a display name with its portrait image URL
 export const ADMIRALS_AVATARS = [
   {
