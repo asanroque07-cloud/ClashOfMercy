@@ -72,9 +72,11 @@ export default function OperatorSetup({
       <div className="operator-setup__content relative h-full w-full flex items-center justify-center p-5">
         <div className="operator-setup__card w-full max-w-2xl border border-military bg-stone-950/70 backdrop-blur-sm shadow-2xl rounded overflow-hidden">
           <div className="px-5 py-4 border-b border-military bg-zinc-900/50">
-            <div className="display text-[#76a035] text-2xl tracking-widest uppercase">
-              OP:WARTACTICS
-            </div>
+            <img
+              src="/icon.png"
+              alt="Clash of Mercy 5v5"
+              className="h-14 w-14 rounded-xl object-cover"
+            />
             <div className="font-mono text-[10px] text-stone-400 tracking-widest uppercase mt-1">
               Operator registration required
             </div>

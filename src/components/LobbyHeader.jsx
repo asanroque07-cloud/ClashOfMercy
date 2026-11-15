@@ -135,9 +135,14 @@ export function LobbyHeader({
         <div>
           <div className="flex items-center gap-2">
             {activeScreen === "home" ? (
-              <h1 className="text-lg md:text-2xl font-display font-extrabold tracking-widest text-[#76a035] glow-green uppercase">
-                OT:WARTACTICS
-              </h1>
+              <>
+                <h1 className="sr-only">Clash of Mercy</h1>
+                <img
+                  src="/icon.png"
+                  alt="Clash of Mercy 5v5"
+                  className="h-9 w-9 rounded-lg object-cover"
+                />
+              </>
             ) : (
               <div className="flex items-center gap-1">
                 <span
