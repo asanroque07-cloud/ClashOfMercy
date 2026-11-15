@@ -4981,7 +4981,13 @@ export default function GameCanvas({
         showScoreboard: current.showScoreboard,
         inHouse: current.inHouse,
       };
-      const normalizeId = (id) => (id === session.userId ? "me" : id);
+      const normalizeId = (id) => {
+        if (id === session.userId) return "me";
+        if (id === "me" && session.hostUserId !== session.userId) {
+          return session.hostUserId;
+        }
+        return id;
+      };
       const snapshot = payload.state;
       const players = snapshot.players.map((player) => ({
         ...player,
@@ -5048,13 +5054,26 @@ export default function GameCanvas({
       if (!current) return;
 
       if (session.role === "host") {
+        const encodePlayerId = (id) =>
+          id === "me" ? session.userId : id;
         const state = {
-          players: current.players.map(({ networkInput, ...player }) => player),
-          bullets: current.bullets,
+          players: current.players.map(({ networkInput, ...player }) => ({
+            ...player,
+            id: encodePlayerId(player.id),
+          })),
+          bullets: current.bullets.map((bullet) => ({
+            ...bullet,
+            ownerId: encodePlayerId(bullet.ownerId),
+          })),
           loot: current.loot,
           explosions: current.explosions,
           healthKits: current.healthKits,
-          flags: current.flags,
+          flags: current.flags.map((flag) => ({
+            ...flag,
+            carrier: flag.carrier
+              ? encodePlayerId(flag.carrier)
+              : null,
+          })),
           score: current.score,
           over: current.over,
           houseWeaponIndex: current.houseWeaponIndex,
