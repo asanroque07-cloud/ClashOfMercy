@@ -1667,13 +1667,13 @@ export default function GameCanvas({
     for (const p of s.players) p.respawnTimer = 0;
   }
 
-  function checkWin(s) {
-    if (s.over || (s.score.blue < 5 && s.score.red < 5)) return false;
-    if (networkSessionRef.current?.role === "guest") return true;
+  function finishMatch(s, winningTeam) {
+    if (s.over) return;
     s.over = true;
+    s.winnerTeam = winningTeam;
     const me = s.players.find((p) => p.id === "me");
-    if (!me) return false;
-    const result = s.score[me.team] >= 5 ? "victory" : "defeat";
+    if (!me) return;
+    const result = me.team === winningTeam ? "victory" : "defeat";
     const record = {
       id: Date.now().toString(),
       date: Date.now(),
@@ -1692,8 +1692,49 @@ export default function GameCanvas({
       onProfileChange(newProfile);
       setOver({ result, record });
     }, 500);
+  }
+
+  function checkWin(s) {
+    if (s.over || (s.score.blue < 5 && s.score.red < 5)) return false;
+    if (networkSessionRef.current?.role === "guest") return true;
+    finishMatch(s, s.score.blue >= 5 ? "blue" : "red");
     return true;
   }
+
+  const surrenderMatch = useCallback(() => {
+    const current = stateRef.current;
+    const me = current?.players.find((player) => player.id === "me");
+    if (!current || !me || current.over) return;
+
+    const session = networkSessionRef.current;
+    if (session?.role === "guest") {
+      void session.channel
+        .send({
+          type: "broadcast",
+          event: "surrender",
+          payload: { userId: session.userId },
+        })
+        .then((status) => {
+          if (status !== "ok") {
+            onNetworkError?.({
+              message: "Your surrender could not reach the match host.",
+              type: "error",
+            });
+          }
+        })
+        .catch(() => {
+          onNetworkError?.({
+            message: "Your surrender could not reach the match host.",
+            type: "error",
+          });
+        });
+      setPaused(false);
+      return;
+    }
+
+    finishMatch(current, me.team === "blue" ? "red" : "blue");
+    setPaused(false);
+  }, [onNetworkError]);
 
   function respawn(p, s) {
     p.alive = true;
@@ -5010,7 +5051,10 @@ export default function GameCanvas({
       if (snapshot.over) {
         const me = players.find((player) => player.id === "me");
         if (me && !networkResultRecordedRef.current) {
-          const won = snapshot.score[me.team] >= 5;
+          const winnerTeam =
+            snapshot.winnerTeam ||
+            (snapshot.score.blue >= 5 ? "blue" : "red");
+          const won = winnerTeam === me.team;
           const record = {
             id: Date.now().toString(),
             date: Date.now(),
@@ -5044,10 +5088,23 @@ export default function GameCanvas({
         player.networkInput = null;
       }
     };
+    const handleSurrender = ({ payload }) => {
+      if (session.role !== "host" || !payload?.userId) return;
+      const current = stateRef.current;
+      const surrenderingPlayer = current?.players.find(
+        (player) => player.id === payload.userId,
+      );
+      if (!current || !surrenderingPlayer) return;
+      finishMatch(
+        current,
+        surrenderingPlayer.team === "blue" ? "red" : "blue",
+      );
+    };
 
     channel.on("broadcast", { event: "input" }, handleInput);
     channel.on("broadcast", { event: "state" }, handleState);
     channel.on("broadcast", { event: "leave" }, handleLeave);
+    channel.on("broadcast", { event: "surrender" }, handleSurrender);
 
     const interval = window.setInterval(() => {
       const current = stateRef.current;
@@ -5076,6 +5133,7 @@ export default function GameCanvas({
           })),
           score: current.score,
           over: current.over,
+          winnerTeam: current.winnerTeam,
           houseWeaponIndex: current.houseWeaponIndex,
           matchStartTime: current.matchStartTime,
           damageNumbers: current.damageNumbers,
@@ -5138,6 +5196,7 @@ export default function GameCanvas({
       channel.off("broadcast", { event: "input" });
       channel.off("broadcast", { event: "state" });
       channel.off("broadcast", { event: "leave" });
+      channel.off("broadcast", { event: "surrender" });
       remoteInputsRef.current.clear();
     };
   }, [
@@ -5665,6 +5724,18 @@ export default function GameCanvas({
                 ↻ Restart Match
               </button>
               <button
+                onClick={surrenderMatch}
+                className="px-6 py-2.5 font-mono text-sm uppercase tracking-widest border transition-colors hover:bg-red-900/30"
+                style={{
+                  borderColor: "oklch(0.45 0.18 25)",
+                  color: "oklch(0.65 0.18 25)",
+                  background: "transparent",
+                  cursor: "pointer",
+                }}
+              >
+                ⚑ Surrender Match
+              </button>
+              <button
                 onClick={onExit}
                 className="px-6 py-2.5 font-mono text-sm uppercase tracking-widest border transition-colors hover:bg-red-900/30"
                 style={{
@@ -5731,7 +5802,7 @@ export default function GameCanvas({
                 cursor: "pointer",
               }}
             >
-              RETURN TO BASE
+              RETURN TO LOBBY
             </button>
           </div>
         </div>

@@ -329,18 +329,28 @@ export function useOnlineMatch(user, displayName) {
 
   const leaveRoom = useCallback(async () => {
     const activeRoom = roomRef.current;
-    if (roomChannel && activeRoom?.role === "guest" && user?.id) {
-      await roomChannel.send({
-        type: "broadcast",
-        event: "leave",
-        payload: { userId: user.id },
-      });
-    } else if (roomChannel && activeRoom?.role === "host") {
-      await roomChannel.send({
-        type: "broadcast",
-        event: "end",
-        payload: { roomId: activeRoom.id },
-      });
+    try {
+      if (roomChannel && activeRoom?.role === "guest" && user?.id) {
+        const status = await roomChannel.send({
+          type: "broadcast",
+          event: "leave",
+          payload: { userId: user.id },
+        });
+        if (status !== "ok") {
+          setError("Could not notify the host that you left the match.");
+        }
+      } else if (roomChannel && activeRoom?.role === "host") {
+        const status = await roomChannel.send({
+          type: "broadcast",
+          event: "end",
+          payload: { roomId: activeRoom.id },
+        });
+        if (status !== "ok") {
+          setError("Could not notify players that the match ended.");
+        }
+      }
+    } catch (leaveError) {
+      setError(getErrorMessage(leaveError));
     }
     if (activeRoom?.role === "host") {
       Array.from(inviteTeamsRef.current.keys()).forEach((userId) => {

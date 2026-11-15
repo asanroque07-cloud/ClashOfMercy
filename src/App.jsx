@@ -840,14 +840,18 @@ export default function App() {
         ? "rank"
         : "classic";
 
-  const exitToScreen =
-    prevScreen === "offline"
-      ? "offline"
-      : prevScreen === "custom"
-        ? "custom"
-        : prevScreen === "rank"
-          ? "rank"
-          : "classic";
+  const handleExitGame = () => {
+    setTeamConfig(null);
+    setScreen("home");
+    void onlineMatch.leaveRoom();
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
+    pushAlert({
+      message: "Returned to HQ.",
+      type: "info",
+    });
+  };
   // The app now auto-rotates into landscape (see the forced-landscape effect
   // above), so the blocking "rotate your device" overlay is no longer needed.
   const showRotateOverlay = false;
@@ -868,14 +872,7 @@ export default function App() {
             networkSession={networkSession}
             onNetworkError={pushAlert}
             onProfileChange={handleGameProfileChange}
-            onExit={() => {
-              onlineMatch.leaveRoom();
-              setScreen(exitToScreen);
-              pushAlert({
-                message: "Returned to HQ. Check match history!",
-                type: "info",
-              });
-            }}
+            onExit={handleExitGame}
           />
         </div>
         <OnlineMatchOverlay
