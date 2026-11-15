@@ -236,14 +236,14 @@ export function LobbyHeader({
           {activeScreen === "home" ? (
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className={`bg-white/5 hover:bg-[#76a035]/20 hover:border-[#76a035]/50 border border-military text-[#76a035] p-2 rounded transition-all flex items-center justify-center cursor-pointer h-[38px] w-[38px] ${menuOpen ? "bg-[#76a035]/20 border-[#76a035]/50" : ""}`}
+              className={`lobby-header__menu-toggle bg-white/5 hover:bg-[#76a035]/20 hover:border-[#76a035]/50 border border-military text-[#76a035] p-2 rounded transition-all flex items-center justify-center cursor-pointer h-[38px] w-[38px] ${menuOpen ? "bg-[#76a035]/20 border-[#76a035]/50" : ""}`}
             >
               <Menu size={18} />
             </button>
           ) : (
             <button
               onClick={() => onChangeScreen("home")}
-              className="bg-[#76a035]/10 hover:bg-[#76a035]/25 border border-military-active text-[#76a035] p-2 rounded transition-all flex items-center justify-center cursor-pointer h-[38px] w-[38px] animate-pulse"
+              className="lobby-header__menu-toggle bg-[#76a035]/10 hover:bg-[#76a035]/25 border border-military-active text-[#76a035] p-2 rounded transition-all flex items-center justify-center cursor-pointer h-[38px] w-[38px] animate-pulse"
             >
               <Home size={18} />
             </button>
@@ -251,10 +251,11 @@ export function LobbyHeader({
 
           {/* Settings dropdown */}
           {menuOpen && activeScreen === "home" && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-stone-950 border border-military rounded-lg shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
-              <div className="px-3 py-2 bg-zinc-900/80 border-b border-military/50">
-                <div className="text-[9px] font-mono font-black text-stone-500 uppercase tracking-widest">
-                  SETTINGS
+            <div className="home-settings-menu">
+              <div className="home-settings-menu__header">
+                <div className="home-settings-menu__title">Game settings</div>
+                <div className="home-settings-menu__subtitle">
+                  Audio and controller preferences
                 </div>
               </div>
 
@@ -262,50 +263,46 @@ export function LobbyHeader({
               <button
                 onClick={onToggleMusic}
                 aria-pressed={musicOn}
-                className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-stone-900/60 transition-colors group"
+                className="home-settings-row"
               >
-                <div className="flex items-center gap-2.5">
+                <span className="home-settings-row__icon">
                   {musicOn ? (
                     <Music size={14} className="text-[#76a035]" />
                   ) : (
                     <Music2 size={14} className="text-stone-500" />
                   )}
-                  <span className="font-mono text-xs font-bold text-stone-300 group-hover:text-white uppercase tracking-wide">
-                    Music
-                  </span>
-                </div>
-                <div
-                  className={`w-8 h-4 rounded-full relative transition-colors ${musicOn ? "bg-[#76a035]" : "bg-stone-700"}`}
-                >
-                  <div
-                    className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow ${musicOn ? "left-4" : "left-0.5"}`}
-                  />
-                </div>
+                </span>
+                <span className="home-settings-row__copy">
+                  <span className="home-settings-row__label">Music</span>
+                  <span className="home-settings-row__hint">Lobby and match soundtrack</span>
+                </span>
+                <span className={`home-settings-switch ${musicOn ? "is-on" : ""}`}>
+                  <span />
+                </span>
+                <span className="home-settings-row__state">{musicOn ? "On" : "Off"}</span>
               </button>
 
               {/* Sound toggle */}
               <button
                 onClick={onToggleSound}
                 aria-pressed={soundOn}
-                className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-stone-900/60 transition-colors group border-t border-military/20"
+                className="home-settings-row"
               >
-                <div className="flex items-center gap-2.5">
+                <span className="home-settings-row__icon">
                   {soundOn ? (
                     <Volume2 size={14} className="text-[#76a035]" />
                   ) : (
                     <VolumeX size={14} className="text-stone-500" />
                   )}
-                  <span className="font-mono text-xs font-bold text-stone-300 group-hover:text-white uppercase tracking-wide">
-                    Sound FX
-                  </span>
-                </div>
-                <div
-                  className={`w-8 h-4 rounded-full relative transition-colors ${soundOn ? "bg-[#76a035]" : "bg-stone-700"}`}
-                >
-                  <div
-                    className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow ${soundOn ? "left-4" : "left-0.5"}`}
-                  />
-                </div>
+                </span>
+                <span className="home-settings-row__copy">
+                  <span className="home-settings-row__label">Sound effects</span>
+                  <span className="home-settings-row__hint">Weapons and gameplay audio</span>
+                </span>
+                <span className={`home-settings-switch ${soundOn ? "is-on" : ""}`}>
+                  <span />
+                </span>
+                <span className="home-settings-row__state">{soundOn ? "On" : "Off"}</span>
               </button>
 
               {/* Controller settings */}
@@ -315,36 +312,34 @@ export function LobbyHeader({
                   setMenuOpen(false);
                   setControllerSettingsOpen(true);
                 }}
-                className="w-full flex items-center justify-between gap-3 border-t border-military/20 px-3 py-3 text-left hover:bg-stone-900/60 transition-colors group"
+                className="home-settings-controller"
               >
-                <div>
-                  <div className="flex items-center gap-2.5 mb-1.5">
-                    <Gamepad size={14} className="text-stone-400" />
-                    <span className="font-mono text-xs font-bold text-stone-400 uppercase tracking-wide">
-                      Controller
-                    </span>
-                  </div>
-                  <div className="font-mono text-[9px] text-stone-500 pl-5">
+                <span className="home-settings-row__icon">
+                  <Gamepad size={15} />
+                </span>
+                <span className="home-settings-row__copy">
+                  <span className="home-settings-row__label">Controller layout</span>
+                  <span className="home-settings-row__hint">
                     Configure mobile control layout
-                  </div>
-                </div>
+                  </span>
+                </span>
                 <ChevronRight
                   size={14}
-                  className="text-stone-500 group-hover:text-[#76a035]"
+                  className="home-settings-controller__arrow"
                 />
               </button>
 
               {/* Exit */}
-              <div className="border-t border-military/30">
+              <div className="home-settings-menu__footer">
                 <button
                   onClick={() => {
                     setMenuOpen(false);
                     window.location.reload();
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-red-950/30 transition-colors group"
+                  className="home-settings-exit"
                 >
                   <LogOut size={14} className="text-red-500" />
-                  <span className="font-mono text-xs font-bold text-red-400 group-hover:text-red-300 uppercase tracking-wide">
+                  <span>
                     Exit Game
                   </span>
                 </button>
