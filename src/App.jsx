@@ -3,6 +3,7 @@
 // data (profile, friends, shop, match history). Every other screen is a smaller
 // component that App shows and hands data/handlers to.
 import { useState, useEffect, useCallback, useRef } from "react";
+import { flushSync } from "react-dom";
 import { useCloudAccount } from "@/hooks/useCloudAccount";
 import { useOnlineMatch } from "@/hooks/useOnlineMatch";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -840,8 +841,11 @@ export default function App() {
         : "classic";
 
   const handleExitGame = () => {
-    setTeamConfig(null);
-    setScreen("home");
+    // Unmount the canvas before room cleanup tears down its Realtime channel.
+    flushSync(() => {
+      setTeamConfig(null);
+      setScreen("home");
+    });
     void onlineMatch.leaveRoom();
     pushAlert({
       message: "Returned to HQ.",
