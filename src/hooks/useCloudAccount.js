@@ -27,6 +27,8 @@ export function useCloudAccount() {
   const [user, setUser] = useState(null);
   const [playerProfile, setPlayerProfile] = useState(null);
   const [friends, setFriends] = useState([]);
+  const [onlineUserIds, setOnlineUserIds] = useState([]);
+  const [presenceReady, setPresenceReady] = useState(false);
   const [incomingRequests, setIncomingRequests] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -166,6 +168,47 @@ export function useCloudAccount() {
     };
   }, [refreshFriends, user]);
 
+  useEffect(() => {
+    if (!supabase || !user) {
+      setOnlineUserIds([]);
+      setPresenceReady(false);
+      return undefined;
+    }
+
+    let active = true;
+    setOnlineUserIds([]);
+    setPresenceReady(false);
+
+    const channel = supabase.channel("online-players", {
+      config: { presence: { key: user.id } },
+    });
+
+    channel.on("presence", { event: "sync" }, () => {
+      if (!active) return;
+      setOnlineUserIds(Object.keys(channel.presenceState()));
+      setPresenceReady(true);
+    });
+
+    channel.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        const { error: trackError } = await channel.track({ status: "online" });
+        if (trackError && active) setError(getErrorMessage(trackError));
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        if (active) {
+          setPresenceReady(false);
+          setError("Could not connect to online friend presence.");
+        }
+      }
+    });
+
+    return () => {
+      active = false;
+      setOnlineUserIds([]);
+      setPresenceReady(false);
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const connectGoogle = useCallback(async () => {
     if (!supabase) {
       setError("Cloud accounts are not configured. Add the Supabase project URL and publishable key first.");
@@ -201,31 +244,64 @@ export function useCloudAccount() {
     }
   }, []);
 
-  const findPlayer = useCallback(async (username) => {
+  const findPlayer = useCallback(async (searchTerm) => {
     if (!supabase || !user) {
       throw new Error("Connect a Google account before finding players.");
     }
 
-    const normalizedUsername = username.trim().toLowerCase();
-    if (!/^[a-z0-9_]{3,20}$/.test(normalizedUsername)) {
-      throw new Error("Player names use 3–20 letters, numbers, or underscores.");
+    const normalizedSearchTerm = searchTerm.trim();
+    if (!normalizedSearchTerm) {
+      throw new Error("Enter a display name, username, or user ID to search.");
+    }
+    if (normalizedSearchTerm.length > 80) {
+      throw new Error("Search terms must be 80 characters or fewer.");
     }
 
-    const { data, error: searchError } = await supabase
-      .from("profiles")
-      .select(PROFILE_COLUMNS)
-      .eq("username", normalizedUsername)
-      .maybeSingle();
-    if (searchError) throw searchError;
-    if (!data) throw new Error("No player found with that username.");
-    if (data.user_id === user.id) throw new Error("You cannot add yourself.");
+    const escapedSearchTerm = normalizedSearchTerm.replace(/[\\%_]/g, "\\$&");
+    const isUserId =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        normalizedSearchTerm,
+      );
+    const [displayNameResult, usernameResult, userIdResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select(PROFILE_COLUMNS)
+        .ilike("display_name", `%${escapedSearchTerm}%`)
+        .limit(10),
+      supabase
+        .from("profiles")
+        .select(PROFILE_COLUMNS)
+        .ilike("username", `%${escapedSearchTerm}%`)
+        .limit(10),
+      isUserId
+        ? supabase
+            .from("profiles")
+            .select(PROFILE_COLUMNS)
+            .eq("user_id", normalizedSearchTerm)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
 
-    return {
-      id: data.user_id,
-      username: data.username,
-      name: data.display_name || data.username,
-      avatarId: data.avatar_id || "avatar_default",
-    };
+    if (displayNameResult.error) throw displayNameResult.error;
+    if (usernameResult.error) throw usernameResult.error;
+    if (userIdResult.error) throw userIdResult.error;
+
+    const profiles = new Map(
+      [
+        ...(displayNameResult.data || []),
+        ...(usernameResult.data || []),
+        ...(userIdResult.data ? [userIdResult.data] : []),
+      ]
+        .filter((profile) => profile.user_id !== user.id)
+        .map((profile) => [profile.user_id, profile]),
+    );
+
+    return [...profiles.values()].map((profile) => ({
+      id: profile.user_id,
+      username: profile.username,
+      name: profile.display_name || profile.username,
+      avatarId: profile.avatar_id || "avatar_default",
+    }));
   }, [user]);
 
   const sendFriendRequest = useCallback(async (playerId) => {
@@ -280,7 +356,14 @@ export function useCloudAccount() {
   return {
     configured: isSupabaseConfigured,
     user,
-    friends,
+    friends: friends.map((friend) => ({
+      ...friend,
+      status: presenceReady
+        ? onlineUserIds.includes(friend.userId)
+          ? "online"
+          : "offline"
+        : "unknown",
+    })),
     incomingRequests,
     playerProfile,
     busy,

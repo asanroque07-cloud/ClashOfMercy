@@ -14,7 +14,7 @@ export function FriendList({
 }) {
   const [isAdding, setIsAdding] = useState(false);
   const [username, setUsername] = useState("");
-  const [foundPlayer, setFoundPlayer] = useState(null);
+  const [foundPlayers, setFoundPlayers] = useState([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [messageIsError, setMessageIsError] = useState(false);
@@ -24,9 +24,11 @@ export function FriendList({
     setBusy(true);
     setMessage("");
     setMessageIsError(false);
-    setFoundPlayer(null);
+    setFoundPlayers([]);
     try {
-      setFoundPlayer(await onSearchPlayer(username));
+      const results = await onSearchPlayer(username);
+      setFoundPlayers(results);
+      if (results.length === 0) setMessage("No players matched that search.");
     } catch (error) {
       setMessage(error.message);
       setMessageIsError(true);
@@ -35,16 +37,17 @@ export function FriendList({
     }
   };
 
-  const sendRequest = async () => {
-    if (!foundPlayer) return;
+  const sendRequest = async (player) => {
+    if (!player) return;
     setBusy(true);
     setMessage("");
     setMessageIsError(false);
     try {
-      await onSendFriendRequest(foundPlayer.id);
-      setMessage("Friend request sent.");
-      setFoundPlayer(null);
-      setUsername("");
+      await onSendFriendRequest(player.id);
+      setMessage(`Friend request sent to ${player.name}.`);
+      setFoundPlayers((players) =>
+        players.filter((foundPlayer) => foundPlayer.id !== player.id),
+      );
     } catch (error) {
       setMessage(error.message);
       setMessageIsError(true);
@@ -61,6 +64,8 @@ export function FriendList({
         return { color: "bg-blue-500", text: "in combat" };
       case "lobby":
         return { color: "bg-yellow-500", text: "in lobby" };
+      case "offline":
+        return { color: "bg-stone-600", text: "offline" };
       default:
         return { color: "bg-stone-600", text: "status unavailable" };
     }
@@ -87,7 +92,7 @@ export function FriendList({
           onClick={() => {
             setIsAdding((open) => !open);
             setMessage("");
-            setFoundPlayer(null);
+            setFoundPlayers([]);
           }}
           aria-label={isAdding ? "Close add friend" : "Find a player"}
           className="text-[#76a035] hover:text-white bg-[#76a035]/10 hover:bg-[#76a035]/35 p-1 rounded transition-all cursor-pointer"
@@ -111,22 +116,22 @@ export function FriendList({
             <>
               <form onSubmit={searchPlayer} className="space-y-2">
                 <label
-                  htmlFor="friend-username"
+                  htmlFor="friend-player-search"
                   className="block text-stone-400 font-bold"
                 >
-                  PLAYER USERNAME
+                  DISPLAY NAME, USERNAME, OR USER ID
                 </label>
                 <div className="flex gap-2">
                   <input
-                    id="friend-username"
+                    id="friend-player-search"
                     type="text"
                     required
-                    maxLength={20}
+                    maxLength={80}
                     autoComplete="off"
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
                     className="min-w-0 flex-1 bg-stone-900 border border-military/60 rounded px-2 py-1 text-white focus:outline-none focus:border-[#76a035]"
-                    placeholder="player_name"
+                    placeholder="name, username, or full user ID"
                   />
                   <button
                     type="submit"
@@ -139,24 +144,37 @@ export function FriendList({
                 </div>
               </form>
 
-              {foundPlayer && (
-                <div className="flex items-center justify-between gap-2 border border-military bg-stone-900/60 p-2 rounded">
-                  <div className="min-w-0">
-                    <div className="truncate font-bold text-stone-100">
-                      {foundPlayer.name}
+              {foundPlayers.length > 0 && (
+                <div className="space-y-2">
+                  {foundPlayers.map((player) => (
+                    <div
+                      key={player.id}
+                      className="flex items-center justify-between gap-2 border border-military bg-stone-900/60 p-2 rounded"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-bold text-stone-100">
+                          {player.name}
+                        </div>
+                        <div className="truncate text-[9px] text-stone-500">
+                          @{player.username}
+                        </div>
+                        <div
+                          className="truncate text-[8px] text-stone-600"
+                          title={player.id}
+                        >
+                          ID {player.id}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => sendRequest(player)}
+                        disabled={busy}
+                        className="flex items-center gap-1 bg-[#76a035] px-2 py-1 rounded text-[9px] font-bold text-black disabled:opacity-50"
+                      >
+                        <UserPlus size={12} /> ADD
+                      </button>
                     </div>
-                    <div className="text-[9px] text-stone-500">
-                      @{foundPlayer.username}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={sendRequest}
-                    disabled={busy}
-                    className="flex items-center gap-1 bg-[#76a035] px-2 py-1 rounded text-[9px] font-bold text-black disabled:opacity-50"
-                  >
-                    <UserPlus size={12} /> ADD
-                  </button>
+                  ))}
                 </div>
               )}
             </>
