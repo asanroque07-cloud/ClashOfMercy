@@ -12,6 +12,7 @@ import { CustomLobby } from "@/components/CustomLobby";
 import { Matchmaker } from "@/components/Matchmaker";
 import GameCanvas from "@/components/GameCanvas";
 import BackgroundMusic from "@/components/BackgroundMusic";
+import DownloadPage from "@/pages/DownloadPage";
 import Home from "@/pages/Home";
 import OperatorSetup from "@/pages/OperatorSetup";
 import {
@@ -54,6 +55,10 @@ function toGameMapId(mapName) {
 // This is the root component: it owns which screen is showing and all of the player's
 // lobby/game state, and renders the matching screen component below.
 export default function App() {
+  const [showDownloadPage, setShowDownloadPage] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("play") !== "1";
+  });
   const [loading, setLoading] = useState(true); // true while the boot-up LoadingScreen is showing
   const [screen, setScreen] = useState("home"); // which screen is currently visible
   const [prevScreen, setPrevScreen] = useState("home"); // screen to return to after a match/queue ends
@@ -130,7 +135,8 @@ export default function App() {
       // Only rotate phone/tablet-sized screens — never a desktop window that
       // merely happens to be narrow or has a touchscreen.
       const mobileSized = Math.max(w, h) <= 1400;
-      const shouldUseMobileLayout = Boolean(isTouchDevice) && mobileSized;
+      const shouldUseMobileLayout =
+        !showDownloadPage && Boolean(isTouchDevice) && mobileSized;
       root.classList.toggle("mobile-game-ui", shouldUseMobileLayout);
       root.classList.toggle("force-landscape", shouldUseMobileLayout && portrait);
     };
@@ -147,7 +153,7 @@ export default function App() {
       window.removeEventListener("orientationchange", applyOrientation);
       root.classList.remove("force-landscape", "mobile-game-ui");
     };
-  }, [screen]);
+  }, [screen, showDownloadPage]);
 
   // this is for showing a short-lived toast message, which removes itself after 3.5 seconds
   const pushAlert = useCallback((alert) => {
@@ -415,7 +421,18 @@ export default function App() {
     setGameProfile(p);
   };
 
+  const handleEnterGame = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("play", "1");
+    window.history.replaceState({}, "", url);
+    setShowDownloadPage(false);
+  };
+
   // ─────────────────────────────────────────────────────────────
+
+  if (showDownloadPage) {
+    return <DownloadPage onPlay={handleEnterGame} />;
+  }
 
   if (loading) {
     return <LoadingScreen onDone={() => setLoading(false)} />;
