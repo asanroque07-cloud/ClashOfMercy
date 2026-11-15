@@ -22,6 +22,19 @@ import {
   saveProfile,
 } from "@/lib/storage";
 
+const MUSIC_SETTING_KEY = "opwar_music_enabled";
+const SOUND_SETTING_KEY = "opwar_sound_enabled";
+
+function loadAudioPreference(key) {
+  if (typeof window === "undefined") return true;
+  try {
+    const saved = window.localStorage.getItem(key);
+    return saved === null ? true : saved === "true";
+  } catch {
+    return true;
+  }
+}
+
 // this is for converting the lobby's role label (RoleType) into the role id GameCanvas understands
 function toGameRole(role) {
   if (role === "Sniper") return "sniper";
@@ -50,6 +63,12 @@ export default function App() {
   const [alerts, setAlerts] = useState([]); // toast notifications shown top-right
   const [pendingModal, setPendingModal] = useState(null); // which popup dialog Home should open, if any
   const [gameProfile, setGameProfile] = useState(loadProfile()); // in-match profile (coins/loadout/upgrades)
+  const [musicEnabled, setMusicEnabled] = useState(() =>
+    loadAudioPreference(MUSIC_SETTING_KEY),
+  );
+  const [soundEnabled, setSoundEnabled] = useState(() =>
+    loadAudioPreference(SOUND_SETTING_KEY),
+  );
   // team sizes / rosters chosen in a lobby, passed to GameCanvas so the actual
   // match uses exactly those team compositions (e.g. 2v2, 1v1, 5v5).
   const [teamConfig, setTeamConfig] = useState(null);
@@ -63,6 +82,15 @@ export default function App() {
     setLobbyState(loadLobbyState());
     setGameProfile(loadProfile());
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MUSIC_SETTING_KEY, String(musicEnabled));
+      window.localStorage.setItem(SOUND_SETTING_KEY, String(soundEnabled));
+    } catch {
+      // Audio preferences still work for this session if storage is unavailable.
+    }
+  }, [musicEnabled, soundEnabled]);
 
   useEffect(() => {
     const syncViewport = () => {
@@ -424,7 +452,7 @@ export default function App() {
   if (needsSetup) {
     return (
       <>
-        <BackgroundMusic combatMode={false} />
+        <BackgroundMusic combatMode={false} enabled={musicEnabled} />
         <OperatorSetup
           initialName={lobbyProfile.name}
           initialCountry={lobbyProfile.country}
@@ -465,13 +493,14 @@ export default function App() {
   if (screen === "game") {
     return (
       <>
-        <BackgroundMusic combatMode />
+        <BackgroundMusic combatMode enabled={musicEnabled} />
         <div className="fixed inset-0 z-[200] bg-black">
           <GameCanvas
             mode={canvasMode}
             role={toGameRole(lobbyProfile.selectedRole)}
             mapId={toGameMapId(activeMap.name)}
             profile={gameProfile}
+            soundEnabled={soundEnabled}
             teamConfig={teamConfig}
             onProfileChange={handleGameProfileChange}
             onExit={() => {
@@ -504,7 +533,7 @@ export default function App() {
   return (
     <>
       {/* screen can never be "game" here — that case returns its own JSX above — so music always plays in lobby mode */}
-      <BackgroundMusic combatMode={false} />
+      <BackgroundMusic combatMode={false} enabled={musicEnabled} />
       <div
         className="app-shell"
         style={{ background: "oklch(0.10 0.018 120)" }}
@@ -513,6 +542,10 @@ export default function App() {
         <LobbyHeader
           activeScreen={screen}
           profile={lobbyProfile}
+          musicOn={musicEnabled}
+          soundOn={soundEnabled}
+          onToggleMusic={() => setMusicEnabled((enabled) => !enabled)}
+          onToggleSound={() => setSoundEnabled((enabled) => !enabled)}
           onChangeScreen={(s) => setScreen(s)}
           onOpenSettings={() => setPendingModal("settings")}
           onAddCurrency={handleAddCurrency}
