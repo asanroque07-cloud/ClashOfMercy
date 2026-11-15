@@ -238,6 +238,44 @@
   border-color: rgba(118, 160, 53, 0.7);
 }
 
+.touch-layout-editor {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+  padding: 6px 8px;
+  border: 1px solid rgba(118, 160, 53, 0.4);
+  border-radius: 12px;
+  background: rgba(10, 14, 9, 0.92);
+  color: #dce9cb;
+  font: 700 10px/1 var(--font-mono);
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.touch-layout-editor__button {
+  min-width: 32px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid rgba(118, 160, 53, 0.45);
+  border-radius: 8px;
+  background: rgba(17, 24, 16, 0.95);
+  color: #dce9cb;
+  font: inherit;
+  touch-action: manipulation;
+}
+
+.touch-layout-editor__button--primary {
+  background: rgba(118, 160, 53, 0.28);
+  border-color: rgba(170, 221, 84, 0.7);
+}
+
 .touch-controls {
   position: absolute;
   inset: auto 0 0 0;
@@ -263,6 +301,17 @@
   pointer-events: none;
 }
 
+.touch-controls.is-editing .touch-controls__cluster,
+.touch-controls.is-editing .touch-controls__stack {
+  pointer-events: auto;
+}
+
+.touch-controls.is-editing .touch-button,
+.touch-controls.is-editing .touch-stick {
+  outline: 1px dashed rgba(215, 245, 170, 0.7);
+  cursor: grab !important;
+}
+
 .touch-button {
   width: 62px;
   height: 62px;
@@ -277,6 +326,7 @@
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
   pointer-events: auto;
   touch-action: none;
+  scale: var(--touch-control-scale, 1);
 }
 
 .touch-button--wide {
@@ -294,6 +344,7 @@
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
   pointer-events: auto;
   touch-action: none;
+  scale: var(--touch-control-scale, 1);
 }
 
 .touch-stick--aim {
