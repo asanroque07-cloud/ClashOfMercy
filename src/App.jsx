@@ -3,6 +3,7 @@
 // data (profile, friends, shop, match history). Every other screen is a smaller
 // component that App shows and hands data/handlers to.
 import { useState, useEffect, useCallback } from "react";
+import { useCloudAccount } from "@/hooks/useCloudAccount";
 import LoadingScreen from "@/components/LoadingScreen";
 import { LobbyHeader } from "@/components/LobbyHeader";
 import { RankLobby } from "@/components/RankLobby";
@@ -22,6 +23,7 @@ import {
   loadProfile,
   saveProfile,
 } from "@/lib/storage";
+import { supabase } from "@/lib/supabaseClient";
 
 const MUSIC_SETTING_KEY = "opwar_music_enabled";
 const SOUND_SETTING_KEY = "opwar_sound_enabled";
@@ -107,6 +109,9 @@ export default function App() {
   const [prevScreen, setPrevScreen] = useState("home"); // screen to return to after a match/queue ends
   const [gameMode, setGameMode] = useState("classic"); // classic vs. ranked queue
   const [lobbyState, setLobbyState] = useState(null); // profile/friends/shop/history, saved to localStorage
+  const [initialStateLoaded, setInitialStateLoaded] = useState(false);
+  const [cloudReadyUser, setCloudReadyUser] = useState(null);
+  const cloudAccount = useCloudAccount();
   const [squad, setSquad] = useState([]); // friends/bots currently grouped up for a match
   const [alerts, setAlerts] = useState([]); // toast notifications shown top-right
   const [pendingModal, setPendingModal] = useState(null); // which popup dialog Home should open, if any
@@ -129,7 +134,100 @@ export default function App() {
   useEffect(() => {
     setLobbyState(loadLobbyState());
     setGameProfile(loadProfile());
+    setInitialStateLoaded(true);
   }, []);
+
+  useEffect(() => {
+    const user = cloudAccount.user;
+    if (!user || !initialStateLoaded || !lobbyState || !supabase) {
+      if (!user) setCloudReadyUser(null);
+      return undefined;
+    }
+
+    let active = true;
+    setCloudReadyUser(null);
+    const loadAccountSave = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("player_saves")
+          .select("lobby_state, game_profile")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (error) throw error;
+        if (!active) return;
+
+        if (data) {
+          const restoredLobby = { ...data.lobby_state, friends: [] };
+          saveLobbyState(restoredLobby);
+          setLobbyState(restoredLobby);
+          if (data.game_profile) {
+            saveProfile(data.game_profile);
+            setGameProfile(data.game_profile);
+          }
+        } else {
+          const { error: saveError } = await supabase
+            .from("player_saves")
+            .upsert({
+              user_id: user.id,
+              lobby_state: { ...lobbyState, friends: [] },
+              game_profile: gameProfile,
+              updated_at: new Date().toISOString(),
+            });
+          if (saveError) throw saveError;
+        }
+        if (active) setCloudReadyUser(user.id);
+      } catch (error) {
+        if (active) {
+          cloudAccount.setError(
+            `Cloud save could not be loaded: ${error.message}`,
+          );
+        }
+      }
+    };
+
+    loadAccountSave();
+    return () => {
+      active = false;
+    };
+  }, [cloudAccount.user?.id, initialStateLoaded]);
+
+  useEffect(() => {
+    const user = cloudAccount.user;
+    if (
+      !user ||
+      cloudReadyUser !== user.id ||
+      !lobbyState ||
+      !gameProfile ||
+      !supabase
+    ) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(async () => {
+      const { friends: _localFriends, ...savedLobbyState } = lobbyState;
+      const [saveResult, profileResult] = await Promise.all([
+        supabase.from("player_saves").upsert({
+          user_id: user.id,
+          lobby_state: savedLobbyState,
+          game_profile: gameProfile,
+          updated_at: new Date().toISOString(),
+        }),
+        supabase
+          .from("profiles")
+          .update({
+            display_name: lobbyState.lobbyProfile.name,
+            avatar_id: lobbyState.lobbyProfile.avatarId,
+          })
+          .eq("user_id", user.id),
+      ]);
+      const error = saveResult.error || profileResult.error;
+      if (error) {
+        cloudAccount.setError(`Cloud save failed: ${error.message}`);
+      }
+    }, 500);
+
+    return () => window.clearTimeout(timeout);
+  }, [cloudReadyUser, cloudAccount.user?.id, lobbyState, gameProfile]);
 
   useEffect(() => {
     try {
@@ -250,34 +348,11 @@ export default function App() {
   };
 
   // ── Friend handlers (friends list + squad-up for a match) ──────
-  const handleAddFriend = (friend) => {
-    updateLobbyState((s) => ({ ...s, friends: [...s.friends, friend] }));
-  };
-
-  const handleRemoveFriend = (id) => {
-    updateLobbyState((s) => ({
-      ...s,
-      friends: s.friends.filter((f) => f.id !== id),
-    }));
-  };
-
   const handleInviteToSquad = (friend) => {
-    if (squad.length >= 4) {
-      pushAlert({
-        message: "Squad is full (max 4 slots + you as leader)",
-        type: "error",
-      });
-      return;
-    }
-    if (squad.find((s) => s.id === friend.id)) {
-      pushAlert({
-        message: `${friend.name} is already in your squad`,
-        type: "warning",
-      });
-      return;
-    }
-    setSquad((prev) => [...prev, friend]);
-    pushAlert({ message: `${friend.name} joined the squad!`, type: "success" });
+    pushAlert({
+      message: `Online match invites are not available yet. ${friend.name} is a real account, but matches still run locally.`,
+      type: "warning",
+    });
   };
 
   // ── Weapon / store handlers (armory + shop purchases) ──────────
@@ -490,13 +565,13 @@ export default function App() {
 
   const {
     lobbyProfile,
-    friends,
     weapons,
     storeItems,
     matchHistory,
     activeMap,
     ownedEmoteIds,
   } = lobbyState;
+  const friends = cloudAccount.user ? cloudAccount.friends : [];
 
   const needsSetup =
     !lobbyProfile.name ||
@@ -603,6 +678,7 @@ export default function App() {
           onChangeScreen={(s) => setScreen(s)}
           onOpenSettings={() => setPendingModal("settings")}
           onAddCurrency={handleAddCurrency}
+          cloudAccount={cloudAccount}
         />
 
         {/* Alert toasts */}
@@ -639,17 +715,40 @@ export default function App() {
                 ownedEmoteIds={ownedEmoteIds}
                 pendingModal={pendingModal}
                 onClearModal={() => setPendingModal(null)}
+                accountConnected={!!cloudAccount.user}
+                cloudConfigured={cloudAccount.configured}
+                incomingFriendRequests={cloudAccount.incomingRequests}
                 onNavigate={handleNavigate}
                 onStartMatchmaking={handleStartMatchmaking}
                 onUpdateProfile={handleUpdateProfile}
-                onAddFriend={handleAddFriend}
-                onRemoveFriend={handleRemoveFriend}
+                onSearchPlayer={cloudAccount.findPlayer}
+                onSendFriendRequest={cloudAccount.sendFriendRequest}
+                onAcceptFriendRequest={async (id) => {
+                  try {
+                    await cloudAccount.acceptFriendRequest(id);
+                    pushAlert({
+                      message: "Friend request accepted.",
+                      type: "success",
+                    });
+                  } catch (error) {
+                    cloudAccount.setError(error.message);
+                    pushAlert({ message: error.message, type: "error" });
+                  }
+                }}
+                onRemoveFriend={async (id) => {
+                  try {
+                    await cloudAccount.removeFriend(id);
+                    pushAlert({ message: "Friend removed.", type: "info" });
+                  } catch (error) {
+                    cloudAccount.setError(error.message);
+                    pushAlert({ message: error.message, type: "error" });
+                  }
+                }}
                 onEquipWeapon={handleEquipWeapon}
                 onBuyItem={handleBuyItem}
                 onBuyEmote={handleBuyEmote}
                 onSelectEmote={handleSelectEmote}
                 onClearHistory={handleClearHistory}
-                onPushAlert={pushAlert}
               />
             </div>
           )}

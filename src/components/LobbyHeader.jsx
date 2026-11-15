@@ -15,6 +15,7 @@ import {
   LogOut,
   Music2,
   VolumeX,
+  LogIn,
 } from "lucide-react";
 import { ADMIRALS_AVATARS } from "@/lib/lobbyData";
 import ControllerSettingsModal from "@/components/ControllerSettingsModal";
@@ -41,6 +42,7 @@ export function LobbyHeader({
   soundOn,
   onToggleMusic,
   onToggleSound,
+  cloudAccount,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [controllerSettingsOpen, setControllerSettingsOpen] = useState(false);
@@ -255,8 +257,62 @@ export function LobbyHeader({
               <div className="home-settings-menu__header">
                 <div className="home-settings-menu__title">Game settings</div>
                 <div className="home-settings-menu__subtitle">
-                  Audio and controller preferences
+                  Audio, controller, and account
                 </div>
+              </div>
+
+              <div className="home-settings-account">
+                <div className="home-settings-account__heading">
+                  <span className="home-settings-row__icon">
+                    <LogIn size={14} />
+                  </span>
+                  <span className="home-settings-row__copy">
+                    <span className="home-settings-row__label">
+                      {cloudAccount.user ? "Google account connected" : "Save your account"}
+                    </span>
+                    <span className="home-settings-row__hint">
+                      {cloudAccount.user
+                        ? cloudAccount.playerProfile?.username
+                          ? `@${cloudAccount.playerProfile.username}`
+                          : cloudAccount.user.email
+                        : "Guest progress is saved only on this device."}
+                    </span>
+                  </span>
+                </div>
+                {cloudAccount.user ? (
+                  <button
+                    type="button"
+                    onClick={cloudAccount.disconnectGoogle}
+                    disabled={cloudAccount.busy}
+                    className="home-settings-account__button"
+                  >
+                    {cloudAccount.busy ? "PLEASE WAIT…" : "DISCONNECT"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={cloudAccount.connectGoogle}
+                    disabled={!cloudAccount.configured || cloudAccount.busy}
+                    className="home-settings-account__button"
+                  >
+                    {cloudAccount.busy
+                      ? "CONNECTING…"
+                      : cloudAccount.configured
+                        ? "CONNECT GOOGLE"
+                        : "SET UP SUPABASE"}
+                  </button>
+                )}
+                {!cloudAccount.configured && (
+                  <div className="home-settings-account__note">
+                    Add the Supabase URL and publishable key to the app
+                    environment before connecting.
+                  </div>
+                )}
+                {cloudAccount.error && (
+                  <div className="home-settings-account__error" role="alert">
+                    {cloudAccount.error}
+                  </div>
+                )}
               </div>
 
               {/* Music toggle */}

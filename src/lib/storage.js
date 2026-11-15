@@ -4,7 +4,6 @@
 // back sensible defaults (DEFAULT_PROFILE / the initial lobby data).
 import { DEFAULT_PROFILE } from "./gameTypes";
 import {
-  INITIAL_FRIENDS,
   INITIAL_WEAPONS,
   INITIAL_STORE_ITEMS,
   GAME_MAPS,
@@ -78,7 +77,7 @@ function defaultLobbyState() {
       selectedRole: "Core",
       selectedPlace: GAME_MAPS[0].name,
     },
-    friends: INITIAL_FRIENDS,
+    friends: [],
     weapons: INITIAL_WEAPONS,
     storeItems: INITIAL_STORE_ITEMS,
     matchHistory: [],
