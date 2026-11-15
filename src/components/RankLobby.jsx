@@ -52,23 +52,23 @@ export function RankLobby({
   const filledSlots = squad.length;
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4 w-full select-none animate-in fade-in duration-300">
+    <div className="match-lobby match-lobby--rank h-full min-h-0 flex flex-col gap-4 w-full select-none animate-in fade-in duration-300">
       {/* Ranked banner */}
-      <div className="lobby-panel flex items-center gap-3 px-4 py-3">
+      <div className="match-lobby__banner lobby-panel flex items-center gap-3 px-4 py-3">
         <Trophy size={20} className="text-amber-400 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="font-display text-sm tracking-widest text-amber-400 uppercase">
+          <div className="match-lobby__title font-display text-sm tracking-widest text-amber-400 uppercase">
             Ranked Combat Protocol
           </div>
-          <div className="font-mono text-[10px] text-stone-400 uppercase tracking-wider">
+          <div className="match-lobby__subtitle font-mono text-[10px] text-stone-400 uppercase tracking-wider">
             Competitive squad warfare — {filledSlots}/4 squad slots filled
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-amber-950/30 border border-amber-500/40 px-3 py-1.5 rounded">
+        <div className="match-lobby__stat flex items-center gap-2 bg-amber-950/30 border border-amber-500/40 px-3 py-1.5 rounded">
           <Crown size={14} className="text-amber-400" />
           <div className="font-mono text-left">
-            <div className="text-[8px] text-stone-400 uppercase">Your Rank</div>
-            <div className="text-xs font-bold text-amber-400">
+            <div className="match-lobby__stat-label text-[8px] text-stone-400 uppercase">Your Rank</div>
+            <div className="match-lobby__stat-value text-xs font-bold text-amber-400">
               {profile.rankName} {profile.rankTier}
             </div>
           </div>
@@ -76,15 +76,15 @@ export function RankLobby({
       </div>
 
       {/* 5-player squad cards */}
-      <div className="grid grid-cols-5 gap-2.5">
+      <div className="match-lobby__squad-grid grid grid-cols-5 gap-2.5">
         {/* Leader slot */}
-        <div className="lobby-panel p-2.5 flex flex-col justify-between items-center text-center h-44 lg:h-48 relative overflow-hidden group">
+        <div className="match-lobby__player-card lobby-panel p-2.5 flex flex-col justify-between items-center text-center h-44 lg:h-48 relative overflow-hidden group">
           <div className="absolute top-0 inset-x-0 h-[2px] bg-emerald-500" />
-          <div className="text-[9px] font-mono font-black text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+          <div className="match-lobby__role-tag text-[9px] font-mono font-black text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
             <Crown size={8} /> LEADER
           </div>
-          <div className="relative my-2">
-            <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-full border-2 border-emerald-500/60 overflow-hidden bg-stone-950">
+          <div className="match-lobby__avatar-wrap relative my-2">
+            <div className="match-lobby__avatar w-14 h-14 lg:w-16 lg:h-16 rounded-full border-2 border-emerald-500/60 overflow-hidden bg-stone-950">
               <img
                 src={currentAvatar.url}
                 alt="Leader"
@@ -96,7 +96,7 @@ export function RankLobby({
               LVL {profile.level}
             </div>
           </div>
-          <div className="min-w-0 font-mono">
+          <div className="match-lobby__player-meta min-w-0 font-mono">
             <div className="text-white text-xs font-black truncate max-w-[100px]">
               {profile.name}
             </div>
@@ -105,7 +105,7 @@ export function RankLobby({
               <span>{profile.selectedRole}</span>
             </div>
           </div>
-          <div className="bg-white/5 border border-military/40 rounded px-2 py-0.5 text-[9px] text-amber-400 flex items-center gap-1 font-bold">
+          <div className="match-lobby__rank-tag bg-white/5 border border-military/40 rounded px-2 py-0.5 text-[9px] text-amber-400 flex items-center gap-1 font-bold">
             ⚔ {profile.rankName} {profile.rankTier}
           </div>
         </div>
@@ -121,9 +121,9 @@ export function RankLobby({
             return (
               <div
                 key={member.id}
-                className="lobby-panel p-2.5 flex flex-col justify-between items-center text-center h-44 lg:h-48 relative group transition-all hover:border-emerald-500/40"
+                className="match-lobby__player-card lobby-panel p-2.5 flex flex-col justify-between items-center text-center h-44 lg:h-48 relative group transition-all hover:border-emerald-500/40"
               >
-                <div className="text-[8px] font-mono font-bold bg-stone-950 px-1.5 py-0.5 border border-military/30 rounded uppercase tracking-wider text-stone-400 flex items-center gap-1">
+                <div className="match-lobby__role-tag text-[8px] font-mono font-bold bg-stone-950 px-1.5 py-0.5 border border-military/30 rounded uppercase tracking-wider text-stone-400 flex items-center gap-1">
                   {isBot ? (
                     <>
                       <Bot size={8} /> AI MERC
@@ -132,8 +132,8 @@ export function RankLobby({
                     "TEAMMATE"
                   )}
                 </div>
-                <div className="relative my-2">
-                  <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-full border border-military/60 overflow-hidden bg-stone-950">
+                <div className="match-lobby__avatar-wrap relative my-2">
+                  <div className="match-lobby__avatar w-14 h-14 lg:w-16 lg:h-16 rounded-full border border-military/60 overflow-hidden bg-stone-950">
                     <img
                       src={mbAvatar.url}
                       alt={member.name}
@@ -145,7 +145,7 @@ export function RankLobby({
                     LVL {member.level}
                   </div>
                 </div>
-                <div className="min-w-0 font-mono">
+                <div className="match-lobby__player-meta min-w-0 font-mono">
                   <div className="text-stone-200 text-xs truncate max-w-[100px] font-bold">
                     {member.name}
                   </div>
@@ -154,7 +154,7 @@ export function RankLobby({
                     <span>{member.role}</span>
                   </div>
                 </div>
-                <div className="bg-stone-950 border border-military/30 rounded px-2.5 py-0.5 text-[8px] font-mono text-stone-400">
+                <div className="match-lobby__rank-tag bg-stone-950 border border-military/30 rounded px-2.5 py-0.5 text-[8px] font-mono text-stone-400">
                   {member.rankName} {member.rankTier}
                 </div>
                 <button
@@ -169,7 +169,7 @@ export function RankLobby({
           return (
             <div
               key={`empty-${index}`}
-              className="border-2 border-dashed border-military/40 bg-stone-900/5 hover:bg-stone-900/20 p-3 rounded flex flex-col items-center justify-center text-center h-44 lg:h-48 transition-all"
+              className="match-lobby__player-card border-2 border-dashed border-military/40 bg-stone-900/5 hover:bg-stone-900/20 p-3 rounded flex flex-col items-center justify-center text-center h-44 lg:h-48 transition-all"
             >
               <Plus size={22} className="text-[#76a035]/40 mb-2 animate-pulse" />
               <span className="text-[10px] font-mono font-bold text-stone-500 uppercase leading-normal">
@@ -190,7 +190,7 @@ export function RankLobby({
       </div>
 
       {/* Map banner */}
-      <div className="lobby-panel p-3 flex flex-col md:flex-row justify-between items-center gap-3 relative overflow-hidden">
+      <div className="match-lobby__map-panel lobby-panel p-3 flex flex-col md:flex-row justify-between items-center gap-3 relative overflow-hidden">
         <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#76a035]/8 to-transparent pointer-events-none" />
         <div className="text-left font-mono space-y-1">
           <div className="text-[#76a035] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
@@ -332,7 +332,7 @@ export function RankLobby({
         </div>
       )}
 
-      <div className="flex justify-center pt-1 mt-auto">
+      <div className="match-lobby__queue-action flex justify-center pt-1 mt-auto">
         <button
           onClick={onLaunchQueue}
           className="lobby-btn-primary w-full md:w-1/2 flex items-center justify-center gap-3 text-base py-3.5 rounded-lg"

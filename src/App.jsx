@@ -601,7 +601,7 @@ export default function App() {
           )}
 
           {screen === "rank" && (
-            <div className="screen-shell p-4 md:p-5 grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div className="match-lobby-shell screen-shell p-4 md:p-5 grid grid-cols-1 md:grid-cols-12 gap-4">
               <div className="md:col-span-8 xl:col-span-9 min-h-0">
                 <RankLobby
                   profile={lobbyProfile}
@@ -616,7 +616,7 @@ export default function App() {
                 />
               </div>
               <div className="md:col-span-4 xl:col-span-3 min-h-0">
-                <div className="bg-stone-950/80 border border-military text-stone-100 flex flex-col h-full rounded overflow-hidden shadow-2xl">
+                <div className="match-lobby__invites bg-stone-950/80 border border-military text-stone-100 flex flex-col h-full rounded overflow-hidden shadow-2xl">
                   <div className="p-3 bg-zinc-900/60 border-b border-military text-[#76a035] text-xs font-mono font-black uppercase tracking-widest">
                     SQUAD INVITE
                   </div>
@@ -662,7 +662,7 @@ export default function App() {
           )}
 
           {screen === "classic" && (
-            <div className="screen-shell p-4 md:p-5 grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div className="match-lobby-shell screen-shell p-4 md:p-5 grid grid-cols-1 md:grid-cols-12 gap-4">
               <div className="md:col-span-8 xl:col-span-9 min-h-0">
                 <ClassicLobby
                   profile={lobbyProfile}
@@ -676,7 +676,7 @@ export default function App() {
                 />
               </div>
               <div className="md:col-span-4 xl:col-span-3 min-h-0">
-                <div className="bg-stone-950/80 border border-military text-stone-100 flex flex-col h-full rounded overflow-hidden shadow-2xl">
+                <div className="match-lobby__invites bg-stone-950/80 border border-military text-stone-100 flex flex-col h-full rounded overflow-hidden shadow-2xl">
                   <div className="p-3 bg-zinc-900/60 border-b border-military text-[#76a035] text-xs font-mono font-black uppercase tracking-widest">
                     SQUAD INVITE
                   </div>
