@@ -46,6 +46,7 @@ export function useOnlineMatch(user, displayName) {
   const [error, setError] = useState("");
   const roomRef = useRef(null);
   const leaveRoomRef = useRef(null);
+  const leavingRoomRef = useRef(null);
   const inviteTeamsRef = useRef(new Map());
 
   roomRef.current = room;
@@ -332,6 +333,9 @@ export function useOnlineMatch(user, displayName) {
     const activeChannel = roomChannel;
     const userId = user?.id;
 
+    if (activeRoom && leavingRoomRef.current === activeRoom.id) return;
+    if (activeRoom) leavingRoomRef.current = activeRoom.id;
+
     if (activeRoom?.role === "host") {
       Array.from(inviteTeamsRef.current.keys()).forEach((invitedUserId) => {
         void sendBroadcast(`game-invites:${invitedUserId}`, "cancel", {
@@ -342,9 +346,6 @@ export function useOnlineMatch(user, displayName) {
       });
     }
     inviteTeamsRef.current.clear();
-    roomRef.current = null;
-    setRoom(null);
-    setRoomChannel(null);
 
     try {
       if (activeChannel && activeRoom?.role === "guest" && userId) {
@@ -368,6 +369,22 @@ export function useOnlineMatch(user, displayName) {
       }
     } catch (leaveError) {
       setError(getErrorMessage(leaveError));
+    } finally {
+      if (activeRoom) {
+        if (roomRef.current?.id === activeRoom.id) roomRef.current = null;
+        setRoom((previous) =>
+          previous?.id === activeRoom.id ? null : previous,
+        );
+        setRoomChannel((previous) =>
+          previous === activeChannel ? null : previous,
+        );
+        if (leavingRoomRef.current === activeRoom.id) {
+          leavingRoomRef.current = null;
+        }
+      } else {
+        setRoom(null);
+        setRoomChannel(null);
+      }
     }
   }, [roomChannel, user?.id]);
   leaveRoomRef.current = leaveRoom;
