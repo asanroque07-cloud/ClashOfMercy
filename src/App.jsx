@@ -2,8 +2,9 @@
 // player is looking at (home, lobby, live match, etc.) and all of their saved
 // data (profile, friends, shop, match history). Every other screen is a smaller
 // component that App shows and hands data/handlers to.
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useCloudAccount } from "@/hooks/useCloudAccount";
+import { useOnlineMatch } from "@/hooks/useOnlineMatch";
 import LoadingScreen from "@/components/LoadingScreen";
 import { LobbyHeader } from "@/components/LobbyHeader";
 import { RankLobby } from "@/components/RankLobby";
@@ -27,6 +28,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 const MUSIC_SETTING_KEY = "opwar_music_enabled";
 const SOUND_SETTING_KEY = "opwar_sound_enabled";
+const EMPTY_MATCH_PARTICIPANTS = [];
 
 function loadAudioPreference(key) {
   if (typeof window === "undefined") return true;
@@ -97,6 +99,84 @@ function requestPhoneFullscreen(force = false) {
   }
 }
 
+function OnlineMatchOverlay({
+  onlineMatch,
+  onAcceptInvite,
+  onDeclineInvite,
+  onStartHostRoom,
+}) {
+  const invite = onlineMatch.incomingInvites[0];
+  const waiting = onlineMatch.room?.status === "waiting";
+  const hostRoom =
+    onlineMatch.room?.role === "host" &&
+    onlineMatch.room.status === "inviting" &&
+    onlineMatch.room.mode !== "custom";
+  if (!invite && !waiting && !hostRoom) return null;
+
+  if (hostRoom && !invite && !waiting) {
+    return (
+      <div className="fixed top-20 right-4 z-[450] w-72 border border-[#76a035] bg-stone-950 p-3 shadow-2xl">
+        <div className="font-mono text-[10px] font-black uppercase tracking-widest text-[#9acd50]">
+          {onlineMatch.room.mode} match lobby
+        </div>
+        <p className="mt-1 font-mono text-[10px] text-stone-300">
+          {onlineMatch.room.participants.length - 1} friend
+          {onlineMatch.room.participants.length === 2 ? "" : "s"} joined.
+          Unfilled slots use AI.
+        </p>
+        <button
+          type="button"
+          onClick={onStartHostRoom}
+          className="mt-3 w-full border border-[#9acd50] bg-[#76a035] px-3 py-2 font-mono text-xs font-bold uppercase text-black hover:bg-[#8bc342]"
+        >
+          Start match
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/75 p-4">
+      <div className="w-full max-w-sm border border-[#76a035] bg-stone-950 p-5 text-center shadow-2xl">
+        <div className="font-mono text-xs font-black uppercase tracking-widest text-[#9acd50]">
+          {invite ? "Match invitation" : "Joining match"}
+        </div>
+        <p className="mt-3 font-mono text-sm text-stone-200">
+          {invite
+            ? `${invite.fromName} invited you to a ${invite.mode} match.`
+            : `Waiting for ${onlineMatch.room.hostName} to start the match…`}
+        </p>
+        {invite ? (
+          <div className="mt-5 flex justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => onDeclineInvite(invite.id)}
+              className="border border-stone-700 px-4 py-2 font-mono text-xs font-bold uppercase text-stone-300 hover:bg-stone-800"
+            >
+              Decline
+            </button>
+            <button
+              type="button"
+              onClick={() => onAcceptInvite(invite)}
+              className="border border-[#9acd50] bg-[#76a035] px-4 py-2 font-mono text-xs font-bold uppercase text-black hover:bg-[#8bc342]"
+            >
+              Accept
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onlineMatch.leaveRoom}
+            className="mt-5 border border-stone-700 px-4 py-2 font-mono text-xs font-bold uppercase text-stone-300 hover:bg-stone-800"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // This is the root component: it owns which screen is showing and all of the player's
 // lobby/game state, and renders the matching screen component below.
 export default function App() {
@@ -112,9 +192,14 @@ export default function App() {
   const [initialStateLoaded, setInitialStateLoaded] = useState(false);
   const [cloudReadyUser, setCloudReadyUser] = useState(null);
   const cloudAccount = useCloudAccount();
+  const onlineMatch = useOnlineMatch(
+    cloudAccount.user,
+    lobbyState?.lobbyProfile?.name,
+  );
   const [squad, setSquad] = useState([]); // friends/bots currently grouped up for a match
   const [alerts, setAlerts] = useState([]); // toast notifications shown top-right
   const [pendingModal, setPendingModal] = useState(null); // which popup dialog Home should open, if any
+  const previousOnlineRoomRef = useRef(null);
   const [gameProfile, setGameProfile] = useState(loadProfile()); // in-match profile (coins/loadout/upgrades)
   const [musicEnabled, setMusicEnabled] = useState(() =>
     loadAudioPreference(MUSIC_SETTING_KEY),
@@ -315,6 +400,51 @@ export default function App() {
     );
   }, []);
 
+  useEffect(() => {
+    if (onlineMatch.error) {
+      pushAlert({ message: onlineMatch.error, type: "error" });
+    }
+  }, [onlineMatch.error, pushAlert]);
+
+  useEffect(() => {
+    const room = onlineMatch.room;
+    if (room?.role !== "guest" || room.status !== "started") return;
+
+    const fromScreen = room.mode === "custom" ? "custom" : room.mode;
+    setTeamConfig(room.teamConfig);
+    setGameMode(room.mode === "rank" ? "rank" : "classic");
+    setPrevScreen(fromScreen);
+    requestPhoneFullscreen(true);
+    setScreen("game");
+  }, [
+    onlineMatch.room?.id,
+    onlineMatch.room?.role,
+    onlineMatch.room?.status,
+  ]);
+
+  useEffect(() => {
+    const previousRoom = previousOnlineRoomRef.current;
+    previousOnlineRoomRef.current = onlineMatch.room;
+    if (
+      previousRoom?.status === "started" &&
+      !onlineMatch.room &&
+      screen === "game"
+    ) {
+      const returnScreen =
+        previousRoom.mode === "custom" ? "custom" : previousRoom.mode;
+      setScreen(returnScreen);
+      pushAlert({
+        message: "The match host ended the online match.",
+        type: "warning",
+      });
+    }
+  }, [
+    onlineMatch.room?.id,
+    onlineMatch.room?.status,
+    screen,
+    pushAlert,
+  ]);
+
   // this is a shared helper: applies a change to the saved lobby state and persists it in one step
   const updateLobbyState = useCallback((updater) => {
     setLobbyState((prev) => {
@@ -347,12 +477,101 @@ export default function App() {
     });
   };
 
-  // ── Friend handlers (friends list + squad-up for a match) ──────
-  const handleInviteToSquad = (friend) => {
-    pushAlert({
-      message: `Online match invites are not available yet. ${friend.name} is a real account, but matches still run locally.`,
-      type: "warning",
-    });
+  // ── Friend handlers (friends list + online match invitations) ──────
+  const handleInviteToSquad = async (
+    friend,
+    requestedMode = screen === "rank" || screen === "custom" ? screen : "classic",
+    team = "blue",
+  ) => {
+    try {
+      await onlineMatch.inviteFriend(friend, requestedMode, team);
+      pushAlert({
+        message: `Match invitation sent to ${friend.name}.`,
+        type: "success",
+      });
+      return true;
+    } catch (error) {
+      pushAlert({ message: error.message, type: "error" });
+      return false;
+    }
+  };
+
+  const handleQueueMatchLaunch = async (mode) => {
+    const room = onlineMatch.room;
+    const participants =
+      room?.role === "host" && room.mode === mode
+        ? room.participants || []
+        : [];
+    const joinedPlayers = participants.filter(
+      (participant) => participant.userId,
+    );
+
+    if (joinedPlayers.length > 1) {
+      const createTeam = (team) => {
+        const humans = joinedPlayers
+          .filter((participant) => participant.team === team)
+          .slice(0, 3)
+          .map((participant) => ({
+            userId: participant.userId,
+            name: participant.name,
+            isAI: false,
+            isHost: participant.userId === cloudAccount.user?.id,
+          }));
+        const bots = ["Ghost", "Viper", "Thorn"];
+        while (humans.length < 3) {
+          humans.push({
+            name: bots[humans.length],
+            isAI: true,
+          });
+        }
+        return humans;
+      };
+      const config = {
+        blue: createTeam("blue"),
+        red: createTeam("red"),
+      };
+
+      try {
+        await onlineMatch.startMatch({
+          teamConfig: config,
+          mapId: toGameMapId(activeMap.name),
+        });
+        setTeamConfig(config);
+        handleLaunchGame(mode);
+      } catch (error) {
+        pushAlert({ message: error.message, type: "error" });
+      }
+      return;
+    }
+
+    if (room?.role === "host") await onlineMatch.leaveRoom();
+    setTeamConfig(null);
+    handleLaunchGame(mode);
+  };
+
+  const handleCustomMatchLaunch = async (config) => {
+    if (
+      onlineMatch.room?.role !== "host" ||
+      onlineMatch.room.mode !== "custom" ||
+      onlineMatch.room.participants.length < 2
+    ) {
+      pushAlert({
+        message: "Invite at least one online friend and wait for them to join.",
+        type: "warning",
+      });
+      return;
+    }
+
+    try {
+      await onlineMatch.startMatch({
+        teamConfig: config,
+        mapId: toGameMapId(activeMap.name),
+      });
+      setTeamConfig(config);
+      handleLaunchGame("custom");
+    } catch (error) {
+      pushAlert({ message: error.message, type: "error" });
+    }
   };
 
   // ── Weapon / store handlers (armory + shop purchases) ──────────
@@ -598,9 +817,24 @@ export default function App() {
     );
   }
 
-  // Determine which ruleset GameCanvas should run, based on which lobby screen launched the match
-  const canvasMode =
-    prevScreen === "offline" || prevScreen === "custom"
+  const activeOnlineRoom =
+    onlineMatch.room?.status === "started" ? onlineMatch.room : null;
+  const networkSession =
+    activeOnlineRoom && onlineMatch.roomChannel
+      ? {
+          roomId: activeOnlineRoom.id,
+          role: activeOnlineRoom.role,
+          userId: cloudAccount.user?.id,
+          hostUserId: activeOnlineRoom.hostUserId,
+          channel: onlineMatch.roomChannel,
+        }
+      : null;
+  // Determine which ruleset GameCanvas should run, based on the launched match.
+  const canvasMode = activeOnlineRoom
+    ? activeOnlineRoom.mode === "custom"
+      ? "offline"
+      : activeOnlineRoom.mode
+    : prevScreen === "offline" || prevScreen === "custom"
       ? "offline"
       : prevScreen === "rank"
         ? "rank"
@@ -627,12 +861,15 @@ export default function App() {
           <GameCanvas
             mode={canvasMode}
             role={toGameRole(lobbyProfile.selectedRole)}
-            mapId={toGameMapId(activeMap.name)}
+            mapId={activeOnlineRoom?.mapId || toGameMapId(activeMap.name)}
             profile={gameProfile}
             soundEnabled={soundEnabled}
             teamConfig={teamConfig}
+            networkSession={networkSession}
+            onNetworkError={pushAlert}
             onProfileChange={handleGameProfileChange}
             onExit={() => {
+              onlineMatch.leaveRoom();
               setScreen(exitToScreen);
               pushAlert({
                 message: "Returned to HQ. Check match history!",
@@ -641,6 +878,14 @@ export default function App() {
             }}
           />
         </div>
+        <OnlineMatchOverlay
+          onlineMatch={onlineMatch}
+          onAcceptInvite={onlineMatch.acceptInvite}
+          onDeclineInvite={onlineMatch.declineInvite}
+          onStartHostRoom={() =>
+            handleQueueMatchLaunch(onlineMatch.room.mode)
+          }
+        />
         {showRotateOverlay && (
           <div className="rotate-device-overlay">
             <div className="rotate-device-card">
@@ -744,6 +989,9 @@ export default function App() {
                     pushAlert({ message: error.message, type: "error" });
                   }
                 }}
+                onInviteFriend={(friend) =>
+                  handleInviteToSquad(friend, "classic", "blue")
+                }
                 onEquipWeapon={handleEquipWeapon}
                 onBuyItem={handleBuyItem}
                 onBuyEmote={handleBuyEmote}
@@ -787,7 +1035,9 @@ export default function App() {
                             {friend.name}
                           </span>
                           <button
-                            onClick={() => handleInviteToSquad(friend)}
+                            onClick={() =>
+                              handleInviteToSquad(friend, "rank", "blue")
+                            }
                             disabled={!!squad.find((s) => s.id === friend.id)}
                             className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded border transition-all ${
                               squad.find((s) => s.id === friend.id)
@@ -823,7 +1073,9 @@ export default function App() {
                   squad={squad}
                   activeMap={activeMap}
                   onRemoveSquadMember={handleRemoveSquadMember}
-                  onInviteFriend={handleInviteToSquad}
+                  onInviteFriend={(friend) =>
+                    handleInviteToSquad(friend, "classic", "blue")
+                  }
                   onUpdatePlace={handleUpdatePlace}
                   onFindMatch={handleLaunchClassicQueue}
                 />
@@ -847,7 +1099,9 @@ export default function App() {
                             {friend.name}
                           </span>
                           <button
-                            onClick={() => handleInviteToSquad(friend)}
+                            onClick={() =>
+                              handleInviteToSquad(friend, "classic", "blue")
+                            }
                             disabled={!!squad.find((s) => s.id === friend.id)}
                             className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded border transition-all ${
                               squad.find((s) => s.id === friend.id)
@@ -881,11 +1135,22 @@ export default function App() {
                 weapons={weapons}
                 activeMap={activeMap}
                 friends={friends}
+                accountUserId={cloudAccount.user?.id}
+                onlineParticipants={
+                  onlineMatch.room?.role === "host" &&
+                  onlineMatch.room.mode === "custom"
+                    ? onlineMatch.room.participants
+                    : EMPTY_MATCH_PARTICIPANTS
+                }
+                onInviteFriend={(friend, team) =>
+                  handleInviteToSquad(
+                    friend,
+                    "custom",
+                    team === "alpha" ? "blue" : "red",
+                  )
+                }
                 onUpdatePlace={handleUpdatePlace}
-                onLaunchGame={(cfg) => {
-                  setTeamConfig(cfg);
-                  handleLaunchGame("custom");
-                }}
+                onLaunchGame={handleCustomMatchLaunch}
               />
             </div>
           )}
@@ -915,14 +1180,18 @@ export default function App() {
                 onCancel={() =>
                   setScreen(prevScreen === "rank" ? "rank" : "classic")
                 }
-                onLaunchGame={() =>
-                  handleLaunchGame(gameMode === "rank" ? "rank" : "classic")
-                }
+                onLaunchGame={() => handleQueueMatchLaunch(gameMode)}
               />
             </div>
           )}
         </div>
       </div>
+      <OnlineMatchOverlay
+        onlineMatch={onlineMatch}
+        onAcceptInvite={onlineMatch.acceptInvite}
+        onDeclineInvite={onlineMatch.declineInvite}
+        onStartHostRoom={() => handleQueueMatchLaunch(onlineMatch.room.mode)}
+      />
       {showRotateOverlay && (
         <div className="rotate-device-overlay">
           <div className="rotate-device-card">

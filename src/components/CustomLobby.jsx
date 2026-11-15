@@ -1,7 +1,6 @@
 // CustomLobby.jsx is the "custom game" room where you fine-tune the rules
-// yourself (map, team sizes, bots, and other match settings) before starting a
-// private match.
-import { useState } from "react";
+// yourself (map and team sizes) before starting a private match.
+import { useEffect, useRef, useState } from "react";
 import {
   X,
   Shield,
@@ -12,7 +11,6 @@ import {
   ChevronUp,
   Minus,
   Plus,
-  Bot,
   RotateCcw,
 } from "lucide-react";
 import { GAME_MAPS, ADMIRALS_AVATARS } from "@/lib/lobbyData";
@@ -20,10 +18,6 @@ import { GAME_MAPS, ADMIRALS_AVATARS } from "@/lib/lobbyData";
 // Maximum players per team. The actual team SIZE is adjustable via the steppers
 // below — this is just the hard cap so the slots never overflow.
 const MAX_TEAM_SIZE = 5;
-
-// Names used when auto-filling empty team slots with AI bots.
-const BOT_NAMES_BLUE = ["Ghost", "Viper", "Thorn", "Rook"];
-const BOT_NAMES_RED = ["Ares", "Blaze", "Reaper", "Spectre"];
 
 function PlayerSlot({ player, team, onRemove, isHost }) {
   const borderColor =
@@ -123,12 +117,15 @@ function TeamSizeStepper({ label, value, onChange, accent }) {
 }
 
 // This is the "Custom Match" screen: set each team's size, drag friends into
-// either team's slots (or auto-fill with bots), pick a map, then start.
+// either team's slots, pick a map, then start.
 export function CustomLobby({
   profile,
   weapons,
   activeMap,
   friends,
+  accountUserId,
+  onlineParticipants = [],
+  onInviteFriend,
   onUpdatePlace,
   onLaunchGame,
 }) {
@@ -136,19 +133,88 @@ export function CustomLobby({
 
   // Each team's roster is an array sized to the chosen team size. Slot 0 on
   // Alpha is always the host (you); every other slot starts empty and can be
-  // filled with a friend or an AI bot.
+  // filled by an accepted online friend.
   const [teamSize, setTeamSize] = useState({ alpha: 3, bravo: 3 });
   const [teamAlpha, setTeamAlpha] = useState([
-    { id: "host", name: profile.name, level: profile.level, isHost: true },
+    {
+      id: accountUserId || "host",
+      userId: accountUserId,
+      name: profile.name,
+      level: profile.level,
+      isHost: true,
+    },
     null,
     null,
   ]);
   const [teamBravo, setTeamBravo] = useState([null, null, null]);
   const [mapOpen, setMapOpen] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState({});
+  const pendingInviteTimers = useRef(new Map());
+
+  useEffect(() => {
+    const host = {
+      id: accountUserId || "host",
+      userId: accountUserId,
+      name: profile.name,
+      level: profile.level,
+      isHost: true,
+    };
+    setTeamAlpha((previous) => {
+      const next = [...previous];
+      next[0] = host;
+      return next;
+    });
+  }, [accountUserId, profile.level, profile.name]);
+
+  useEffect(() => {
+    const joined = onlineParticipants.filter(
+      (player) => player.userId && player.userId !== accountUserId,
+    );
+    const joinedIds = new Set(joined.map((player) => player.userId));
+    joinedIds.forEach((userId) => {
+      window.clearTimeout(pendingInviteTimers.current.get(userId));
+      pendingInviteTimers.current.delete(userId);
+    });
+    setPendingInvites((previous) =>
+      Object.fromEntries(
+        Object.entries(previous).filter(([userId]) => !joinedIds.has(userId)),
+      ),
+    );
+    const addJoinedPlayers = (previous, team) => {
+      const next = [...previous];
+      joined
+        .filter((player) => player.team === team)
+        .forEach((player) => {
+          if (next.some((slot) => slot?.id === player.userId)) return;
+          const emptyIndex = next.findIndex((slot) => slot === null);
+          if (emptyIndex === -1) return;
+          next[emptyIndex] = {
+            id: player.userId,
+            userId: player.userId,
+            name: player.name,
+            level: player.level,
+          };
+        });
+      return next;
+    };
+    setTeamAlpha((previous) => addJoinedPlayers(previous, "blue"));
+    setTeamBravo((previous) => addJoinedPlayers(previous, "red"));
+  }, [onlineParticipants, accountUserId]);
+
+  useEffect(
+    () => () => {
+      pendingInviteTimers.current.forEach((timer) =>
+        window.clearTimeout(timer),
+      );
+    },
+    [],
+  );
 
   // When the team size changes we grow or shrink the roster array, preserving
   // any players already placed and keeping the host in Alpha slot 0.
   const resizeTeam = (team, newSize) => {
+    const roster = team === "alpha" ? teamAlpha : teamBravo;
+    if (roster.filter(Boolean).length > newSize) return;
     setTeamSize((prev) => ({ ...prev, [team]: newSize }));
     if (team === "alpha") {
       setTeamAlpha((prev) => {
@@ -161,7 +227,8 @@ export function CustomLobby({
         // Always re-anchor the host at slot 0.
         if (!next[0] || !next[0].isHost) {
           next[0] = {
-            id: "host",
+            id: accountUserId || "host",
+            userId: accountUserId,
             name: profile.name,
             level: profile.level,
             isHost: true,
@@ -183,28 +250,46 @@ export function CustomLobby({
   };
 
   const invitedIds = new Set([
-    ...teamAlpha.filter(Boolean).map((p) => p.id),
-    ...teamBravo.filter(Boolean).map((p) => p.id),
+    ...teamAlpha.filter(Boolean).map((p) => p.userId || p.id),
+    ...teamBravo.filter(Boolean).map((p) => p.userId || p.id),
   ]);
 
   const availableFriends = friends.filter(
     (f) =>
-      (f.status === "online" || f.status === "lobby") && !invitedIds.has(f.id),
+      (f.status === "online" || f.status === "lobby") &&
+      !invitedIds.has(f.userId || f.id) &&
+      !pendingInvites[f.userId || f.id],
   );
 
   const addToTeam = (friend, team) => {
-    const player = {
-      id: friend.id,
-      name: friend.name,
-      level: friend.level,
-    };
-    const setTeam = team === "alpha" ? setTeamAlpha : setTeamBravo;
-    setTeam((prev) => {
-      const emptyIdx = prev.findIndex((s) => s === null);
-      if (emptyIdx === -1) return prev;
-      const next = [...prev];
-      next[emptyIdx] = player;
-      return next;
+    const friendId = friend.userId || friend.id;
+    const roster = team === "alpha" ? teamAlpha : teamBravo;
+    const pendingCount = Object.values(pendingInvites).filter(
+      (pendingTeam) => pendingTeam === team,
+    ).length;
+    const capacity = team === "alpha" ? teamSize.alpha : teamSize.bravo;
+    if (roster.filter(Boolean).length + pendingCount >= capacity) return;
+
+    setPendingInvites((previous) => ({ ...previous, [friendId]: team }));
+    const timer = window.setTimeout(() => {
+      setPendingInvites((previous) => {
+        const next = { ...previous };
+        delete next[friendId];
+        return next;
+      });
+      pendingInviteTimers.current.delete(friendId);
+    }, 60000);
+    pendingInviteTimers.current.set(friendId, timer);
+
+    Promise.resolve(onInviteFriend?.(friend, team)).then((sent) => {
+      if (sent !== false) return;
+      window.clearTimeout(pendingInviteTimers.current.get(friendId));
+      pendingInviteTimers.current.delete(friendId);
+      setPendingInvites((previous) => {
+        const next = { ...previous };
+        delete next[friendId];
+        return next;
+      });
     });
   };
 
@@ -219,33 +304,19 @@ export function CustomLobby({
     });
   };
 
-  // Fills every empty slot on a team with an AI bot.
-  const fillBots = (team) => {
-    const names = team === "alpha" ? BOT_NAMES_BLUE : BOT_NAMES_RED;
-    const setTeam = team === "alpha" ? setTeamAlpha : setTeamBravo;
-    setTeam((prev) => {
-      let botIdx = 0;
-      return prev.map((slot) => {
-        if (slot) return slot;
-        const used = new Set(prev.filter(Boolean).map((p) => p.name));
-        let nm = names[botIdx % names.length];
-        while (used.has(nm)) {
-          botIdx++;
-          nm = names[botIdx % names.length];
-        }
-        botIdx++;
-        return { id: `bot_${team}_${Date.now()}_${botIdx}`, name: nm, isAI: true };
-      });
-    });
-  };
-
   // Removes all non-host players from a team.
   const clearTeam = (team) => {
     if (team === "alpha") {
       setTeamAlpha((prev) =>
         prev.map((slot, i) =>
           i === 0
-            ? { id: "host", name: profile.name, level: profile.level, isHost: true }
+          ? {
+              id: accountUserId || "host",
+              userId: accountUserId,
+              name: profile.name,
+              level: profile.level,
+              isHost: true,
+            }
             : null,
         ),
       );
@@ -264,10 +335,19 @@ export function CustomLobby({
   const buildTeamConfig = () => {
     const blue = teamAlpha
       .filter(Boolean)
-      .map((p) => ({ name: p.name, isAI: !!p.isAI, isHost: !!p.isHost }));
+      .map((p) => ({
+        userId: p.userId,
+        name: p.name,
+        isAI: !!p.isAI,
+        isHost: !!p.isHost,
+      }));
     const red = teamBravo
       .filter(Boolean)
-      .map((p) => ({ name: p.name, isAI: !!p.isAI }));
+      .map((p) => ({
+        userId: p.userId,
+        name: p.name,
+        isAI: !!p.isAI,
+      }));
     return { blue, red };
   };
 
@@ -312,16 +392,12 @@ export function CustomLobby({
               </div>
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => fillBots("alpha")}
-                  title="Fill empty slots with bots"
-                  className="flex items-center gap-1 text-[8px] font-mono font-black uppercase px-2 py-1 rounded border border-emerald-800 text-emerald-400 hover:bg-emerald-900/40 cursor-pointer transition-colors"
-                >
-                  <Bot size={9} /> Fill
-                </button>
-                <button
                   onClick={() => clearTeam("alpha")}
+                  disabled={teamAlpha.some(
+                    (player) => player?.userId && !player.isHost,
+                  )}
                   title="Clear team (keep host)"
-                  className="flex items-center gap-1 text-[8px] font-mono font-black uppercase px-2 py-1 rounded border border-stone-700 text-stone-400 hover:bg-stone-800/60 cursor-pointer transition-colors"
+                  className="flex items-center gap-1 text-[8px] font-mono font-black uppercase px-2 py-1 rounded border border-stone-700 text-stone-400 hover:bg-stone-800/60 cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <RotateCcw size={9} /> Clear
                 </button>
@@ -335,7 +411,7 @@ export function CustomLobby({
                   team="alpha"
                   isHost={player?.isHost}
                   onRemove={
-                    player && !player.isHost
+                    player && !player.isHost && !player.userId
                       ? () => removeFromTeam("alpha", i)
                       : undefined
                   }
@@ -391,17 +467,11 @@ export function CustomLobby({
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => clearTeam("bravo")}
+                  disabled={teamBravo.some((player) => player?.userId)}
                   title="Clear team"
-                  className="flex items-center gap-1 text-[8px] font-mono font-black uppercase px-2 py-1 rounded border border-stone-700 text-stone-400 hover:bg-stone-800/60 cursor-pointer transition-colors"
+                  className="flex items-center gap-1 text-[8px] font-mono font-black uppercase px-2 py-1 rounded border border-stone-700 text-stone-400 hover:bg-stone-800/60 cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <RotateCcw size={9} /> Clear
-                </button>
-                <button
-                  onClick={() => fillBots("bravo")}
-                  title="Fill empty slots with bots"
-                  className="flex items-center gap-1 text-[8px] font-mono font-black uppercase px-2 py-1 rounded border border-red-800 text-red-400 hover:bg-red-900/40 cursor-pointer transition-colors"
-                >
-                  <Bot size={9} /> Fill
                 </button>
               </div>
               <div className="font-mono text-[10px] font-black uppercase tracking-widest text-red-500 flex items-center justify-end gap-1">
@@ -415,7 +485,9 @@ export function CustomLobby({
                   player={player}
                   team="bravo"
                   onRemove={
-                    player ? () => removeFromTeam("bravo", i) : undefined
+                    player && !player.userId
+                      ? () => removeFromTeam("bravo", i)
+                      : undefined
                   }
                 />
               ))}
@@ -469,17 +541,29 @@ export function CustomLobby({
                     <div className="flex gap-1">
                       <button
                         onClick={() => addToTeam(friend, "alpha")}
-                        disabled={teamAlpha.every((s) => s !== null)}
+                        disabled={
+                          teamAlpha.filter(Boolean).length +
+                            Object.values(pendingInvites).filter(
+                              (team) => team === "alpha",
+                            ).length >=
+                          teamSize.alpha
+                        }
                         className="flex-1 text-[8px] font-mono font-black uppercase py-1 rounded border border-emerald-800 text-emerald-400 hover:bg-emerald-900/40 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
                       >
-                        α
+                        Invite Alpha
                       </button>
                       <button
                         onClick={() => addToTeam(friend, "bravo")}
-                        disabled={teamBravo.every((s) => s !== null)}
+                        disabled={
+                          teamBravo.filter(Boolean).length +
+                            Object.values(pendingInvites).filter(
+                              (team) => team === "bravo",
+                            ).length >=
+                          teamSize.bravo
+                        }
                         className="flex-1 text-[8px] font-mono font-black uppercase py-1 rounded border border-red-800 text-red-400 hover:bg-red-900/40 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
                       >
-                        β
+                        Invite Bravo
                       </button>
                     </div>
                   </div>

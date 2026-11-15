@@ -24,7 +24,12 @@ Auth user and the SQL trigger creates that user's profile automatically. The
 friend relationships manually. New players can find one another by the unique
 username shown in their account settings.
 
-The current game client still simulates matches locally. Google accounts,
-friend requests, and cloud saves are backed by Supabase, but joining a friend's
-live game requires a separate multiplayer game server and is not provided by
-these tables.
+Friend invitations and private matches use ephemeral Supabase Realtime
+Broadcast channels; they do not require another database migration. Both
+players must be signed in and online. Classic and Ranked matches use AI for
+unfilled team slots. Custom matches use only the human players assigned to the
+selected teams.
+
+This is a client-hosted MVP, not an authoritative or cheat-resistant game
+server. The host's browser simulates the match and relays state, so connection
+quality and the host's session affect everyone in that match.
