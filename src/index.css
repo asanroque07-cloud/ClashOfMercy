@@ -196,19 +196,23 @@
   position: relative;
   height: 100%;
   width: 100%;
-  display: flex;
-  flex-direction: column;
+  display: block;
   overflow: hidden;
   background: radial-gradient(circle at top, rgba(32, 48, 28, 0.25), transparent 40%), #000;
 }
 
+.game-toolbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 45;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.58), transparent);
+}
+
 .game-stage {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   touch-action: none;
 }
@@ -216,7 +220,7 @@
 .game-canvas {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: fill;
   image-rendering: pixelated;
   touch-action: none;
 }
@@ -238,51 +242,19 @@
   border-color: rgba(118, 160, 53, 0.7);
 }
 
-.touch-layout-editor {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  z-index: 40;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  max-width: calc(100% - 16px);
-  padding: 6px 8px;
-  border: 1px solid rgba(118, 160, 53, 0.4);
-  border-radius: 12px;
-  background: rgba(10, 14, 9, 0.92);
-  color: #dce9cb;
-  font: 700 10px/1 var(--font-mono);
-  transform: translateX(-50%);
-  pointer-events: auto;
-}
-
-.touch-layout-editor__button {
-  min-width: 32px;
-  min-height: 30px;
-  padding: 0 8px;
-  border: 1px solid rgba(118, 160, 53, 0.45);
-  border-radius: 8px;
-  background: rgba(17, 24, 16, 0.95);
-  color: #dce9cb;
-  font: inherit;
-  touch-action: manipulation;
-}
-
-.touch-layout-editor__button--primary {
-  background: rgba(118, 160, 53, 0.28);
-  border-color: rgba(170, 221, 84, 0.7);
-}
-
 .home-settings-menu {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
   z-index: 50;
-  width: min(320px, calc(100vw - 24px));
-  overflow: hidden;
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(80vh, 480px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: block;
+  padding: 0;
+  isolation: isolate;
+  overscroll-behavior: contain;
   border: 1px solid rgba(118, 160, 53, 0.35);
   border-radius: 12px;
   background: #0c100b;
@@ -310,10 +282,11 @@
 
 .home-settings-row,
 .home-settings-controller {
-  display: flex;
+  display: grid;
   width: 100%;
   min-height: 68px;
   align-items: center;
+  grid-template-columns: 30px minmax(0, 1fr) 32px 24px;
   gap: 10px;
   padding: 10px 14px;
   border: 0;
@@ -321,6 +294,27 @@
   background: transparent;
   text-align: left;
   transition: background 120ms ease;
+}
+
+button.home-settings-row {
+  height: auto;
+  max-height: none;
+  flex: 0 0 auto;
+  appearance: none;
+  color: inherit;
+  font: inherit;
+  text-transform: none;
+  cursor: pointer;
+}
+
+button.home-settings-controller {
+  height: auto;
+  max-height: none;
+  flex: 0 0 auto;
+  appearance: none;
+  color: inherit;
+  font: inherit;
+  text-transform: none;
 }
 
 .home-settings-row:hover,
@@ -395,6 +389,7 @@
 }
 
 .home-settings-controller {
+  grid-template-columns: 30px minmax(0, 1fr) 16px;
   min-height: 72px;
   border-bottom: 0;
   cursor: pointer;
@@ -599,43 +594,26 @@
 
 .touch-controls {
   position: absolute;
-  inset: auto 0 0 0;
+  inset: 0;
   z-index: 35;
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px clamp(10px, 2vw, 22px) calc(12px + env(safe-area-inset-bottom, 0px));
+  display: block;
+  padding: 0;
   pointer-events: none;
 }
 
 .touch-controls__cluster {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  pointer-events: none;
+  display: contents;
 }
 
 .touch-controls__stack {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  pointer-events: none;
-}
-
-.touch-controls.is-editing .touch-controls__cluster,
-.touch-controls.is-editing .touch-controls__stack {
-  pointer-events: auto;
-}
-
-.touch-controls.is-editing .touch-button,
-.touch-controls.is-editing .touch-stick {
-  outline: 1px dashed rgba(215, 245, 170, 0.7);
-  cursor: grab !important;
+  display: contents;
 }
 
 .touch-button {
+  position: absolute;
   width: 62px;
   height: 62px;
+  transform: translate(-50%, -50%);
   border: 1px solid rgba(118, 160, 53, 0.38);
   border-radius: 18px;
   background: rgba(10, 14, 9, 0.84);
@@ -655,12 +633,12 @@
 }
 
 .touch-stick {
-  position: relative;
+  position: absolute;
   display: grid;
   place-items: center;
   width: 92px;
   height: 92px;
-  flex: 0 0 auto;
+  transform: translate(-50%, -50%);
   border-radius: 999px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
   pointer-events: auto;
@@ -717,7 +695,7 @@
 
 .touch-button:active,
 .touch-button.is-active {
-  transform: translateY(1px) scale(0.97);
+  transform: translate(-50%, -50%);
   background: rgba(118, 160, 53, 0.28);
   border-color: rgba(170, 221, 84, 0.9);
 }
@@ -754,13 +732,6 @@
     font-size: 10px;
   }
 
-  .touch-controls {
-    gap: 6px;
-    padding: 8px max(8px, env(safe-area-inset-left, 0px)) calc(8px + env(safe-area-inset-bottom, 0px));
-  }
-
-  .touch-controls__cluster { gap: 5px; }
-  .touch-controls__stack { gap: 5px; }
 }
 
 @media (max-width: 600px) and (orientation: landscape) {
@@ -775,10 +746,7 @@
   .touch-stick { width: 66px; height: 66px; }
   .touch-stick__thumb { width: 28px; height: 28px; margin: -14px 0 0 -14px; }
   .touch-stick__label { bottom: 7px; font-size: 7px; }
-  .touch-controls { padding-top: 5px; }
-
-  .game-frame > .flex.items-center.justify-between {
-    min-height: 42px;
+  .game-frame > .game-toolbar {
     padding-top: 4px;
     padding-bottom: 4px;
   }
@@ -788,8 +756,6 @@
   .touch-button { width: 40px; height: 40px; }
   .touch-button--wide { width: 48px; }
   .touch-stick { width: 60px; height: 60px; }
-  .touch-controls { padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px)); }
-
   .operator-setup { overflow-y: auto; }
   .operator-setup__content {
     min-height: 100%;
@@ -818,6 +784,12 @@
   to { opacity: 1; transform: translateX(0); }
 }
 .alert-slide-in { animation: slideInRight 0.3s ease forwards; }
+.alert-toast {
+  max-width: min(260px, calc(100vw - 24px));
+  padding: 9px 12px;
+  font-size: 10px;
+  line-height: 1.35;
+}
 
 /* Round score animation */
 @keyframes roundAnimIn {

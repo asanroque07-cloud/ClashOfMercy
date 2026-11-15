@@ -9,10 +9,28 @@ export const TOUCH_CONTROL_IDS = [
   "aim",
   "use",
 ];
+export const TOUCH_CONTROL_ANCHORS = {
+  move: { x: 0.07, y: 0.86 },
+  jump: { x: 0.14, y: 0.62 },
+  down: { x: 0.14, y: 0.76 },
+  swap: { x: 0.14, y: 0.9 },
+  reload: { x: 0.78, y: 0.76 },
+  grenade: { x: 0.78, y: 0.9 },
+  aim: { x: 0.87, y: 0.86 },
+  use: { x: 0.94, y: 0.86 },
+};
 export const DEFAULT_TOUCH_LAYOUT = { scale: 1, positions: {} };
 
 export function clampTouchOffset(value) {
-  return Math.max(-0.45, Math.min(0.45, value));
+  return Math.max(-0.95, Math.min(0.95, value));
+}
+
+export function getTouchControlPosition(id, offset = { x: 0, y: 0 }) {
+  const anchor = TOUCH_CONTROL_ANCHORS[id];
+  return {
+    x: Math.max(0.06, Math.min(0.94, anchor.x + offset.x)),
+    y: Math.max(0.1, Math.min(0.9, anchor.y + offset.y)),
+  };
 }
 
 export function loadTouchLayout() {
