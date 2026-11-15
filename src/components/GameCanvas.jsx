@@ -12,6 +12,12 @@ import {
   EMOTES,
 } from "../lib/gameTypes";
 import { addMatch } from "../lib/storage";
+import {
+  DEFAULT_TOUCH_LAYOUT,
+  clampTouchOffset,
+  loadTouchLayout,
+  saveTouchLayout,
+} from "../lib/touchControls";
 
 // ──── Constants (tunable game-feel numbers: world size, gravity, jump strength, speed) ────
 const VIEW_W = 960,
@@ -23,49 +29,6 @@ const PW = 22,
 const GRAV = 0.55,
   JUMP = -13.5,
   SPD = 4.2;
-const TOUCH_LAYOUT_KEY = "clash_of_mercy_touch_layout_v1";
-const TOUCH_CONTROL_IDS = [
-  "move",
-  "jump",
-  "down",
-  "swap",
-  "reload",
-  "grenade",
-  "aim",
-  "use",
-];
-const DEFAULT_TOUCH_LAYOUT = { scale: 1, positions: {} };
-
-function clampTouchOffset(value) {
-  return Math.max(-0.45, Math.min(0.45, value));
-}
-
-function loadTouchLayout() {
-  if (typeof window === "undefined") return DEFAULT_TOUCH_LAYOUT;
-  try {
-    const saved = JSON.parse(localStorage.getItem(TOUCH_LAYOUT_KEY));
-    if (!saved || typeof saved !== "object") return DEFAULT_TOUCH_LAYOUT;
-    const scale = Number(saved.scale);
-    const positions = {};
-    for (const id of TOUCH_CONTROL_IDS) {
-      const position = saved.positions?.[id];
-      if (Number.isFinite(position?.x) && Number.isFinite(position?.y)) {
-        positions[id] = {
-          x: clampTouchOffset(position.x),
-          y: clampTouchOffset(position.y),
-        };
-      }
-    }
-    return {
-      scale: Number.isFinite(scale)
-        ? Math.max(0.65, Math.min(1.5, scale))
-        : DEFAULT_TOUCH_LAYOUT.scale,
-      positions,
-    };
-  } catch {
-    return DEFAULT_TOUCH_LAYOUT;
-  }
-}
 // House (enterable armory) base geometry. The x-position is set per-map via
 // each WORLDS entry's `houseX` field so it never overlaps battlefield
 // structures (see IMPROVEMENT_TODO item #2). `houseW` may also be overridden
@@ -928,6 +891,7 @@ export default function GameCanvas({
   role,
   mapId,
   profile,
+  soundEnabled = true,
   onProfileChange,
   onExit,
   teamConfig,
@@ -937,8 +901,10 @@ export default function GameCanvas({
   const rafRef = useRef(0);
   const lastTimeRef = useRef(0);
   const profileRef = useRef(profile);
+  const soundEnabledRef = useRef(soundEnabled);
   const pausedRef = useRef(false);
   profileRef.current = profile;
+  soundEnabledRef.current = soundEnabled;
   const spriteRef = useRef({});
   const audioCtxRef = useRef(null);
   const sfxBuffersRef = useRef({});
@@ -1011,10 +977,11 @@ export default function GameCanvas({
   }, [roundStart]);
 
   useEffect(() => {
-    localStorage.setItem(TOUCH_LAYOUT_KEY, JSON.stringify(touchLayout));
+    saveTouchLayout(touchLayout);
   }, [touchLayout]);
 
   const playSfx = useCallback((key) => {
+    if (!soundEnabledRef.current) return;
     const ctx = audioCtxRef.current;
     if (!ctx) return;
     if (ctx.state !== "running") return;

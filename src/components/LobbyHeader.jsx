@@ -17,6 +17,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { ADMIRALS_AVATARS } from "@/lib/lobbyData";
+import ControllerSettingsModal from "@/components/ControllerSettingsModal";
 
 // this is for choosing the avatar frame color shown around the player's portrait in the header
 const BORDER_STYLES = {
@@ -36,10 +37,13 @@ export function LobbyHeader({
   onChangeScreen,
   onOpenSettings,
   onAddCurrency,
+  musicOn,
+  soundOn,
+  onToggleMusic,
+  onToggleSound,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [musicOn, setMusicOn] = useState(true);
-  const [soundOn, setSoundOn] = useState(true);
+  const [controllerSettingsOpen, setControllerSettingsOpen] = useState(false);
   const menuRef = useRef(null);
 
   const avatar =
@@ -256,7 +260,8 @@ export function LobbyHeader({
 
               {/* Music toggle */}
               <button
-                onClick={() => setMusicOn((v) => !v)}
+                onClick={onToggleMusic}
+                aria-pressed={musicOn}
                 className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-stone-900/60 transition-colors group"
               >
                 <div className="flex items-center gap-2.5">
@@ -280,7 +285,8 @@ export function LobbyHeader({
 
               {/* Sound toggle */}
               <button
-                onClick={() => setSoundOn((v) => !v)}
+                onClick={onToggleSound}
+                aria-pressed={soundOn}
                 className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-stone-900/60 transition-colors group border-t border-military/20"
               >
                 <div className="flex items-center gap-2.5">
@@ -303,29 +309,30 @@ export function LobbyHeader({
               </button>
 
               {/* Controller settings */}
-              <div className="border-t border-military/20 px-3 py-2.5">
-                <div className="flex items-center gap-2.5 mb-1.5">
-                  <Gamepad size={14} className="text-stone-400" />
-                  <span className="font-mono text-xs font-bold text-stone-400 uppercase tracking-wide">
-                    Controller
-                  </span>
-                </div>
-                <div className="font-mono text-[9px] text-stone-600 space-y-0.5 pl-5">
-                  <div>
-                    <span className="text-stone-500">Move</span> — WASD / Arrow
-                    keys
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setControllerSettingsOpen(true);
+                }}
+                className="w-full flex items-center justify-between gap-3 border-t border-military/20 px-3 py-3 text-left hover:bg-stone-900/60 transition-colors group"
+              >
+                <div>
+                  <div className="flex items-center gap-2.5 mb-1.5">
+                    <Gamepad size={14} className="text-stone-400" />
+                    <span className="font-mono text-xs font-bold text-stone-400 uppercase tracking-wide">
+                      Controller
+                    </span>
                   </div>
-                  <div>
-                    <span className="text-stone-500">Aim</span> — Mouse
-                  </div>
-                  <div>
-                    <span className="text-stone-500">Fire</span> — Left click
-                  </div>
-                  <div>
-                    <span className="text-stone-500">Reload</span> — R key
+                  <div className="font-mono text-[9px] text-stone-500 pl-5">
+                    Configure mobile control layout
                   </div>
                 </div>
-              </div>
+                <ChevronRight
+                  size={14}
+                  className="text-stone-500 group-hover:text-[#76a035]"
+                />
+              </button>
 
               {/* Exit */}
               <div className="border-t border-military/30">
@@ -343,6 +350,11 @@ export function LobbyHeader({
                 </button>
               </div>
             </div>
+          )}
+          {controllerSettingsOpen && (
+            <ControllerSettingsModal
+              onClose={() => setControllerSettingsOpen(false)}
+            />
           )}
         </div>
       </div>
