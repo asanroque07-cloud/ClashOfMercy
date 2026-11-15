@@ -322,6 +322,58 @@
   }
 }
 
+@media (max-width: 767px) {
+  .app-shell { min-height: 100dvh; }
+
+  .screen-shell {
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .game-toolbar-button {
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 10px;
+  }
+
+  .touch-controls {
+    gap: 6px;
+    padding: 8px max(8px, env(safe-area-inset-left, 0px)) calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .touch-controls__cluster { gap: 5px; }
+  .touch-controls__stack { gap: 5px; }
+}
+
+@media (max-width: 600px) and (orientation: landscape) {
+  .touch-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+    font-size: 9px;
+  }
+
+  .touch-button--wide { width: 52px; }
+  .touch-button--fire { width: 58px; height: 58px; }
+  .touch-controls { padding-top: 5px; }
+
+  .game-frame > .flex.items-center.justify-between {
+    min-height: 42px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .touch-button { width: 40px; height: 40px; }
+  .touch-button--wide { width: 48px; }
+  .touch-button--fire { width: 54px; height: 54px; }
+  .touch-controls { padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px)); }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: rgba(10, 15, 8, 0.5); }
