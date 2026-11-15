@@ -1313,3 +1313,160 @@ html.mobile-game-ui .lobby-menu__offline button > div:first-child svg {
   width: 15px;
   height: 15px;
 }
+
+@media (max-width: 900px), (max-height: 520px) and (orientation: landscape) {
+  .match-lobby-shell {
+    grid-template-columns: minmax(0, 1fr) 190px;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .match-lobby-shell > div:first-child {
+    grid-column: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .match-lobby-shell > div:last-child {
+    grid-column: 2;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .match-lobby {
+    gap: 8px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
+  }
+
+  .match-lobby__banner {
+    flex-shrink: 0;
+    min-height: 40px;
+    gap: 8px;
+    padding: 6px 9px;
+  }
+
+  .match-lobby__banner > svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .match-lobby__title {
+    font-size: 11px;
+    line-height: 1.1;
+  }
+
+  .match-lobby__subtitle {
+    overflow: hidden;
+    font-size: 8px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .match-lobby__stat {
+    flex-shrink: 0;
+    padding: 4px 7px;
+  }
+
+  .match-lobby__stat-label {
+    font-size: 7px;
+    line-height: 1;
+  }
+
+  .match-lobby__stat-value {
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .match-lobby__squad-grid {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+
+  .match-lobby__player-card {
+    height: clamp(104px, 31vh, 120px);
+    min-height: 0;
+    padding: 6px;
+  }
+
+  .match-lobby__avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .match-lobby__avatar-wrap {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .match-lobby__role-tag {
+    padding: 2px 4px;
+    font-size: 7px;
+    line-height: 1;
+  }
+
+  .match-lobby__player-meta {
+    line-height: 1.1;
+  }
+
+  .match-lobby__rank-tag {
+    padding: 2px 6px;
+    font-size: 7px;
+    line-height: 1;
+  }
+
+  .match-lobby__player-card > button {
+    margin-top: 4px;
+    padding: 4px 6px;
+    line-height: 1.15;
+  }
+
+  .match-lobby__map-panel {
+    flex-shrink: 0;
+    gap: 8px;
+    padding: 7px 9px;
+  }
+
+  .match-lobby__queue-action {
+    flex: 0 0 auto;
+    padding-top: 0;
+  }
+
+  .match-lobby__queue-action > button {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .match-lobby__invites > div:first-child {
+    flex: 0 0 auto;
+    padding: 8px;
+    font-size: 10px;
+  }
+
+  .match-lobby__invites > div:last-child {
+    min-height: 0;
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .match-lobby__invites > div:last-child > div {
+    gap: 6px;
+    padding: 6px;
+  }
+}
+
+html.mobile-game-ui .match-lobby-shell {
+  grid-template-columns: minmax(0, 1fr) 190px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 6px;
+  padding: 6px;
+}
+
+html.mobile-game-ui .match-lobby__squad-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
