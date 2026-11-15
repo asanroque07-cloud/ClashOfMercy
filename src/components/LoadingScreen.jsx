@@ -109,17 +109,17 @@ export default function LoadingScreen({ onDone }) {
           phase === "title" ||
           phase === "sub" ||
           phase === "bar") && (
-          <div
-            className="text-7xl mb-2"
+          <img
+            src="/icon.png"
+            alt="Clash of Mercy 5v5"
+            className="w-36 h-36 sm:w-44 sm:h-44 object-contain mb-2"
             style={{
               opacity: visible ? 1 : 0,
               transition: "opacity 0.5s ease",
-              filter: "drop-shadow(0 0 20px oklch(0.70 0.18 130 / 60%))",
+              filter: "drop-shadow(0 0 20px oklch(0.70 0.18 130 / 35%))",
               animation: glitch ? "glitch 0.3s ease" : undefined,
             }}
-          >
-            ⚔️
-          </div>
+          />
         )}
 
         {(phase === "title" || phase === "sub" || phase === "bar") && (
