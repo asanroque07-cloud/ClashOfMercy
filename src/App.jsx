@@ -52,6 +52,49 @@ function toGameMapId(mapName) {
   return "city";
 }
 
+function requestPhoneFullscreen(force = false) {
+  const isTouchDevice =
+    (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) ||
+    (typeof window !== "undefined" &&
+      window.matchMedia?.("(pointer: coarse)").matches);
+  const mobileSized =
+    typeof window !== "undefined" &&
+    Math.max(window.innerWidth, window.innerHeight) <= 1400;
+
+  const isMobile = isTouchDevice && mobileSized;
+  if (!isMobile && !force) return;
+
+  const isInstalled =
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    window.matchMedia?.("(display-mode: fullscreen)").matches ||
+    navigator.standalone;
+
+  if (!isInstalled && !document.fullscreenElement) {
+    try {
+      const request = document.documentElement.requestFullscreen?.({
+        navigationUI: "hide",
+      });
+      request?.catch(() => {});
+    } catch {
+      try {
+        const request = document.documentElement.requestFullscreen?.();
+        request?.catch(() => {});
+      } catch {
+        // Fullscreen is best-effort on browsers without the Fullscreen API.
+      }
+    }
+  }
+
+  if (isMobile) {
+    try {
+      const lock = window.screen.orientation?.lock?.("landscape");
+      lock?.catch(() => {});
+    } catch {
+      // Orientation lock is best-effort and may be denied by the browser.
+    }
+  }
+}
+
 // This is the root component: it owns which screen is showing and all of the player's
 // lobby/game state, and renders the matching screen component below.
 export default function App() {
@@ -154,6 +197,15 @@ export default function App() {
       root.classList.remove("force-landscape", "mobile-game-ui");
     };
   }, [screen, showDownloadPage]);
+
+  useEffect(() => {
+    if (showDownloadPage) return undefined;
+
+    const handleMobileInteraction = () => requestPhoneFullscreen();
+    document.addEventListener("pointerdown", handleMobileInteraction, true);
+    return () =>
+      document.removeEventListener("pointerdown", handleMobileInteraction, true);
+  }, [showDownloadPage]);
 
   // this is for showing a short-lived toast message, which removes itself after 3.5 seconds
   const pushAlert = useCallback((alert) => {
@@ -388,23 +440,7 @@ export default function App() {
 
   // ── Launch real GameCanvas (switch from lobby into the live match) ──
   const handleLaunchGame = (fromScreen) => {
-    // Try to go fullscreen and lock to landscape for a better mobile experience.
-    // Both can silently fail (browser permissions), so they're wrapped in try/catch and ignored.
-    void (async () => {
-      try {
-        if (!document.fullscreenElement) {
-          await document.documentElement.requestFullscreen?.();
-        }
-      } catch {
-        // Fullscreen is best-effort and may be blocked by the browser.
-      }
-      try {
-        // Cast needed: landscape lock isn't in the standard TS DOM types yet, but is supported by most mobile browsers.
-        await window.screen.orientation?.lock?.("landscape");
-      } catch {
-        // Orientation lock is also best-effort.
-      }
-    })();
+    requestPhoneFullscreen(true);
 
     const fresh = loadProfile();
     setGameProfile(fresh);
@@ -422,6 +458,7 @@ export default function App() {
   };
 
   const handleEnterGame = () => {
+    requestPhoneFullscreen();
     const url = new URL(window.location.href);
     url.searchParams.set("play", "1");
     window.history.replaceState({}, "", url);
