@@ -4888,11 +4888,12 @@ export default function GameCanvas({
         style={{ background: "#0a0a0a" }}
       >
         <div className="min-w-0">
-          <img
-            src="/icon.png"
-            alt="Clash of Mercy 5v5"
-            className="h-8 w-8 rounded-md object-cover"
-          />
+          <div
+            className="display text-sm"
+            style={{ color: "oklch(0.70 0.18 130)" }}
+          >
+            ⚔ OP:WARTACTICS
+          </div>
           <div className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.2em]">
             {mapDef.name} · {mode}
           </div>
