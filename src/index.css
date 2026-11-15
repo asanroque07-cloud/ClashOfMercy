@@ -870,6 +870,73 @@ button.home-settings-controller {
   background-size: 22px 22px;
 }
 
+.custom-lobby__sidebar > :first-child {
+  flex: 1 1 0;
+}
+
+.custom-lobby__sidebar > :last-child {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 900px) {
+  .custom-lobby__main {
+    grid-template-columns: minmax(0, 1fr) 190px;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .custom-lobby__teams {
+    grid-template-columns: minmax(0, 1fr) 76px minmax(0, 1fr);
+  }
+}
+
+@media (max-height: 600px) {
+  .custom-lobby__main {
+    padding-block: 6px;
+  }
+
+  .custom-lobby__team {
+    padding-block: 2px;
+  }
+
+  .custom-lobby__roster {
+    gap: 6px;
+  }
+
+  .custom-lobby__slot {
+    width: 72px;
+    height: 72px;
+  }
+}
+
+html.mobile-game-ui .custom-lobby__header {
+  padding: 5px 8px;
+}
+
+html.mobile-game-ui .custom-lobby__main {
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 6px;
+  padding: 6px;
+}
+
+html.mobile-game-ui .custom-lobby__teams {
+  grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr);
+}
+
+html.mobile-game-ui .custom-lobby__sidebar {
+  gap: 6px;
+}
+
+html.mobile-game-ui .custom-lobby__slot {
+  width: 64px;
+  height: 64px;
+}
+
+html.mobile-game-ui .custom-lobby__slot > div:first-child {
+  width: 28px;
+  height: 28px;
+}
+
 @media (max-width: 640px) {
   .controller-settings-backdrop { padding: 10px; }
   .controller-settings-dialog {
