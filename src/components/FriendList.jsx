@@ -56,10 +56,10 @@ export function FriendList({
   };
 
   return (
-    <div className="bg-stone-950/80 border border-military text-stone-100 flex flex-col h-full min-h-0 rounded overflow-hidden shadow-2xl relative">
+    <div className="friend-list bg-stone-950/80 border border-military text-stone-100 flex flex-col h-full min-h-0 rounded overflow-hidden shadow-2xl relative">
       <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#76a035]/60 to-transparent" />
 
-      <div className="p-3 bg-zinc-900/60 border-b border-military flex justify-between items-center">
+      <div className="friend-list__header p-3 bg-zinc-900/60 border-b border-military flex justify-between items-center">
         <div className="flex items-center gap-2">
           <Users size={16} className="text-[#76a035]" />
           <span className="font-display text-sm font-bold tracking-widest text-[#76a035]">
@@ -143,7 +143,7 @@ export function FriendList({
         </form>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-2 select-none">
+      <div className="friend-list__items flex-1 min-h-0 overflow-y-auto p-2.5 space-y-2 select-none">
         {friends.length === 0 ? (
           <div className="text-center py-12 text-stone-600 font-mono text-[10px]">
             — SQUAD VACANT —<br />
@@ -158,7 +158,7 @@ export function FriendList({
             return (
               <div
                 key={friend.id}
-                className="p-2 border border-military bg-stone-900/30 hover:bg-stone-900/60 rounded flex items-center justify-between group transition-all"
+                className="friend-list__item p-2 border border-military bg-stone-900/30 hover:bg-stone-900/60 rounded flex items-center justify-between group transition-all"
               >
                 <div className="flex items-center gap-2 max-w-[70%]">
                   <div className="relative flex-shrink-0">
@@ -215,7 +215,7 @@ export function FriendList({
         )}
       </div>
 
-      <div className="p-2 border-t border-military bg-stone-900/25 font-mono text-[9px] text-stone-500 text-center tracking-widest uppercase">
+      <div className="friend-list__footer p-2 border-t border-military bg-stone-900/25 font-mono text-[9px] text-stone-500 text-center tracking-widest uppercase">
         ACTIVE INTEL FEED CONNECTED
       </div>
     </div>

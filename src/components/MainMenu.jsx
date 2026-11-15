@@ -24,10 +24,10 @@ export function MainMenu({
   onStartMatchmaking,
 }) {
   return (
-    <div className="grid grid-cols-1 gap-4 w-full h-full min-h-0 select-none">
-      <div className="flex flex-col gap-4 min-h-0">
+    <div className="lobby-menu grid grid-cols-1 gap-4 w-full h-full min-h-0 select-none">
+      <div className="lobby-menu__content flex flex-col gap-4 min-h-0">
         {/* Stats bar — top */}
-        <div className="lobby-panel flex flex-wrap items-center justify-start gap-3 px-4 py-2.5 font-mono text-xs">
+        <div className="lobby-menu__stats lobby-panel flex flex-wrap items-center justify-start gap-3 px-4 py-2.5 font-mono text-xs">
           <div className="lobby-section-tag mr-1 flex items-center gap-1.5">
             <Swords size={12} className="text-[#76a035]" /> Operator Stats
           </div>
@@ -60,9 +60,9 @@ export function MainMenu({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
+        <div className="lobby-menu__panels grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
           {/* LEFT COLUMN: buttons that open a modal over the home screen (see Modals.tsx) */}
-          <div className="flex flex-col gap-3">
+          <div className="lobby-menu__actions flex flex-col gap-3">
             {/* Opens the loadout modal: pick weapons/attachments/emote for the next match */}
             <button
               onClick={onOpenLoadout}
@@ -125,8 +125,8 @@ export function MainMenu({
           </div>
 
           {/* CENTER + RIGHT COLUMNS: game-mode picker buttons, each navigates to its own lobby screen */}
-          <div className="lg:col-span-2 flex flex-col gap-3">
-            <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="lobby-menu__modes lg:col-span-2 flex flex-col gap-3">
+            <div className="lobby-menu__mode-grid grid grid-cols-2 xl:grid-cols-3 gap-3">
               {/* RANK: goes to the ranked lobby (competitive queue, squad management) */}
               <button
                 onClick={() => onNavigate("rank")}
@@ -204,7 +204,7 @@ export function MainMenu({
             </div>
 
             {/* OFFLINE: practice/training matches against AI bots, no internet opponents needed */}
-            <div className="flex justify-center w-full">
+            <div className="lobby-menu__offline flex justify-center w-full">
               <button
                 onClick={() => onNavigate("offline")}
                 className="group w-full h-24 xl:h-28 bg-stone-900/40 hover:bg-stone-900/85 border border-military hover:border-[#76a035] rounded-lg p-4 text-center transition-all duration-300 flex flex-col justify-between items-center cursor-pointer relative shadow-xl active:scale-98 overflow-hidden"

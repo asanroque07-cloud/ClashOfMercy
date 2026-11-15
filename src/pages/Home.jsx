@@ -61,9 +61,9 @@ export default function Home({
   }
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto overscroll-contain p-2 sm:p-4 md:p-5 grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 w-full">
+    <div className="lobby-home h-full min-h-0 overflow-y-auto overscroll-contain p-2 sm:p-4 md:p-5 grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 w-full">
       {/* Main content */}
-      <div className="md:col-span-8 xl:col-span-9 min-h-0 flex flex-col gap-4 overflow-hidden">
+      <div className="lobby-home__main md:col-span-8 xl:col-span-9 min-h-0 flex flex-col gap-4 overflow-hidden">
         {/* XP bar + status bar */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-2 bg-zinc-950/70 p-3 rounded border border-military/50 font-mono text-xs">
           <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -115,7 +115,7 @@ export default function Home({
       </div>
 
       {/* Friend Sidebar */}
-      <div className="md:col-span-4 xl:col-span-3 min-h-0 flex flex-col overflow-hidden">
+      <div className="lobby-home__friends md:col-span-4 xl:col-span-3 min-h-0 flex flex-col overflow-hidden">
         <FriendList
           friends={friends}
           onAddFriend={(f) => {

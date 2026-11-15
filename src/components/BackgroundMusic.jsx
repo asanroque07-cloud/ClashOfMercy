@@ -92,7 +92,7 @@ export default function BackgroundMusic({ combatMode = false }) {
     <button
       type="button"
       onClick={() => setMusicEnabled((prev) => !prev)}
-      className="fixed bottom-4 left-4 z-[220] flex items-center gap-2 rounded border border-military bg-stone-950/85 px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.25em] text-stone-200 shadow-xl transition-all hover:border-[#76a035] hover:text-[#76a035] cursor-pointer"
+      className="mobile-audio-toggle fixed bottom-4 left-4 z-[220] flex items-center gap-2 rounded border border-military bg-stone-950/85 px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-[0.25em] text-stone-200 shadow-xl transition-all hover:border-[#76a035] hover:text-[#76a035] cursor-pointer"
       aria-pressed={musicEnabled}
       aria-label={
         musicEnabled ? "Turn background music off" : "Turn background music on"
