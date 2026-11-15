@@ -209,10 +209,10 @@ export function OfflineLobby({
   void activeWeapon;
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4 w-full select-none animate-in fade-in duration-300 text-stone-100">
+    <div className="offline-lobby h-full min-h-0 flex flex-col gap-4 w-full select-none animate-in fade-in duration-300 text-stone-100">
       {/* ── Bot Setup Panel ── */}
-      <div className="lobby-panel flex-1 min-h-0 flex flex-col">
-        <div className="lobby-panel-header">
+      <div className="offline-lobby__panel lobby-panel flex-1 min-h-0 flex flex-col">
+        <div className="offline-lobby__header lobby-panel-header">
           <div className="flex items-center gap-2">
             <Bot size={16} className="text-[#76a035]" />
             <span className="lobby-panel-title">Bot Battle Setup</span>
@@ -226,9 +226,9 @@ export function OfflineLobby({
           </button>
         </div>
 
-        <div className="lobby-grid-bg flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
+        <div className="offline-lobby__content lobby-grid-bg flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
           {/* Steppers + VS */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10">
+          <div className="offline-lobby__controls flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10">
             <Stepper
               label="Ally Bots"
               value={allyCount}
@@ -254,7 +254,7 @@ export function OfflineLobby({
           </div>
 
           {/* Team preview */}
-          <div className="grid grid-cols-12 gap-3 items-start max-w-3xl mx-auto w-full">
+          <div className="offline-lobby__teams grid grid-cols-12 gap-3 items-start max-w-3xl mx-auto w-full">
             <div className="col-span-5">
               <TeamRow
                 label="Your Team"
@@ -281,7 +281,7 @@ export function OfflineLobby({
           </div>
 
           {/* Map info card */}
-          <div className="max-w-3xl mx-auto w-full bg-stone-950/60 p-3.5 border border-military rounded-lg flex items-start gap-3">
+          <div className="offline-lobby__map max-w-3xl mx-auto w-full bg-stone-950/60 p-3.5 border border-military rounded-lg flex items-start gap-3">
             <MapIcon size={20} className="text-[#76a035] flex-shrink-0 mt-0.5" />
             <div className="font-mono text-[10px] min-w-0">
               <div className="text-[#76a035] font-black uppercase tracking-wider mb-0.5">
@@ -353,7 +353,7 @@ export function OfflineLobby({
       )}
 
       {/* ── Start Button ── */}
-      <div className="flex justify-center pt-1 mt-auto">
+      <div className="offline-lobby__start flex justify-center pt-1 mt-auto">
         <button
           onClick={() => onLaunchGame(buildTeamConfig())}
           className="lobby-btn-primary w-full md:w-1/2 flex items-center justify-center gap-3 text-lg px-8 py-4 rounded-lg"
