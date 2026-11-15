@@ -23,6 +23,49 @@ const PW = 22,
 const GRAV = 0.55,
   JUMP = -13.5,
   SPD = 4.2;
+const TOUCH_LAYOUT_KEY = "clash_of_mercy_touch_layout_v1";
+const TOUCH_CONTROL_IDS = [
+  "move",
+  "jump",
+  "down",
+  "swap",
+  "reload",
+  "grenade",
+  "aim",
+  "use",
+];
+const DEFAULT_TOUCH_LAYOUT = { scale: 1, positions: {} };
+
+function clampTouchOffset(value) {
+  return Math.max(-0.45, Math.min(0.45, value));
+}
+
+function loadTouchLayout() {
+  if (typeof window === "undefined") return DEFAULT_TOUCH_LAYOUT;
+  try {
+    const saved = JSON.parse(localStorage.getItem(TOUCH_LAYOUT_KEY));
+    if (!saved || typeof saved !== "object") return DEFAULT_TOUCH_LAYOUT;
+    const scale = Number(saved.scale);
+    const positions = {};
+    for (const id of TOUCH_CONTROL_IDS) {
+      const position = saved.positions?.[id];
+      if (Number.isFinite(position?.x) && Number.isFinite(position?.y)) {
+        positions[id] = {
+          x: clampTouchOffset(position.x),
+          y: clampTouchOffset(position.y),
+        };
+      }
+    }
+    return {
+      scale: Number.isFinite(scale)
+        ? Math.max(0.65, Math.min(1.5, scale))
+        : DEFAULT_TOUCH_LAYOUT.scale,
+      positions,
+    };
+  } catch {
+    return DEFAULT_TOUCH_LAYOUT;
+  }
+}
 // House (enterable armory) base geometry. The x-position is set per-map via
 // each WORLDS entry's `houseX` field so it never overlaps battlefield
 // structures (see IMPROVEMENT_TODO item #2). `houseW` may also be overridden
@@ -938,6 +981,9 @@ export default function GameCanvas({
   const [pressedControls, setPressedControls] = useState({});
   const [moveStick, setMoveStick] = useState({ x: 0, y: 0, active: false });
   const [aimStick, setAimStick] = useState({ x: 0, y: 0, active: false });
+  const [editingControls, setEditingControls] = useState(false);
+  const [touchLayout, setTouchLayout] = useState(loadTouchLayout);
+  const controlDragRef = useRef(null);
   const showTouchControls = isTouchDevice || viewport.width <= 900;
   // The app auto-rotates into landscape at the root (see App.jsx), so the
   // in-match "rotate to fight" prompt is no longer required.
@@ -963,6 +1009,10 @@ export default function GameCanvas({
   useEffect(() => {
     roundStartRef.current = roundStart;
   }, [roundStart]);
+
+  useEffect(() => {
+    localStorage.setItem(TOUCH_LAYOUT_KEY, JSON.stringify(touchLayout));
+  }, [touchLayout]);
 
   const playSfx = useCallback((key) => {
     const ctx = audioCtxRef.current;
@@ -4881,6 +4931,61 @@ export default function GameCanvas({
     [ensureAudioUnlocked, requestImmersiveMode, runPlayerAction],
   );
 
+  const startControlDrag = (event) => {
+    if (!editingControls) return;
+    const target = event.target.closest("[data-control-id]");
+    if (!target || !event.currentTarget.contains(target)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    target.setPointerCapture(event.pointerId);
+    const id = target.dataset.controlId;
+    controlDragRef.current = {
+      id,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: touchLayout.positions[id] || { x: 0, y: 0 },
+    };
+  };
+
+  const moveControlDrag = (event) => {
+    const drag = controlDragRef.current;
+    if (!editingControls || !drag || drag.pointerId !== event.pointerId)
+      return;
+    event.preventDefault();
+    event.stopPropagation();
+    const position = {
+      x: clampTouchOffset(
+        drag.origin.x + (event.clientX - drag.startX) / window.innerWidth,
+      ),
+      y: clampTouchOffset(
+        drag.origin.y + (event.clientY - drag.startY) / window.innerHeight,
+      ),
+    };
+    setTouchLayout((current) => ({
+      ...current,
+      positions: {
+        ...current.positions,
+        [drag.id]: position,
+      },
+    }));
+  };
+
+  const finishControlDrag = (event) => {
+    if (controlDragRef.current?.pointerId !== event.pointerId) return;
+    event.stopPropagation();
+    controlDragRef.current = null;
+  };
+
+  const touchControlStyle = (id) => {
+    const position = touchLayout.positions[id] || { x: 0, y: 0 };
+    return {
+      translate: `${position.x * 100}vw ${position.y * 100}vh`,
+      "--touch-control-scale": String(touchLayout.scale),
+      cursor: editingControls ? "grab" : undefined,
+    };
+  };
+
   return (
     <div className="game-frame">
       <div
@@ -4926,13 +5031,87 @@ export default function GameCanvas({
         />
 
         {showTouchControls && (
-          <div className="touch-controls">
+          <div className="touch-layout-editor">
+            {editingControls ? (
+              <>
+                <span>Drag controls · Size</span>
+                <button
+                  type="button"
+                  className="touch-layout-editor__button"
+                  aria-label="Make controls smaller"
+                  onClick={() =>
+                    setTouchLayout((current) => ({
+                      ...current,
+                      scale: Math.max(0.65, current.scale - 0.1),
+                    }))
+                  }
+                >
+                  −
+                </button>
+                <span>{Math.round(touchLayout.scale * 100)}%</span>
+                <button
+                  type="button"
+                  className="touch-layout-editor__button"
+                  aria-label="Make controls larger"
+                  onClick={() =>
+                    setTouchLayout((current) => ({
+                      ...current,
+                      scale: Math.min(1.5, current.scale + 0.1),
+                    }))
+                  }
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  className="touch-layout-editor__button"
+                  onClick={() => setTouchLayout(DEFAULT_TOUCH_LAYOUT)}
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  className="touch-layout-editor__button touch-layout-editor__button--primary"
+                  onClick={() => setEditingControls(false)}
+                >
+                  Done
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="touch-layout-editor__button"
+                onClick={() => setEditingControls(true)}
+              >
+                Edit controls
+              </button>
+            )}
+          </div>
+        )}
+
+        {showTouchControls && (
+          <div
+            className={`touch-controls ${editingControls ? "is-editing" : ""}`}
+            onPointerDownCapture={startControlDrag}
+            onPointerMoveCapture={moveControlDrag}
+            onPointerUpCapture={finishControlDrag}
+            onPointerCancelCapture={finishControlDrag}
+            onClickCapture={(event) => {
+              if (!editingControls) return;
+              if (!event.target.closest("[data-control-id]")) return;
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+          >
             <div className="touch-controls__cluster">
               <button
                 type="button"
+                data-control-id="move"
                 aria-label="Movement joystick"
                 className={`touch-stick touch-stick--move ${moveStick.active ? "is-active" : ""}`}
+                style={touchControlStyle("move")}
                 onPointerDown={(event) => {
+                  if (editingControls) return;
                   ensureAudioUnlocked();
                   void requestImmersiveMode();
                   event.currentTarget.setPointerCapture(event.pointerId);
@@ -4950,14 +5129,16 @@ export default function GameCanvas({
                 <span
                   className="touch-stick__thumb"
                   style={{
-                    transform: `translate(${moveStick.x}px, ${moveStick.y}px)`,
+                    transform: `translate(${moveStick.x / touchLayout.scale}px, ${moveStick.y / touchLayout.scale}px)`,
                   }}
                 />
               </button>
               <div className="touch-controls__stack">
                 <button
                   type="button"
+                  data-control-id="jump"
                   className={`touch-button touch-button--wide ${pressedControls.jump ? "is-active" : ""}`}
+                  style={touchControlStyle("jump")}
                   onPointerDown={() => holdControl("jump", true)}
                   onPointerUp={() => holdControl("jump", false)}
                   onPointerLeave={() => holdControl("jump", false)}
@@ -4967,7 +5148,9 @@ export default function GameCanvas({
                 </button>
                 <button
                   type="button"
+                  data-control-id="down"
                   className={`touch-button touch-button--wide ${pressedControls.down ? "is-active" : ""}`}
+                  style={touchControlStyle("down")}
                   onPointerDown={() => holdControl("down", true)}
                   onPointerUp={() => holdControl("down", false)}
                   onPointerLeave={() => holdControl("down", false)}
@@ -4977,7 +5160,9 @@ export default function GameCanvas({
                 </button>
                 <button
                   type="button"
+                  data-control-id="swap"
                   className="touch-button touch-button--wide"
+                  style={touchControlStyle("swap")}
                   onClick={() => tapAction("swap")}
                 >
                   Swap
@@ -4989,14 +5174,18 @@ export default function GameCanvas({
               <div className="touch-controls__stack">
                 <button
                   type="button"
+                  data-control-id="reload"
                   className="touch-button touch-button--wide"
+                  style={touchControlStyle("reload")}
                   onClick={() => tapAction("reload")}
                 >
                   Reload
                 </button>
                 <button
                   type="button"
+                  data-control-id="grenade"
                   className="touch-button touch-button--wide"
+                  style={touchControlStyle("grenade")}
                   onClick={() => tapAction("grenade")}
                 >
                   Grenade
@@ -5004,9 +5193,12 @@ export default function GameCanvas({
               </div>
               <button
                 type="button"
+                data-control-id="aim"
                 aria-label="Aim and fire joystick"
                 className={`touch-stick touch-stick--aim ${aimStick.active ? "is-active" : ""}`}
+                style={touchControlStyle("aim")}
                 onPointerDown={(event) => {
+                  if (editingControls) return;
                   ensureAudioUnlocked();
                   void requestImmersiveMode();
                   event.currentTarget.setPointerCapture(event.pointerId);
@@ -5024,13 +5216,15 @@ export default function GameCanvas({
                 <span
                   className="touch-stick__thumb"
                   style={{
-                    transform: `translate(${aimStick.x}px, ${aimStick.y}px)`,
+                    transform: `translate(${aimStick.x / touchLayout.scale}px, ${aimStick.y / touchLayout.scale}px)`,
                   }}
                 />
               </button>
               <button
                 type="button"
+                data-control-id="use"
                 className="touch-button touch-button--wide"
+                style={touchControlStyle("use")}
                 onClick={() => tapAction("interact")}
               >
                 Use
