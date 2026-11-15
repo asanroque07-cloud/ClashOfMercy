@@ -372,6 +372,21 @@
   .touch-button--wide { width: 48px; }
   .touch-button--fire { width: 54px; height: 54px; }
   .touch-controls { padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px)); }
+
+  .operator-setup { overflow-y: auto; }
+  .operator-setup__content {
+    min-height: 100%;
+    height: auto;
+    align-items: flex-start;
+    padding: 10px;
+  }
+  .operator-setup__card > div:first-child { padding: 10px 16px; }
+  .operator-setup__card > div:nth-child(2) { gap: 10px; padding: 12px; }
+  .operator-setup__card > div:nth-child(2) > div:first-child > div:last-child { margin-top: 10px; }
+  .operator-setup__card > div:nth-child(2) > div:first-child > div:last-child > label + label { margin-top: 8px; }
+  .operator-setup__card > div:nth-child(2) > div:last-child > div { padding: 12px; }
+  .operator-setup__card > div:nth-child(2) > div:last-child button { margin-top: 12px; }
+  .operator-setup__card > div:last-child { padding: 8px 16px; }
 }
 
 /* Custom Scrollbar */

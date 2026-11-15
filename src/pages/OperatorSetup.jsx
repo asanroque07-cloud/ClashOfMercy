@@ -47,7 +47,7 @@ export default function OperatorSetup({
   const canContinue = name.trim().length >= 2 && resolvedCountry.length >= 2;
 
   return (
-    <div className="fixed inset-0 z-[210] overflow-hidden">
+    <div className="operator-setup fixed inset-0 z-[210] overflow-hidden">
       {/* Background */}
       <div
         className="absolute inset-0"
@@ -69,8 +69,8 @@ export default function OperatorSetup({
       <div className="absolute inset-0 pointer-events-none opacity-60 bg-[linear-gradient(to_right,rgba(118,160,53,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(118,160,53,0.05)_1px,transparent_1px)] bg-[size:28px_28px]" />
 
       {/* Content */}
-      <div className="relative h-full w-full flex items-center justify-center p-5">
-        <div className="w-full max-w-2xl border border-military bg-stone-950/70 backdrop-blur-sm shadow-2xl rounded overflow-hidden">
+      <div className="operator-setup__content relative h-full w-full flex items-center justify-center p-5">
+        <div className="operator-setup__card w-full max-w-2xl border border-military bg-stone-950/70 backdrop-blur-sm shadow-2xl rounded overflow-hidden">
           <div className="px-5 py-4 border-b border-military bg-zinc-900/50">
             <div className="display text-[#76a035] text-2xl tracking-widest uppercase">
               OP:WARTACTICS
