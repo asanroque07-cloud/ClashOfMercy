@@ -894,15 +894,23 @@ export default function GameCanvas({
   onProfileChange,
   onExit,
   teamConfig,
+  networkSession,
+  onNetworkError,
 }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const rafRef = useRef(0);
   const lastTimeRef = useRef(0);
   const profileRef = useRef(profile);
+  const networkSessionRef = useRef(networkSession);
+  const remoteInputsRef = useRef(new Map());
+  const pendingNetworkActionsRef = useRef(new Set());
+  const networkFailureReportedRef = useRef(false);
+  const networkResultRecordedRef = useRef(false);
   const soundEnabledRef = useRef(soundEnabled);
   const pausedRef = useRef(false);
   profileRef.current = profile;
+  networkSessionRef.current = networkSession;
   soundEnabledRef.current = soundEnabled;
   const spriteRef = useRef({});
   const audioCtxRef = useRef(null);
@@ -1143,18 +1151,26 @@ export default function GameCanvas({
       const blueRoster = teamConfig.blue.filter(Boolean);
       const redRoster = teamConfig.red.filter(Boolean);
       let mePlaced = false;
-      blueRoster.forEach((entry, i) => {
-        const isMe = !mePlaced && !entry.isAI;
-        if (isMe) mePlaced = true;
-        const id = isMe ? "me" : `blue${i}`;
-        const name = entry.name || (isMe ? profile.name : aiNames[i % aiNames.length]);
-        players.push(mkPlayer(id, name, "blue", !isMe, null, aiRoles[i % aiRoles.length]));
-      });
-      redRoster.forEach((entry, i) => {
-        const id = `red${i}`;
-        const name = entry.name || aiNames[(i + 3) % aiNames.length];
-        players.push(mkPlayer(id, name, "red", true, null, aiRoles[i % aiRoles.length]));
-      });
+      const addRoster = (roster, team) => {
+        roster.forEach((entry, i) => {
+          const isMe = entry.userId
+            ? entry.userId === networkSession?.userId
+            : team === "blue" && !mePlaced && !entry.isAI;
+          if (isMe) mePlaced = true;
+          const id = isMe
+            ? "me"
+            : entry.userId || `${team}${i}`;
+          const name =
+            entry.name ||
+            (isMe ? profile.name : aiNames[(i + (team === "red" ? 3 : 0)) % aiNames.length]);
+          const isAI = Boolean(entry.isAI) || (!networkSession && !isMe);
+          players.push(
+            mkPlayer(id, name, team, isAI, null, aiRoles[i % aiRoles.length]),
+          );
+        });
+      };
+      addRoster(blueRoster, "blue");
+      addRoster(redRoster, "red");
     } else {
       players = [
         mkPlayer("me", profile.name, "blue", false, myW.id),
@@ -1653,6 +1669,7 @@ export default function GameCanvas({
 
   function checkWin(s) {
     if (s.over || (s.score.blue < 5 && s.score.red < 5)) return false;
+    if (networkSessionRef.current?.role === "guest") return true;
     s.over = true;
     const me = s.players.find((p) => p.id === "me");
     if (!me) return false;
@@ -1663,8 +1680,8 @@ export default function GameCanvas({
       mode,
       mapId,
       result,
-      stars: s.score.blue,
-      enemyStars: s.score.red,
+      stars: s.score[me.team],
+      enemyStars: s.score[me.team === "blue" ? "red" : "blue"],
       kills: me.kills,
       deaths: me.deaths,
       weaponId: me.primaryWeaponId,
@@ -2116,6 +2133,82 @@ export default function GameCanvas({
       else if (moveX > 0.18) me.vx = SPD * moveX;
       else me.vx = 0;
     }
+
+    if (networkSessionRef.current?.role === "host" && !roundFrozen) {
+      for (const player of s.players) {
+        if (player.isAI || player.id === "me" || !player.alive) continue;
+        const input = remoteInputsRef.current.get(player.id);
+        if (!input) continue;
+        const previous = player.networkInput || {};
+        const keys = new Set(input.keys || []);
+        const mobile = input.mobile || {};
+        const moveLeft =
+          keys.has("a") || keys.has("arrowleft") || mobile.left;
+        const moveRight =
+          keys.has("d") || keys.has("arrowright") || mobile.right;
+        const moveX = moveLeft ? -1 : moveRight ? 1 : mobile.moveX || 0;
+        player.aimAngle = input.aimAngle ?? player.aimAngle;
+        player.facing = Math.cos(player.aimAngle) >= 0 ? 1 : -1;
+
+        if (player.inHouse) {
+          player.vx = Math.abs(moveX) > 0.18 ? SPD * moveX : 0;
+        } else {
+          player.vx = Math.abs(moveX) > 0.18 ? SPD * moveX : 0;
+          const jump =
+            keys.has("w") ||
+            keys.has(" ") ||
+            keys.has("arrowup") ||
+            mobile.jump;
+          const down =
+            keys.has("s") || keys.has("arrowdown") || mobile.down;
+          if (!player.onLadder && (jump || down)) {
+            const ladder = findLadderNear(player.x, player.y);
+            if (ladder) {
+              player.onLadder = ladder;
+              player.climbing = true;
+              player.vy = 0;
+              player.onGround = false;
+            }
+          }
+          if (player.onLadder) {
+            player.climbing = Boolean(jump || down);
+            if (jump) player.y -= SPD * 0.8 * dtScale;
+            else if (down) player.y += SPD * 0.8 * dtScale;
+            if (keys.has(" ") && !jump) {
+              player.onLadder = null;
+              player.climbing = false;
+              player.vy = JUMP * 0.7;
+              player.onGround = false;
+            }
+          } else if (jump && player.onGround) {
+            player.vy = JUMP;
+            player.onGround = false;
+          }
+          if (input.fire) fire(player, s);
+        }
+
+        if (input.reload && !previous.reload) startReload(player);
+        if (input.interact && !previous.interact)
+          performInteract(player, s);
+        if (input.grenade && !previous.grenade)
+          throwGrenade(player, s);
+        const requestedSlot = keys.has("1")
+          ? 0
+          : keys.has("2") && player.hasKnife
+            ? 1
+            : keys.has("3") && player.grenadeCount > 0
+              ? 2
+              : Number.isInteger(input.slot)
+                ? input.slot
+                : null;
+        if (requestedSlot !== null && player.slot !== requestedSlot) {
+          player.slot = requestedSlot;
+          triggerWeaponSwap(player);
+        }
+        player.networkInput = input;
+      }
+    }
+
     if (roundFrozen) me.vx = 0;
 
     // Footstep dust
@@ -4806,6 +4899,237 @@ export default function GameCanvas({
     };
   }, []);
 
+  useEffect(() => {
+    const session = networkSession;
+    const channel = session?.channel;
+    if (!channel || !session.userId) return undefined;
+
+    const reportFailure = () => {
+      if (networkFailureReportedRef.current) return;
+      networkFailureReportedRef.current = true;
+      onNetworkError?.({
+        message: "Realtime connection interrupted; match state may be delayed.",
+        type: "error",
+      });
+    };
+    const handleInput = ({ payload }) => {
+      if (session.role !== "host" || !payload?.userId || !payload.input) {
+        return;
+      }
+      const player = stateRef.current?.players.find(
+        (candidate) =>
+          candidate.id === payload.userId && !candidate.isAI,
+      );
+      if (!player) return;
+
+      const input = payload.input;
+      const allowedKeys = new Set([
+        "a",
+        "d",
+        "arrowleft",
+        "arrowright",
+        "s",
+        "arrowdown",
+        "w",
+        "arrowup",
+        " ",
+        "1",
+        "2",
+        "3",
+        "r",
+        "e",
+        "g",
+      ]);
+      const moveX = Number(input.mobile?.moveX);
+      remoteInputsRef.current.set(payload.userId, {
+        keys: Array.isArray(input.keys)
+          ? input.keys.slice(0, 20).filter((key) => allowedKeys.has(key))
+          : [],
+        mobile: {
+          left: Boolean(input.mobile?.left),
+          right: Boolean(input.mobile?.right),
+          down: Boolean(input.mobile?.down),
+          jump: Boolean(input.mobile?.jump),
+          fire: Boolean(input.mobile?.fire),
+          moveX: Number.isFinite(moveX)
+            ? Math.max(-1, Math.min(1, moveX))
+            : 0,
+        },
+        aimAngle: Number.isFinite(input.aimAngle)
+          ? Math.max(-Math.PI, Math.min(Math.PI, input.aimAngle))
+          : player.aimAngle,
+        fire: Boolean(input.fire),
+        reload: Boolean(input.reload),
+        interact: Boolean(input.interact),
+        grenade: Boolean(input.grenade),
+        slot:
+          Number.isInteger(input.slot) && input.slot >= 0 && input.slot <= 2
+            ? input.slot
+            : player.slot,
+      });
+    };
+    const handleState = ({ payload }) => {
+      if (session.role !== "guest" || !payload?.state) return;
+      const current = stateRef.current;
+      if (!current) return;
+
+      const localControls = {
+        keys: current.keys,
+        mouse: current.mouse,
+        mobile: current.mobile,
+        cameraX: current.cameraX,
+        showScoreboard: current.showScoreboard,
+        inHouse: current.inHouse,
+      };
+      const normalizeId = (id) => (id === session.userId ? "me" : id);
+      const snapshot = payload.state;
+      const players = snapshot.players.map((player) => ({
+        ...player,
+        id: normalizeId(player.id),
+      }));
+      const bullets = snapshot.bullets.map((bullet) => ({
+        ...bullet,
+        ownerId: normalizeId(bullet.ownerId),
+      }));
+      const flags = snapshot.flags.map((flag) => ({
+        ...flag,
+        carrier: flag.carrier ? normalizeId(flag.carrier) : null,
+      }));
+      Object.assign(current, snapshot, {
+        players,
+        bullets,
+        flags,
+        ...localControls,
+      });
+      if (snapshot.over) {
+        const me = players.find((player) => player.id === "me");
+        if (me && !networkResultRecordedRef.current) {
+          const won = snapshot.score[me.team] >= 5;
+          const record = {
+            id: Date.now().toString(),
+            date: Date.now(),
+            mode,
+            mapId,
+            result: won ? "victory" : "defeat",
+            stars: snapshot.score[me.team],
+            enemyStars: snapshot.score[me.team === "blue" ? "red" : "blue"],
+            kills: me.kills,
+            deaths: me.deaths,
+            weaponId: me.primaryWeaponId,
+            coinsEarned: (won ? 350 : 80) + me.kills * 25,
+          };
+          networkResultRecordedRef.current = true;
+          const newProfile = addMatch(profileRef.current, record);
+          setTimeout(() => {
+            onProfileChange(newProfile);
+            setOver({ result: record.result, record });
+          }, 500);
+        }
+      }
+    };
+    const handleLeave = ({ payload }) => {
+      if (session.role !== "host" || !payload?.userId) return;
+      remoteInputsRef.current.delete(payload.userId);
+      const player = stateRef.current?.players.find(
+        (candidate) => candidate.id === payload.userId,
+      );
+      if (player) {
+        player.isAI = true;
+        player.networkInput = null;
+      }
+    };
+
+    channel.on("broadcast", { event: "input" }, handleInput);
+    channel.on("broadcast", { event: "state" }, handleState);
+    channel.on("broadcast", { event: "leave" }, handleLeave);
+
+    const interval = window.setInterval(() => {
+      const current = stateRef.current;
+      if (!current) return;
+
+      if (session.role === "host") {
+        const state = {
+          players: current.players.map(({ networkInput, ...player }) => player),
+          bullets: current.bullets,
+          loot: current.loot,
+          explosions: current.explosions,
+          healthKits: current.healthKits,
+          flags: current.flags,
+          score: current.score,
+          over: current.over,
+          houseWeaponIndex: current.houseWeaponIndex,
+          matchStartTime: current.matchStartTime,
+          damageNumbers: current.damageNumbers,
+          killFeed: current.killFeed,
+          shake: current.shake,
+          hitMarker: current.hitMarker,
+          hitMarkerHeadshot: current.hitMarkerHeadshot,
+          lowHealthPulse: current.lowHealthPulse,
+          matchTimer: current.matchTimer,
+          roundState: current.roundState,
+        };
+        void channel
+          .send({
+            type: "broadcast",
+            event: "state",
+            payload: { state },
+          })
+          .then((status) => {
+            if (status === "ok") networkFailureReportedRef.current = false;
+          })
+          .catch(reportFailure);
+        return;
+      }
+
+      const me = current.players.find((player) => player.id === "me");
+      if (!me) return;
+      const keys = Array.from(current.keys || []);
+      const input = {
+        keys,
+        mobile: { ...current.mobile },
+        aimAngle: me.aimAngle,
+        slot: me.slot,
+        fire: Boolean(current.mouse.down || current.mobile.fire),
+        reload:
+          keys.includes("r") ||
+          pendingNetworkActionsRef.current.has("reload"),
+        interact:
+          keys.includes("e") ||
+          pendingNetworkActionsRef.current.has("interact"),
+        grenade:
+          keys.includes("g") ||
+          pendingNetworkActionsRef.current.has("grenade"),
+      };
+      pendingNetworkActionsRef.current.clear();
+      void channel
+        .send({
+          type: "broadcast",
+          event: "input",
+          payload: { userId: session.userId, input },
+        })
+        .then((status) => {
+          if (status !== "ok") reportFailure();
+          else networkFailureReportedRef.current = false;
+        })
+        .catch(reportFailure);
+    }, session.role === "host" ? 100 : 50);
+
+    return () => {
+      window.clearInterval(interval);
+      channel.off("broadcast", { event: "input" });
+      channel.off("broadcast", { event: "state" });
+      channel.off("broadcast", { event: "leave" });
+      remoteInputsRef.current.clear();
+    };
+  }, [
+    networkSession?.channel,
+    networkSession?.role,
+    networkSession?.userId,
+    mapId,
+    mode,
+    onNetworkError,
+  ]);
+
   const runPlayerAction = useCallback((action) => {
     const s = stateRef.current;
     if (!s) return;
@@ -4883,6 +5207,9 @@ export default function GameCanvas({
     (action) => {
       ensureAudioUnlocked();
       void requestImmersiveMode();
+      if (networkSessionRef.current?.role === "guest") {
+        pendingNetworkActionsRef.current.add(action);
+      }
       runPlayerAction((me, s) => {
         if (action === "reload" && me.slot === 0 && !me.inHouse)
           startReload(me);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Plus, X, Search, UserPlus, Check } from "lucide-react";
+import { Users, Plus, X, Search, UserPlus, Check, Send } from "lucide-react";
 import { ADMIRALS_AVATARS } from "@/lib/lobbyData";
 
 export function FriendList({
@@ -11,6 +11,7 @@ export function FriendList({
   onSendFriendRequest,
   onAcceptRequest,
   onRemoveFriend,
+  onInviteFriend,
 }) {
   const [isAdding, setIsAdding] = useState(false);
   const [username, setUsername] = useState("");
@@ -240,7 +241,7 @@ export function FriendList({
                 key={friend.id}
                 className="friend-list__item p-2 border border-military bg-stone-900/30 hover:bg-stone-900/60 rounded flex items-center justify-between group transition-all"
               >
-                <div className="flex items-center gap-2 max-w-[70%]">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <div className="relative flex-shrink-0">
                     <img
                       src={avatar.url}
@@ -262,14 +263,34 @@ export function FriendList({
                     </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onRemoveFriend(friend.id)}
-                  aria-label={`Remove ${friend.name}`}
-                  className="text-stone-600 hover:text-red-500 p-1 hover:bg-red-950/15 rounded transition-all cursor-pointer"
-                >
-                  <X size={12} />
-                </button>
+                <div className="flex items-center gap-1">
+                  {onInviteFriend && (
+                    <button
+                      type="button"
+                      onClick={() => onInviteFriend(friend)}
+                      disabled={
+                        friend.status !== "online" && friend.status !== "lobby"
+                      }
+                      aria-label={`Invite ${friend.name} to play`}
+                      title={
+                        friend.status === "online" || friend.status === "lobby"
+                          ? "Invite to play"
+                          : "Friend must be online to receive an invite"
+                      }
+                      className="text-[#76a035] hover:text-white hover:bg-[#76a035]/25 disabled:text-stone-700 disabled:hover:bg-transparent p-1 rounded transition-all cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      <Send size={12} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onRemoveFriend(friend.id)}
+                    aria-label={`Remove ${friend.name}`}
+                    className="text-stone-600 hover:text-red-500 p-1 hover:bg-red-950/15 rounded transition-all cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
               </div>
             );
           })

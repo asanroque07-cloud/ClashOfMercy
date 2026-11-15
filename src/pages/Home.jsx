@@ -34,6 +34,7 @@ export default function Home({
   onSendFriendRequest,
   onAcceptFriendRequest,
   onRemoveFriend,
+  onInviteFriend,
   onEquipWeapon,
   onBuyItem,
   onBuyEmote,
@@ -129,6 +130,7 @@ export default function Home({
           onSendFriendRequest={onSendFriendRequest}
           onAcceptRequest={onAcceptFriendRequest}
           onRemoveFriend={onRemoveFriend}
+          onInviteFriend={onInviteFriend}
         />
       </div>
 
