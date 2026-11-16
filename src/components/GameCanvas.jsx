@@ -5668,10 +5668,20 @@ export default function GameCanvas({
     setAimStick({ x: 0, y: 0, active: false });
   }, []);
 
+  // Briefly light up a tapped button so single-press controls (swap, reload,
+  // grenade, use) confirm the touch the same way the held ones do.
+  const flashControl = useCallback((id) => {
+    setPressedControls((previous) => ({ ...previous, [id]: true }));
+    window.setTimeout(() => {
+      setPressedControls((previous) => ({ ...previous, [id]: false }));
+    }, 130);
+  }, []);
+
   const tapAction = useCallback(
     (action) => {
       ensureAudioUnlocked();
       void requestImmersiveMode();
+      flashControl(action === "interact" ? "use" : action);
       if (networkSessionRef.current?.role === "guest") {
         pendingNetworkActionsRef.current.add(action);
       }
@@ -5684,7 +5694,7 @@ export default function GameCanvas({
         if (action === "swap") cycleWeaponSlot(me);
       });
     },
-    [ensureAudioUnlocked, requestImmersiveMode, runPlayerAction],
+    [ensureAudioUnlocked, requestImmersiveMode, runPlayerAction, flashControl],
   );
 
   const touchControlStyle = (id) => {
@@ -5793,7 +5803,7 @@ export default function GameCanvas({
                 <button
                   type="button"
                   data-control-id="swap"
-                  className="touch-button touch-button--wide"
+                  className={`touch-button touch-button--wide ${pressedControls.swap ? "is-active" : ""}`}
                   style={touchControlStyle("swap")}
                   onClick={() => tapAction("swap")}
                 >
@@ -5807,7 +5817,7 @@ export default function GameCanvas({
                 <button
                   type="button"
                   data-control-id="reload"
-                  className="touch-button touch-button--wide"
+                  className={`touch-button touch-button--wide ${pressedControls.reload ? "is-active" : ""}`}
                   style={touchControlStyle("reload")}
                   onClick={() => tapAction("reload")}
                 >
@@ -5816,7 +5826,7 @@ export default function GameCanvas({
                 <button
                   type="button"
                   data-control-id="grenade"
-                  className="touch-button touch-button--wide"
+                  className={`touch-button touch-button--wide ${pressedControls.grenade ? "is-active" : ""}`}
                   style={touchControlStyle("grenade")}
                   onClick={() => tapAction("grenade")}
                 >
@@ -5858,7 +5868,7 @@ export default function GameCanvas({
               <button
                 type="button"
                 data-control-id="use"
-                className="touch-button touch-button--wide"
+                className={`touch-button touch-button--wide ${pressedControls.use ? "is-active" : ""}`}
                 style={touchControlStyle("use")}
                 onClick={() => tapAction("interact")}
               >
