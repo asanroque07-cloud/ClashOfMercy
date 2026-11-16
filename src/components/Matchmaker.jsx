@@ -137,22 +137,24 @@ export function Matchmaker({
         clearInterval(enterTimerRef.current);
         return;
       }
-      const enterNow = Math.random() > 0.25;
-      if (enterNow) {
-        const idx = otherIdx;
-        setPlayers((prev) =>
-          prev.map((p, i) => (i === idx ? { ...p, entered: true } : p)),
-        );
-        entered++;
-        setEnteredCount(entered);
-        if (entered >= 10 && !launchedRef.current) {
-          launchedRef.current = true;
-          clearAllTimers();
-          onLaunchGame();
-        }
-      }
+      // A seat that is still "waiting" gets asked again on the next tick
+      // instead of being skipped for good. Previously each miss burned one of
+      // the nine seats, so the ready-up phase usually ran out of time and
+      // cancelled the match even though the player had confirmed.
+      if (Math.random() <= 0.25) return;
+      const idx = otherIdx;
+      setPlayers((prev) =>
+        prev.map((p, i) => (i === idx ? { ...p, entered: true } : p)),
+      );
+      entered++;
+      setEnteredCount(entered);
       otherIdx++;
-    }, 1800);
+      if (entered >= 10 && !launchedRef.current) {
+        launchedRef.current = true;
+        clearAllTimers();
+        onLaunchGame();
+      }
+    }, 1200);
   };
 
   const handleCancel = () => {
