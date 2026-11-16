@@ -168,6 +168,17 @@ export function useCloudAccount() {
     };
   }, [refreshFriends, user]);
 
+  // Realtime friend-request events only arrive when the table is part of the
+  // realtime publication. Poll as a safety net so a new request (and an
+  // accepted one) shows up on its own instead of needing a reload.
+  useEffect(() => {
+    if (!supabase || !user) return undefined;
+    const interval = window.setInterval(() => {
+      refreshFriends().catch(() => {});
+    }, 8000);
+    return () => window.clearInterval(interval);
+  }, [refreshFriends, user]);
+
   useEffect(() => {
     if (!supabase || !user) {
       setOnlineUserIds([]);

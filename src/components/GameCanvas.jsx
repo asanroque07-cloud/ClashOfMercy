@@ -57,6 +57,11 @@ const SFX_CONFIG = {
   bomb: { src: "/sfx/bomb.mp3", volume: 0.58 },
 };
 
+// How far a gunshot, reload or grenade carries. Sounds from other players are
+// only played when they happen inside this radius, so a teammate shooting at the
+// far end of the map no longer sounds like it came from your own barrel.
+const SFX_HEAR_RANGE = 820;
+
 // ──── Effect tuning ────
 const MAX_PARTICLES = 400;
 const MAX_DAMAGE_NUMBERS = 30;
@@ -1001,7 +1006,7 @@ export default function GameCanvas({
     saveTouchLayout(touchLayout);
   }, [touchLayout]);
 
-  const playSfx = useCallback((key) => {
+  const playSfx = useCallback((key, source) => {
     if (!soundEnabledRef.current) return;
     const ctx = audioCtxRef.current;
     if (!ctx) return;
@@ -1009,28 +1014,53 @@ export default function GameCanvas({
     const buffer = sfxBuffersRef.current[key];
     if (!buffer) return;
 
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
+    const config = SFX_CONFIG[key];
+    let volume = config.volume;
+    let pan = 0;
+
+    // Sounds that belong to someone else (or to a world event like a grenade)
+    // are positional: silent when out of earshot, quieter and panned with
+    // distance. Sounds of "me" and UI sounds keep full volume and no pan.
+    const me = stateRef.current?.players?.find((player) => player.id === "me");
+    if (source && source.id !== "me" && me) {
+      const dx = source.x - me.x;
+      const dy = source.y - me.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance > SFX_HEAR_RANGE) return;
+      const falloff = 1 - distance / SFX_HEAR_RANGE;
+      volume *= 0.12 + 0.88 * falloff;
+      pan = Math.max(-1, Math.min(1, dx / (SFX_HEAR_RANGE * 0.55))) * 0.7;
+    }
+
+    const sourceNode = ctx.createBufferSource();
+    sourceNode.buffer = buffer;
 
     const gain = ctx.createGain();
-    gain.gain.value = SFX_CONFIG[key].volume;
+    gain.gain.value = volume;
 
-    source.connect(gain);
-    gain.connect(ctx.destination);
-    source.start(0);
+    sourceNode.connect(gain);
+    if (pan !== 0 && typeof ctx.createStereoPanner === "function") {
+      const panner = ctx.createStereoPanner();
+      panner.pan.value = pan;
+      gain.connect(panner);
+      panner.connect(ctx.destination);
+    } else {
+      gain.connect(ctx.destination);
+    }
+    sourceNode.start(0);
   }, []);
 
   const playWeaponSfx = useCallback(
-    (weaponId) => {
+    (weaponId, shooter) => {
       if (weaponId === "awp" || weaponId === "barrett") {
-        playSfx("sniper");
+        playSfx("sniper", shooter);
         return;
       }
       if (weaponId === "dmr" || weaponId === "scout" || weaponId === "shotgun") {
-        playSfx("pistol");
+        playSfx("pistol", shooter);
         return;
       }
-      playSfx("machinegun");
+      playSfx("machinegun", shooter);
     },
     [playSfx],
   );
@@ -1381,7 +1411,7 @@ export default function GameCanvas({
     if (!w || p.ammo >= w.magazine || p.reloading) return;
     p.reloading = true;
     p.reloadTimer = w.reloadMs;
-    playSfx("reload");
+    playSfx("reload", p);
   }
 
   function cycleWeaponSlot(p) {
@@ -1402,7 +1432,7 @@ export default function GameCanvas({
   function triggerWeaponSwap(p) {
     beginWeaponSwapAnim(p);
     if (typeof playSfx === "function") {
-      try { playSfx("load"); } catch (_) {}
+      try { playSfx("load", p); } catch (_) {}
     }
   }
 
@@ -1428,7 +1458,7 @@ export default function GameCanvas({
         p.mag = hw.magazine;
         p.reloading = false;
         p.lootWeaponId = hw.id;
-        playSfx("load");
+        playSfx("load", p);
       }
       return;
     }
@@ -1516,7 +1546,7 @@ export default function GameCanvas({
     p.lastFire = now;
     p.ammo--;
     p.recoil = Math.min(1, p.recoil + (w.id === "shotgun" ? 0.5 : 0.25));
-    playWeaponSfx(w.id);
+    playWeaponSfx(w.id, p);
 
     // Muzzle flash position
     const gx = p.x + p.facing * 3;
@@ -2455,7 +2485,7 @@ export default function GameCanvas({
               p.mag = lw.magazine;
               p.lootWeaponId = loot.weaponId;
               s.loot = s.loot.filter((l) => l.id !== loot.id);
-              playSfx("load");
+              playSfx("load", p);
               break;
             }
           }
@@ -2588,7 +2618,7 @@ export default function GameCanvas({
           const exY = Math.min(b.y, grenadeGround);
           s.explosions.push({ x: b.x, y: exY, r: 0, alpha: 1, id: _eid });
           spawnExplosionFx(s.particles, b.x, exY);
-          playSfx("bomb");
+          playSfx("bomb", { x: b.x, y: exY });
           addShake(12);
           const att = s.players.find((p) => p.team === b.team) ?? s.players[0];
           for (const p of s.players) {
