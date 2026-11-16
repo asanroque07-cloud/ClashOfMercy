@@ -651,6 +651,13 @@ button.home-settings-controller {
   color: #e6f4d2;
 }
 
+.game-stage,
+.game-canvas {
+  /* No browser panning/zooming inside the arena: those gestures cancel the
+     pointer stream and swallow extra fingers. */
+  touch-action: none;
+}
+
 .touch-controls {
   position: absolute;
   inset: 0;
@@ -658,6 +665,7 @@ button.home-settings-controller {
   display: block;
   padding: 0;
   pointer-events: none;
+  touch-action: none;
 }
 
 .touch-controls__cluster {

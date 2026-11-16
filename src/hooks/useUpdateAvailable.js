@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 // Poll the deployed page for a different entry bundle. Vite names the entry
 // `/assets/index-<hash>.js`, so a changed hash means a newer build is live and
 // the tab (which keeps the old bundle in memory) needs a reload to pick it up.
-const POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 15_000;
 
 function currentEntryBundle() {
   if (typeof document === "undefined") return null;
@@ -18,7 +18,11 @@ function currentEntryBundle() {
 }
 
 async function deployedEntryBundle() {
-  const res = await fetch(`index.html?ts=${Date.now()}`, {
+  // Absolute path + unique query string: the CDN must reach the origin, so a
+  // fresh deployment is seen immediately instead of a cached HTML document.
+  const url = new URL("index.html", window.location.href);
+  url.search = `?ts=${Date.now()}`;
+  const res = await fetch(url.toString(), {
     cache: "no-store",
     headers: { "Cache-Control": "no-cache" },
   });
@@ -53,18 +57,22 @@ export function useUpdateAvailable(enabled = true) {
       }
     };
 
+    void check(); // catch a deploy that landed while the tab was loading
     const id = window.setInterval(check, POLL_INTERVAL_MS);
     const onFocus = () => void check();
     const onVisible = () => {
       if (document.visibilityState === "visible") void check();
     };
+    const onPageShow = () => void check(); // back/forward-cache restore
     window.addEventListener("focus", onFocus);
+    window.addEventListener("pageshow", onPageShow);
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       stopped = true;
       window.clearInterval(id);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("pageshow", onPageShow);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [enabled]);
