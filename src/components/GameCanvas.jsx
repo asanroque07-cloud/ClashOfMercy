@@ -5469,7 +5469,12 @@ export default function GameCanvas({
                 onPointerDown={(event) => {
                   ensureAudioUnlocked();
                   void requestImmersiveMode();
-                  event.currentTarget.setPointerCapture(event.pointerId);
+                  try {
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  } catch {
+                    // Browsers throw when the pointer is already gone; dragging
+                    // must keep working instead of aborting this handler.
+                  }
                   updateMoveStick(event);
                 }}
                 onPointerMove={(event) => {
@@ -5555,7 +5560,11 @@ export default function GameCanvas({
                 onPointerDown={(event) => {
                   ensureAudioUnlocked();
                   void requestImmersiveMode();
-                  event.currentTarget.setPointerCapture(event.pointerId);
+                  try {
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  } catch {
+                    // See the movement stick: never let capture abort the drag.
+                  }
                   updateAimStick(event);
                 }}
                 onPointerMove={(event) => {
