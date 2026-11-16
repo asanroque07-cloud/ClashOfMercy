@@ -903,6 +903,7 @@ export default function GameCanvas({
   networkSession,
   onNetworkError,
   onMatchEnd,
+  onConnectionLost,
 }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
@@ -916,11 +917,14 @@ export default function GameCanvas({
   const networkFailureReportedRef = useRef(false);
   const networkResultRecordedRef = useRef(false);
   const onMatchEndRef = useRef(onMatchEnd);
+  const onConnectionLostRef = useRef(onConnectionLost);
+  const lastNetworkStateRef = useRef(0);
   const soundEnabledRef = useRef(soundEnabled);
   const pausedRef = useRef(false);
   profileRef.current = profile;
   networkSessionRef.current = networkSession;
   onMatchEndRef.current = onMatchEnd;
+  onConnectionLostRef.current = onConnectionLost;
   soundEnabledRef.current = soundEnabled;
   const spriteRef = useRef({});
   const audioCtxRef = useRef(null);
@@ -5071,6 +5075,8 @@ export default function GameCanvas({
     };
     const handleState = ({ payload }) => {
       if (session.role !== "guest" || !payload?.state) return;
+      // Marks the host as alive so the watchdog below can detect a dead room.
+      lastNetworkStateRef.current = performance.now();
       const current = stateRef.current;
       if (!current) return;
 
@@ -5195,6 +5201,19 @@ export default function GameCanvas({
     channel.on("broadcast", { event: "leave" }, handleLeave);
     channel.on("broadcast", { event: "surrender" }, handleSurrender);
 
+    // Guests depend on the host for every frame of state. If the host leaves
+    // without announcing it (closed tab, lost connection) the guest would be
+    // stuck on a dead, black match screen forever, so bail out to the lobby.
+    const sessionStartedAt = performance.now();
+    const hostWatchdog = window.setInterval(() => {
+      if (session.role !== "guest") return;
+      if (stateRef.current?.over) return;
+      const lastSeen = lastNetworkStateRef.current || sessionStartedAt;
+      if (performance.now() - lastSeen < 8000) return;
+      lastNetworkStateRef.current = 0;
+      onConnectionLostRef.current?.();
+    }, 1000);
+
     const interval = window.setInterval(() => {
       const current = stateRef.current;
       if (!current) return;
@@ -5282,6 +5301,7 @@ export default function GameCanvas({
 
     return () => {
       window.clearInterval(interval);
+      window.clearInterval(hostWatchdog);
       channel.off("broadcast", { event: "input" });
       channel.off("broadcast", { event: "state" });
       channel.off("broadcast", { event: "leave" });

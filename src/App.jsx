@@ -20,6 +20,7 @@ import { OfflineLobby } from "@/components/OfflineLobby";
 import { CustomLobby } from "@/components/CustomLobby";
 import { Matchmaker } from "@/components/Matchmaker";
 import GameCanvas from "@/components/GameCanvas";
+import GameErrorBoundary from "@/components/GameErrorBoundary";
 import BackgroundMusic from "@/components/BackgroundMusic";
 import DownloadPage from "@/pages/DownloadPage";
 import Home from "@/pages/Home";
@@ -207,6 +208,7 @@ export default function App() {
   const [alerts, setAlerts] = useState([]); // toast notifications shown top-right
   const [pendingModal, setPendingModal] = useState(null); // which popup dialog Home should open, if any
   const previousOnlineRoomRef = useRef(null);
+  const onlineMatchActiveRef = useRef(false);
   const [gameProfile, setGameProfile] = useState(loadProfile()); // in-match profile (coins/loadout/upgrades)
   const [musicEnabled, setMusicEnabled] = useState(() =>
     loadAudioPreference(MUSIC_SETTING_KEY),
@@ -451,6 +453,32 @@ export default function App() {
     screen,
     pushAlert,
   ]);
+
+  // If an online match loses its room while the game screen is still showing,
+  // the canvas has nothing left to render and the player is left staring at a
+  // black screen. This catches every such case (including a room that ended
+  // before the room watcher below ever saw it as "started") and returns to HQ.
+  const hasOnlineMatchSession = Boolean(
+    onlineMatch.room?.status === "started" && onlineMatch.roomChannel,
+  );
+  useEffect(() => {
+    if (hasOnlineMatchSession) {
+      if (screen === "game") onlineMatchActiveRef.current = true;
+      return;
+    }
+    if (screen !== "game") {
+      onlineMatchActiveRef.current = false;
+      return;
+    }
+    if (!onlineMatchActiveRef.current) return;
+    onlineMatchActiveRef.current = false;
+    setTeamConfig(null);
+    setScreen("home");
+    pushAlert({
+      message: "The online match ended. Returned to HQ.",
+      type: "warning",
+    });
+  }, [hasOnlineMatchSession, screen, pushAlert]);
 
   // this is a shared helper: applies a change to the saved lobby state and persists it in one step
   const updateLobbyState = useCallback((updater) => {
@@ -849,6 +877,7 @@ export default function App() {
           channel: onlineMatch.roomChannel,
         }
       : null;
+
   // Determine which ruleset GameCanvas should run, based on the launched match.
   const canvasMode = activeOnlineRoom
     ? activeOnlineRoom.mode === "custom"
@@ -861,12 +890,23 @@ export default function App() {
         : "classic";
 
   const handleExitGame = () => {
+    onlineMatchActiveRef.current = false;
     // Unmount the canvas before room cleanup tears down its Realtime channel.
-    flushSync(() => {
+    try {
+      flushSync(() => {
+        setTeamConfig(null);
+        setScreen("home");
+      });
+    } catch {
+      // Never leave the player stuck on the game screen if a flush fails.
       setTeamConfig(null);
       setScreen("home");
-    });
-    void onlineMatch.leaveRoom();
+    }
+    // Leaving the room is best-effort: the lobby must appear even if the
+    // broadcast cannot be delivered.
+    void Promise.resolve()
+      .then(() => onlineMatch.leaveRoom())
+      .catch(() => {});
     pushAlert({
       message: "Returned to HQ.",
       type: "info",
@@ -882,19 +922,22 @@ export default function App() {
       <>
         <BackgroundMusic combatMode enabled={musicEnabled} />
         <div className="fixed inset-0 z-[200] bg-black">
-          <GameCanvas
-            mode={canvasMode}
-            role={toGameRole(lobbyProfile.selectedRole)}
-            mapId={activeOnlineRoom?.mapId || toGameMapId(activeMap.name)}
-            profile={gameProfile}
-            soundEnabled={soundEnabled}
-            teamConfig={teamConfig}
-            networkSession={networkSession}
-            onNetworkError={pushAlert}
-            onProfileChange={handleGameProfileChange}
-            onMatchEnd={handleMatchRecorded}
-            onExit={handleExitGame}
-          />
+          <GameErrorBoundary onReturn={handleExitGame}>
+            <GameCanvas
+              mode={canvasMode}
+              role={toGameRole(lobbyProfile.selectedRole)}
+              mapId={activeOnlineRoom?.mapId || toGameMapId(activeMap.name)}
+              profile={gameProfile}
+              soundEnabled={soundEnabled}
+              teamConfig={teamConfig}
+              networkSession={networkSession}
+              onNetworkError={pushAlert}
+              onProfileChange={handleGameProfileChange}
+              onMatchEnd={handleMatchRecorded}
+              onConnectionLost={handleExitGame}
+              onExit={handleExitGame}
+            />
+          </GameErrorBoundary>
         </div>
         <OnlineMatchOverlay
           onlineMatch={onlineMatch}
