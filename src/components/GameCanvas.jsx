@@ -13,6 +13,12 @@ import {
 } from "../lib/gameTypes";
 import { addMatch } from "../lib/storage";
 import {
+  drawOperatorBody,
+  drawWeaponSprite,
+  operatorStateFor,
+  weaponClassFor,
+} from "../game/operatorArt";
+import {
   getTouchControlPosition,
   loadTouchLayout,
   saveTouchLayout,
@@ -793,6 +799,17 @@ function spawnMuzzleFlash(arr, x, y, angle) {
     rot: angle,
     rotSpeed: 0,
   });
+  // A couple of slow smoke puffs drifting off the barrel.
+  spawnParticles(arr, x, y, {
+    count: 2,
+    speed: 1.6,
+    spread: 0.9,
+    angle,
+    life: 26,
+    size: 4,
+    color: "rgba(170,170,170,0.5)",
+    gravity: -0.04,
+  });
 }
 
 function spawnBloodHit(arr, x, y, angle) {
@@ -1478,6 +1495,9 @@ export default function GameCanvas({
     if (p.onLadder) return;
     if (p.grenadeCount <= 0) return;
     p.grenadeCount--;
+    // Drives the throw animation pose (wind-up + release).
+    p.throwDur = 22;
+    p.throwTimer = 22;
     _bid++;
     s.bullets.push({
       x: p.x,
@@ -2474,6 +2494,9 @@ export default function GameCanvas({
         }
       }
       if (p.emoteTimer > 0) p.emoteTimer -= dtScale;
+      if (p.throwTimer > 0) {
+        p.throwTimer = Math.max(0, p.throwTimer - dtScale);
+      }
 
       if (p.id === "me" && p.alive) {
         for (const loot of s.loot) {
@@ -3031,22 +3054,39 @@ export default function GameCanvas({
         ctx.lineWidth = 1;
         ctx.stroke();
       } else {
-        // Tracer trail
+        // Tracer trail — a tapered streak that fades behind the round, plus a
+        // hot core, so fast projectiles read as motion instead of a dot.
         const angle = Math.atan2(b.vy, b.vx);
         ctx.save();
         ctx.translate(b.x, b.y);
         ctx.rotate(angle);
-        // Glow
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = "#fde047";
-        ctx.fillStyle = "rgba(253,224,71,0.3)";
-        ctx.fillRect(-16, -2, 20, 4);
-        ctx.shadowBlur = 0;
+        ctx.globalCompositeOperation = "lighter";
+        const trailLen = 34;
+        const streak = ctx.createLinearGradient(-trailLen, 0, 3, 0);
+        streak.addColorStop(0, "rgba(253,224,71,0)");
+        streak.addColorStop(0.55, "rgba(253,224,71,0.28)");
+        streak.addColorStop(1, "rgba(255,248,220,0.75)");
+        ctx.fillStyle = streak;
+        ctx.beginPath();
+        ctx.moveTo(-trailLen, -0.4);
+        ctx.lineTo(2, -2.4);
+        ctx.lineTo(2, 2.4);
+        ctx.lineTo(-trailLen, 0.4);
+        ctx.closePath();
+        ctx.fill();
+        // glow halo around the head of the round
+        const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, 11);
+        halo.addColorStop(0, "rgba(255, 248, 220, 0.5)");
+        halo.addColorStop(1, "rgba(253, 224, 71, 0)");
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(0, 0, 11, 0, Math.PI * 2);
+        ctx.fill();
         // Core bullet
         ctx.fillStyle = "#fff8dc";
-        ctx.fillRect(-5, -1.5, 9, 3);
+        ctx.fillRect(-5, -1.4, 9, 2.8);
         ctx.fillStyle = "#fde047";
-        ctx.fillRect(-3, -1, 5, 2);
+        ctx.fillRect(-3, -0.9, 5, 1.8);
         ctx.restore();
       }
     }
@@ -3112,14 +3152,46 @@ export default function GameCanvas({
         grd.addColorStop(0, "rgba(255,248,220,0.9)");
         grd.addColorStop(0.5, "rgba(253,224,71,0.5)");
         grd.addColorStop(1, "rgba(253,224,71,0)");
+        // Additive so the flash actually casts light over the scene.
+        ctx.globalCompositeOperation = "lighter";
         ctx.fillStyle = grd;
         ctx.beginPath();
         ctx.arc(0, 0, sz, 0, Math.PI * 2);
         ctx.fill();
-        // Star shape
-        ctx.fillStyle = "rgba(255,255,255,0.8)";
-        ctx.fillRect(-sz * 0.6, -1, sz * 1.2, 2);
-        ctx.fillRect(-1, -sz * 0.6, 2, sz * 1.2);
+        // Forward light cone — the muzzle throws light down the barrel line.
+        const cone = ctx.createLinearGradient(0, 0, sz * 2.6, 0);
+        cone.addColorStop(0, "rgba(255, 244, 190, 0.34)");
+        cone.addColorStop(1, "rgba(255, 240, 170, 0)");
+        ctx.fillStyle = cone;
+        ctx.beginPath();
+        ctx.moveTo(0, -sz * 0.16);
+        ctx.lineTo(sz * 2.6, -sz * 0.62);
+        ctx.lineTo(sz * 2.6, sz * 0.62);
+        ctx.lineTo(0, sz * 0.16);
+        ctx.closePath();
+        ctx.fill();
+        // Tapered four-point star: longer spikes forward, short ones sideways.
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.beginPath();
+        ctx.moveTo(sz * 1.35, 0);
+        ctx.lineTo(0, -sz * 0.2);
+        ctx.lineTo(-sz * 0.5, 0);
+        ctx.lineTo(0, sz * 0.2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "rgba(255, 252, 235, 0.75)";
+        ctx.beginPath();
+        ctx.moveTo(0, -sz * 0.85);
+        ctx.lineTo(sz * 0.14, 0);
+        ctx.lineTo(0, sz * 0.85);
+        ctx.lineTo(-sz * 0.14, 0);
+        ctx.closePath();
+        ctx.fill();
+        // hot core
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.max(1, sz * 0.22), 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
       } else if (pt.type === "debris") {
         ctx.save();
@@ -3169,10 +3241,10 @@ export default function GameCanvas({
     const hasSprite = Boolean(
       sprite?.complete && sprite.naturalWidth > 0 && sprite.naturalHeight > 0,
     );
-    const spriteH = hasSprite ? PLAYER_SPRITE_HEIGHT : PH;
-    const spriteW = hasSprite
-      ? Math.round((sprite.naturalWidth / sprite.naturalHeight) * spriteH)
-      : PW;
+    // The procedural operator art always occupies the same box, so anchors (gun
+    // hand, HP bar, name) stay put whether or not a legacy bitmap is present.
+    const spriteH = PLAYER_SPRITE_HEIGHT;
+    const spriteW = 34;
     const topY = p.y - spriteH;
 
     // Shadow
@@ -3217,13 +3289,29 @@ export default function GameCanvas({
       // Now the local origin is at the feet; draw the sprite so its bottom is
       // at the origin and centered horizontally. Account for facing flip.
       if (p.facing < 0) ctx.scale(-1, 1);
-      ctx.drawImage(
-        sprite,
-        -spriteW / 2,
-        -(spriteH - 1),
-        spriteW,
-        spriteH,
-      );
+      // Layered pixel-art operator: legs, armour, helmet and arms are drawn
+      // separately so each animation state has its own real pose.
+      const activeWeapon = weaponById(p.primaryWeaponId);
+      drawOperatorBody(ctx, {
+        team: p.team,
+        state: operatorStateFor(p),
+        phase: p.walkPhase ?? 0,
+        time: (p.animTime ?? 0) / 1000,
+        leaning: anim.lean,
+        reloadProgress:
+          p.reloading && activeWeapon
+            ? Math.max(
+                0,
+                Math.min(1, 1 - (p.reloadTimer ?? 0) / activeWeapon.reloadMs),
+              )
+            : 0,
+        swapProgress:
+          p.weaponSwapTimer > 0
+            ? 1 - p.weaponSwapTimer / (p.weaponSwapDur || 18)
+            : 0,
+        throwProgress:
+          p.throwTimer > 0 ? 1 - p.throwTimer / (p.throwDur || 20) : 0,
+      });
       ctx.restore();
 
       // Selection ring stays grounded (does not follow the bob) for stability.
@@ -3247,15 +3335,14 @@ export default function GameCanvas({
       ctx.rotate(anim.lean * p.facing);
       ctx.scale(anim.squashX, anim.squashY);
       if (p.facing < 0) ctx.scale(-1, 1);
-      ctx.fillStyle = col;
-      ctx.fillRect(-PW / 2, -PH, PW, PH);
-      ctx.strokeStyle = "#0a0c05";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(-PW / 2, -PH, PW, PH);
-      ctx.fillStyle = "#1f2410";
-      ctx.fillRect(-11, -PH - 7, 22, 9);
-      ctx.fillStyle = "#fde047";
-      ctx.fillRect(-5 + 2, -PH + 5, 7, 2);
+      // Same procedural operator as the main path — no bitmap needed at all.
+      drawOperatorBody(ctx, {
+        team: p.team,
+        state: operatorStateFor(p),
+        phase: p.walkPhase ?? 0,
+        time: (p.animTime ?? 0) / 1000,
+        leaning: anim.lean,
+      });
       ctx.restore();
     }
 
@@ -3332,17 +3419,15 @@ export default function GameCanvas({
         const muzzleGx = gx + rAimX + gun.offsetX * flip;
         const muzzleGy = gy2 + rAimY + gun.offsetY;
         ctx.globalAlpha = Math.max(0, gun.opacity);
-        ctx.strokeStyle = "#111";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(gx, gy2);
-        ctx.lineTo(muzzleGx, muzzleGy);
-        ctx.stroke();
-        // Small muzzle/grip detail so the gun reads as a distinct shape.
-        ctx.fillStyle = "#1a1a1a";
-        ctx.beginPath();
-        ctx.arc(gx, gy2, 1.6, 0, Math.PI * 2);
-        ctx.fill();
+        // Pixel-art weapon silhouette per class, angled down the aim vector.
+        drawWeaponSprite(
+          ctx,
+          gx,
+          gy2,
+          Math.atan2(muzzleGy - gy2, muzzleGx - gx),
+          weaponClassFor(p.primaryWeaponId),
+          { alpha: Math.max(0, gun.opacity), recoil: p.recoil ?? 0 },
+        );
         const prof = profileRef.current;
         const wa = prof.weaponAttachments?.[p.primaryWeaponId] ?? {
           laser: false,
@@ -4101,28 +4186,80 @@ export default function GameCanvas({
   function drawBackground(ctx, camX) {
     // Far parallax layer
     if (mapId === "city") {
-      // Far buildings (slow parallax)
-      ctx.fillStyle = "rgba(18,18,42,0.6)";
-      for (let i = 0; i < 14; i++) {
-        const bx = ((i * 220 - camX * 0.15 + 3080) % (VIEW_W + 300)) - 80;
-        const bh = 60 + (i % 4) * 30;
-        ctx.fillRect(bx, VIEW_H - bh - 50, 90, bh);
+      // Layer 1 — distant skyline haze: a soft band of city light just above the
+      // rooftops, so the far layer fades into atmosphere instead of ending hard.
+      const haze = ctx.createLinearGradient(0, VIEW_H - 260, 0, VIEW_H - 40);
+      haze.addColorStop(0, "rgba(40, 60, 110, 0)");
+      haze.addColorStop(0.55, "rgba(46, 74, 130, 0.22)");
+      haze.addColorStop(1, "rgba(90, 130, 190, 0.1)");
+      ctx.fillStyle = haze;
+      ctx.fillRect(0, VIEW_H - 260, VIEW_W, 220);
+
+      // Layer 2 — farthest silhouette towers (0.07 parallax) with roof beacons.
+      ctx.fillStyle = "rgba(14, 16, 36, 0.85)";
+      for (let i = 0; i < 22; i++) {
+        const bx = ((i * 150 - camX * 0.07 + 3400) % (VIEW_W + 260)) - 90;
+        const bw = 46 + (i % 4) * 26;
+        const bh = 70 + (i % 6) * 34;
+        ctx.fillRect(bx, VIEW_H - bh - 46, bw, bh);
+        // rooftop mast
+        if (i % 3 === 0) {
+          ctx.fillRect(bx + bw * 0.5 - 1, VIEW_H - bh - 58, 2, 12);
+          ctx.fillStyle = "rgba(248, 113, 113, 0.45)";
+          ctx.fillRect(bx + bw * 0.5 - 1.5, VIEW_H - bh - 60, 3, 3);
+          ctx.fillStyle = "rgba(14, 16, 36, 0.85)";
+        }
       }
-      // Near buildings (faster parallax)
-      ctx.fillStyle = "#12122a";
-      for (let i = 0; i < 18; i++) {
-        const bx = ((i * 180 - camX * 0.2 + 3240) % (VIEW_W + 250)) - 60;
-        const bh = 80 + (i % 5) * 40;
-        ctx.fillRect(bx, VIEW_H - bh - 60, 80 + (i % 3) * 20, bh);
-        // Windows
-        ctx.fillStyle = "rgba(253,224,71,0.08)";
-        for (let wy = VIEW_H - bh - 50; wy < VIEW_H - 70; wy += 20) {
-          for (let wx = bx + 10; wx < bx + 80; wx += 18) {
-            if ((wx + wy) % 3 === 0)
-              ctx.fillRect(wx, wy, 8, 12);
+
+      // Layer 3 — mid buildings (0.15 parallax) with lit window grids.
+      for (let i = 0; i < 16; i++) {
+        const bx = ((i * 210 - camX * 0.15 + 3080) % (VIEW_W + 300)) - 80;
+        const bw = 84 + (i % 3) * 18;
+        const bh = 90 + (i % 4) * 40;
+        const by = VIEW_H - bh - 44;
+        ctx.fillStyle = "#101026";
+        ctx.fillRect(bx, by, bw, bh);
+        // warm interior glow bleeding out of the facade
+        const glow = ctx.createLinearGradient(bx, by, bx, by + bh);
+        glow.addColorStop(0, "rgba(253, 224, 71, 0.05)");
+        glow.addColorStop(1, "rgba(253, 224, 71, 0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(bx, by, bw, bh);
+        // window grid: deterministic pattern, some lit some dark
+        for (let wy = by + 10; wy < by + bh - 8; wy += 16) {
+          for (let wx = bx + 8; wx < bx + bw - 10; wx += 14) {
+            const seed = (wx * 13 + wy * 7 + i * 31) % 11;
+            if (seed < 3) {
+              ctx.fillStyle = "rgba(253, 224, 71, 0.16)";
+              ctx.fillRect(wx, wy, 7, 10);
+              ctx.fillStyle = "rgba(255, 246, 196, 0.22)";
+              ctx.fillRect(wx, wy, 7, 3);
+            } else if (seed < 5) {
+              ctx.fillStyle = "rgba(120, 180, 255, 0.1)";
+              ctx.fillRect(wx, wy, 7, 10);
+            } else {
+              ctx.fillStyle = "rgba(4, 6, 14, 0.5)";
+              ctx.fillRect(wx, wy, 7, 10);
+            }
           }
         }
-        ctx.fillStyle = "#12122a";
+        // parapet + edge highlight
+        ctx.fillStyle = "#16163a";
+        ctx.fillRect(bx - 2, by - 4, bw + 4, 4);
+        ctx.fillStyle = "rgba(120, 160, 220, 0.14)";
+        ctx.fillRect(bx, by, 1.5, bh);
+      }
+
+      // Layer 4 — nearest facades (0.32 parallax), very dark, adds depth framing.
+      ctx.fillStyle = "#0a0a1c";
+      for (let i = 0; i < 9; i++) {
+        const bx = ((i * 330 - camX * 0.32 + 3600) % (VIEW_W + 400)) - 120;
+        const bw = 120 + (i % 2) * 60;
+        const bh = 150 + (i % 3) * 60;
+        ctx.fillRect(bx, VIEW_H - bh - 20, bw, bh);
+        ctx.fillStyle = "rgba(120, 170, 230, 0.06)";
+        ctx.fillRect(bx, VIEW_H - bh - 20, 2, bh);
+        ctx.fillStyle = "#0a0a1c";
       }
     } else if (mapId === "jungle") {
       // Far tree line
@@ -4177,6 +4314,50 @@ export default function GameCanvas({
         ctx.fillRect(px, 60, 18, VIEW_H - 60);
       }
     }
+
+    // ── Atmospheric pass (all maps) ──
+    // Slow drifting fog banks plus a horizon bloom. Drawn behind the gameplay
+    // layer, so it separates near silhouettes from the skyline without ever
+    // washing out the fight.
+    const drift = (Date.now() / 90) % VIEW_W;
+    const fogTint =
+      mapId === "jungle"
+        ? "120, 190, 140"
+        : mapId === "desert"
+          ? "210, 170, 110"
+          : mapId === "city"
+            ? "130, 165, 220"
+            : "170, 175, 185";
+    for (let i = 0; i < 2; i++) {
+      const fg = ctx.createLinearGradient(0, GY - 150, 0, GY + 10);
+      fg.addColorStop(0, `rgba(${fogTint}, 0)`);
+      fg.addColorStop(0.6, `rgba(${fogTint}, ${0.05 + i * 0.02})`);
+      fg.addColorStop(1, `rgba(${fogTint}, ${0.1 + i * 0.04})`);
+      ctx.fillStyle = fg;
+      const bandY = GY - 160 + i * 40;
+      ctx.fillRect(0, bandY, VIEW_W, 190 - i * 30);
+    }
+    // Horizon bloom — a wide, very soft light source behind the rooftops.
+    const bloom = ctx.createRadialGradient(
+      VIEW_W * 0.62 - camX * 0.04,
+      GY - 60,
+      20,
+      VIEW_W * 0.62 - camX * 0.04,
+      GY - 60,
+      420,
+    );
+    bloom.addColorStop(0, `rgba(${fogTint}, 0.10)`);
+    bloom.addColorStop(1, `rgba(${fogTint}, 0)`);
+    ctx.fillStyle = bloom;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    // Drifting smoke wisps (cheap, three soft strips).
+    ctx.globalAlpha = 0.035;
+    for (let i = 0; i < 3; i++) {
+      const wx = ((i * 420 + drift * (i % 2 ? -1 : 1)) % (VIEW_W + 400)) - 200;
+      ctx.fillStyle = `rgba(${fogTint}, 1)`;
+      ctx.fillRect(wx, GY - 120 + i * 26, 340, 22 + i * 6);
+    }
+    ctx.globalAlpha = 1;
   }
 
   function drawMapDecorations(ctx, camX) {
@@ -4601,12 +4782,43 @@ export default function GameCanvas({
   }
 
   function drawHUD(ctx, me, s) {
-    // Score bar (top center)
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    // Score bar (top center) — gradient glass panel with team-coloured edges
+    const scoreBar = ctx.createLinearGradient(0, 8, 0, 48);
+    scoreBar.addColorStop(0, "rgba(22, 30, 14, 0.92)");
+    scoreBar.addColorStop(0.5, "rgba(8, 12, 8, 0.82)");
+    scoreBar.addColorStop(1, "rgba(20, 28, 12, 0.92)");
+    ctx.fillStyle = scoreBar;
     ctx.fillRect(VIEW_W / 2 - 150, 8, 300, 40);
+    // team-tinted inner edges
+    const edgeL = ctx.createLinearGradient(
+      VIEW_W / 2 - 150,
+      0,
+      VIEW_W / 2 - 30,
+      0,
+    );
+    edgeL.addColorStop(0, "rgba(96,165,250,0.22)");
+    edgeL.addColorStop(1, "rgba(96,165,250,0)");
+    ctx.fillStyle = edgeL;
+    ctx.fillRect(VIEW_W / 2 - 150, 8, 120, 40);
+    const edgeR = ctx.createLinearGradient(
+      VIEW_W / 2 + 30,
+      0,
+      VIEW_W / 2 + 150,
+      0,
+    );
+    edgeR.addColorStop(0, "rgba(248,113,113,0)");
+    edgeR.addColorStop(1, "rgba(248,113,113,0.22)");
+    ctx.fillStyle = edgeR;
+    ctx.fillRect(VIEW_W / 2 + 30, 8, 120, 40);
+    // top highlight line + neon border
+    ctx.fillStyle = "rgba(190, 242, 100, 0.35)";
+    ctx.fillRect(VIEW_W / 2 - 150, 8, 300, 1);
     ctx.strokeStyle = "#84cc16";
     ctx.lineWidth = 1;
+    ctx.shadowColor = "rgba(132, 204, 22, 0.5)";
+    ctx.shadowBlur = 6;
     ctx.strokeRect(VIEW_W / 2 - 150, 8, 300, 40);
+    ctx.shadowBlur = 0;
     ctx.font = "bold 22px monospace";
     ctx.textAlign = "center";
     ctx.fillStyle = "#60a5fa";
@@ -4633,21 +4845,51 @@ export default function GameCanvas({
       ctx.textAlign = "left";
     }
 
-    // Player info panel (top left)
-    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    // Player info panel (top left) — glass panel, corner brackets, low-opacity
+    // scanlines so it reads as a tactical HUD rather than a black rectangle.
+    const panelG = ctx.createLinearGradient(8, 8, 183, 123);
+    panelG.addColorStop(0, "rgba(12, 18, 10, 0.88)");
+    panelG.addColorStop(1, "rgba(4, 8, 6, 0.72)");
+    ctx.fillStyle = panelG;
     ctx.fillRect(8, 8, 175, 115);
+    ctx.fillStyle = "rgba(132,204,22,0.04)";
+    for (let sy = 14; sy < 120; sy += 4) ctx.fillRect(8, sy, 175, 1);
     ctx.strokeStyle = "rgba(132,204,22,0.4)";
     ctx.lineWidth = 1;
     ctx.strokeRect(8, 8, 175, 115);
+    ctx.strokeStyle = "rgba(190,242,100,0.85)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(8, 26);
+    ctx.lineTo(8, 8);
+    ctx.lineTo(26, 8);
+    ctx.moveTo(183, 105);
+    ctx.lineTo(183, 123);
+    ctx.lineTo(165, 123);
+    ctx.stroke();
     ctx.fillStyle = "#84cc16";
     ctx.font = "bold 11px monospace";
     ctx.fillText(profileRef.current.name, 14, 26);
     ctx.fillStyle = me.hp > 50 ? "#86efac" : me.hp > 25 ? "#fde68a" : "#fca5a5";
     ctx.fillText("HP: " + Math.ceil(me.hp) + "/100", 14, 44);
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
-    ctx.fillRect(14, 48, 155, 5);
-    ctx.fillStyle = me.hp > 50 ? "#86efac" : me.hp > 25 ? "#fde68a" : "#fca5a5";
-    ctx.fillRect(14, 48, (155 * me.hp) / 100, 5);
+    // Health bar: recessed track, gradient fill, segment ticks, hot leading edge
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
+    ctx.fillRect(14, 48, 155, 6);
+    const hpGrad = ctx.createLinearGradient(14, 0, 169, 0);
+    const hpColor =
+      me.hp > 50 ? ["#34d399", "#86efac"] : me.hp > 25 ? ["#d97706", "#fde68a"] : ["#dc2626", "#fca5a5"];
+    hpGrad.addColorStop(0, hpColor[0]);
+    hpGrad.addColorStop(1, hpColor[1]);
+    ctx.fillStyle = hpGrad;
+    ctx.fillRect(14, 48, (155 * Math.max(0, me.hp)) / 100, 6);
+    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    ctx.fillRect(14, 48, (155 * Math.max(0, me.hp)) / 100, 1.5);
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    for (let seg = 1; seg < 10; seg++) ctx.fillRect(14 + seg * 15.5, 48, 1, 6);
+    if (me.hp > 0) {
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillRect(14 + (155 * Math.min(100, me.hp)) / 100 - 1, 48, 1, 6);
+    }
     ctx.fillStyle = "#ddd";
     ctx.font = "10px monospace";
     const w = weaponById(me.primaryWeaponId);
