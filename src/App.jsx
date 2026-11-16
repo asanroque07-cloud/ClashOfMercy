@@ -21,6 +21,9 @@ import { CustomLobby } from "@/components/CustomLobby";
 import { Matchmaker } from "@/components/Matchmaker";
 import GameCanvas from "@/components/GameCanvas";
 import GameErrorBoundary from "@/components/GameErrorBoundary";
+import TutorialModal, { TUTORIAL_KEY } from "@/components/TutorialModal";
+import UpdatePrompt from "@/components/UpdatePrompt";
+import { useUpdateAvailable } from "@/hooks/useUpdateAvailable";
 import BackgroundMusic from "@/components/BackgroundMusic";
 import DownloadPage from "@/pages/DownloadPage";
 import Home from "@/pages/Home";
@@ -207,6 +210,8 @@ export default function App() {
   const [squad, setSquad] = useState([]); // friends/bots currently grouped up for a match
   const [alerts, setAlerts] = useState([]); // toast notifications shown top-right
   const [pendingModal, setPendingModal] = useState(null); // which popup dialog Home should open, if any
+  const [tutorialOpen, setTutorialOpen] = useState(false); // first-run walkthrough
+  const updateAvailable = useUpdateAvailable(!showDownloadPage);
   const previousOnlineRoomRef = useRef(null);
   const onlineMatchActiveRef = useRef(false);
   const [gameProfile, setGameProfile] = useState(loadProfile()); // in-match profile (coins/loadout/upgrades)
@@ -224,6 +229,19 @@ export default function App() {
     width: typeof window !== "undefined" ? window.innerWidth : 1280,
     height: typeof window !== "undefined" ? window.innerHeight : 720,
   }));
+
+  // Brand-new players (no tutorial flag yet) get the walkthrough once, as soon
+  // as the lobby is on screen. Replaying it from Settings does not clear it.
+  useEffect(() => {
+    if (loading || screen !== "home") return;
+    let seen = false;
+    try {
+      seen = Boolean(window.localStorage.getItem(TUTORIAL_KEY));
+    } catch {
+      seen = false;
+    }
+    if (!seen) setTutorialOpen(true);
+  }, [loading, screen]);
 
   useEffect(() => {
     setLobbyState(loadLobbyState());
@@ -987,6 +1005,7 @@ export default function App() {
           onChangeScreen={(s) => setScreen(s)}
           onOpenSettings={() => setPendingModal("settings")}
           onAddCurrency={handleAddCurrency}
+          onOpenTutorial={() => setTutorialOpen(true)}
           cloudAccount={cloudAccount}
         />
 
@@ -1273,6 +1292,12 @@ export default function App() {
         onDeclineInvite={onlineMatch.declineInvite}
         onStartHostRoom={() => handleQueueMatchLaunch(onlineMatch.room.mode)}
       />
+      {tutorialOpen && (
+        <TutorialModal onClose={() => setTutorialOpen(false)} />
+      )}
+      {updateAvailable.available && (
+        <UpdatePrompt onRestart={updateAvailable.restart} />
+      )}
       {showRotateOverlay && (
         <div className="rotate-device-overlay">
           <div className="rotate-device-card">
