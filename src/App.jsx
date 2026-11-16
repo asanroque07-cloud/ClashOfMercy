@@ -739,6 +739,19 @@ export default function App() {
     });
   };
 
+  // Applies a finished match from GameCanvas to the lobby save: coins, XP,
+  // level progress and the match history entry the History modal shows.
+  const handleMatchRecorded = useCallback((record) => {
+    const outcome = record?.result === "victory" ? "victory" : "defeat";
+    handleOfflineRewards(
+      Math.max(0, Math.round(record?.coinsEarned || 0)),
+      outcome === "victory" ? 15 : 5,
+      outcome === "victory" ? 120 : 60,
+      outcome,
+      lobbyState?.activeMap?.name || "Unknown",
+    );
+  }, [lobbyState?.activeMap?.name]);
+
   // ── Launch real GameCanvas (switch from lobby into the live match) ──
   const handleLaunchGame = (fromScreen) => {
     requestPhoneFullscreen(true);
@@ -879,6 +892,7 @@ export default function App() {
             networkSession={networkSession}
             onNetworkError={pushAlert}
             onProfileChange={handleGameProfileChange}
+            onMatchEnd={handleMatchRecorded}
             onExit={handleExitGame}
           />
         </div>
