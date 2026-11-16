@@ -709,6 +709,46 @@ button.home-settings-controller {
   color: #e6f4d2;
 }
 
+.game-stage,
+.game-canvas {
+  /* No browser panning/zooming inside the arena: those gestures cancel the
+     pointer stream and swallow extra fingers. */
+  touch-action: none;
+}
+
+/* Holding a control must never start a text selection or pop the native
+   copy/callout menu mid-firefight. */
+.game-frame,
+.game-frame * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The whole app is a game UI: nothing should be selectable, and a long press
+   must not raise the native copy/callout menu anywhere. Text entry opts out. */
+html,
+body,
+button {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 .touch-controls {
   position: absolute;
   inset: 0;
@@ -716,6 +756,7 @@ button.home-settings-controller {
   display: block;
   padding: 0;
   pointer-events: none;
+  touch-action: none;
 }
 
 .touch-controls__cluster {

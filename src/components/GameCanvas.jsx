@@ -1082,8 +1082,16 @@ export default function GameCanvas({
     [playSfx],
   );
 
-  const requestImmersiveMode = useCallback(async () => {
+  // Fullscreen/orientation requests are only worth making on an explicit tap
+  // (or the first touch of a match). Re-requesting them on every control press
+  // makes some browsers abort the active touch session, which drops the
+  // fingers that are already held down.
+  const lastImmersiveAttemptRef = useRef(0);
+  const requestImmersiveMode = useCallback(async (force = false) => {
     ensureAudioUnlocked();
+    const now = Date.now();
+    if (!force && now - lastImmersiveAttemptRef.current < 4000) return;
+    lastImmersiveAttemptRef.current = now;
     try {
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen?.();
@@ -5612,17 +5620,22 @@ export default function GameCanvas({
     [ensureAudioUnlocked, requestImmersiveMode, setMobilePressed],
   );
 
-  const updateMoveStick = useCallback((event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
+  // Stick maths works off a plain rect so the same code serves the on-screen
+  // widget and the pointer router below.
+  const stickDrag = (rect, clientX, clientY) => {
     const radius = Math.max(1, Math.min(rect.width, rect.height) / 2 - 20);
-    let x = event.clientX - (rect.left + rect.width / 2);
-    let y = event.clientY - (rect.top + rect.height / 2);
+    let x = clientX - (rect.left + rect.width / 2);
+    let y = clientY - (rect.top + rect.height / 2);
     const distance = Math.hypot(x, y);
     if (distance > radius) {
       x = (x / distance) * radius;
       y = (y / distance) * radius;
     }
+    return { x, y, radius };
+  };
 
+  const updateMoveStick = useCallback((rect, clientX, clientY) => {
+    const { x, y, radius } = stickDrag(rect, clientX, clientY);
     const moveX = x / radius;
     const s = stateRef.current;
     if (s) s.mobile.moveX = moveX;
@@ -5635,17 +5648,8 @@ export default function GameCanvas({
     setMoveStick({ x: 0, y: 0, active: false });
   }, []);
 
-  const updateAimStick = useCallback((event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const radius = Math.max(1, Math.min(rect.width, rect.height) / 2 - 20);
-    let x = event.clientX - (rect.left + rect.width / 2);
-    let y = event.clientY - (rect.top + rect.height / 2);
-    const distance = Math.hypot(x, y);
-    if (distance > radius) {
-      x = (x / distance) * radius;
-      y = (y / distance) * radius;
-    }
-
+  const updateAimStick = useCallback((rect, clientX, clientY) => {
+    const { x, y, radius } = stickDrag(rect, clientX, clientY);
     const aimX = x / radius;
     const aimY = y / radius;
     const active = Math.hypot(aimX, aimY) > 0.18;
@@ -5697,6 +5701,161 @@ export default function GameCanvas({
     [ensureAudioUnlocked, requestImmersiveMode, runPlayerAction, flashControl],
   );
 
+  // ── Touch pointer router ───────────────────────────────────────────────
+  // Every control is driven from one window-level listener set instead of
+  // per-element handlers. Element handlers stop receiving a pointer once
+  // another finger is already down on a captured element or the browser turns
+  // the touches into a gesture, which is why a third simultaneous button (e.g.
+  // jump while moving and firing) never registered. Routing all pointers here
+  // and hit-testing the widgets by rect keeps any number of fingers working.
+  const touchLayerRef = useRef(null);
+
+  useEffect(() => {
+    if (!showTouchControls) return undefined;
+    const layer = touchLayerRef.current;
+    if (!layer) return undefined;
+
+    const IDS = [
+      "move",
+      "aim",
+      "jump",
+      "down",
+      "swap",
+      "reload",
+      "grenade",
+      "use",
+    ];
+    const HIT_SLOP = 14; // extra grace around each widget for thumb accuracy
+    const held = new Map(); // pointerId -> { id, rect }
+
+    const rectFor = (id) => {
+      const element = layer.querySelector(`[data-control-id="${id}"]`);
+      return element ? element.getBoundingClientRect() : null;
+    };
+
+    const hitTest = (x, y) => {
+      let best = null;
+      let bestDistance = Infinity;
+      for (const id of IDS) {
+        const rect = rectFor(id);
+        if (!rect || !rect.width || !rect.height) continue;
+        if (
+          x < rect.left - HIT_SLOP ||
+          x > rect.right + HIT_SLOP ||
+          y < rect.top - HIT_SLOP ||
+          y > rect.bottom + HIT_SLOP
+        ) {
+          continue;
+        }
+        const distance = Math.hypot(
+          x - (rect.left + rect.width / 2),
+          y - (rect.top + rect.height / 2),
+        );
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = { id, rect };
+        }
+      }
+      return best;
+    };
+
+    const press = (id, rect, x, y) => {
+      if (id === "move") updateMoveStick(rect, x, y);
+      else if (id === "aim") updateAimStick(rect, x, y);
+      else if (id === "jump" || id === "down") holdControl(id, true);
+      else if (id === "swap") tapAction("swap");
+      else if (id === "reload") tapAction("reload");
+      else if (id === "grenade") tapAction("grenade");
+      else if (id === "use") tapAction("interact");
+    };
+
+    const release = (id) => {
+      if (id === "move") releaseMoveStick();
+      else if (id === "aim") releaseAimStick();
+      else if (id === "jump" || id === "down") holdControl(id, false);
+    };
+
+    const onPointerDown = (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      if (pausedRef.current) return;
+      // Let real UI buttons (pause/exit/overlays) keep their own clicks.
+      const target = event.target;
+      if (target instanceof Element) {
+        const uiButton = target.closest(
+          "button:not(.touch-button):not(.touch-stick)",
+        );
+        if (uiButton && !layer.contains(uiButton)) return;
+      }
+      const hit = hitTest(event.clientX, event.clientY);
+      if (!hit) return;
+      event.preventDefault();
+      ensureAudioUnlocked();
+      void requestImmersiveMode();
+      held.set(event.pointerId, { id: hit.id, rect: hit.rect });
+      press(hit.id, hit.rect, event.clientX, event.clientY);
+    };
+
+    const onPointerMove = (event) => {
+      const entry = held.get(event.pointerId);
+      if (!entry) return;
+      if (entry.id === "move") {
+        event.preventDefault();
+        updateMoveStick(entry.rect, event.clientX, event.clientY);
+      } else if (entry.id === "aim") {
+        event.preventDefault();
+        updateAimStick(entry.rect, event.clientX, event.clientY);
+      }
+    };
+
+    const onPointerRelease = (event) => {
+      const entry = held.get(event.pointerId);
+      if (!entry) return;
+      held.delete(event.pointerId);
+      release(entry.id);
+    };
+
+    const releaseAll = () => {
+      for (const entry of held.values()) release(entry.id);
+      held.clear();
+    };
+
+    // A long press on a control would otherwise open the native text-selection
+    // / copy callout on top of the match.
+    const onContextMenu = (event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".game-stage")) {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener("pointerdown", onPointerDown, { passive: false });
+    window.addEventListener("pointermove", onPointerMove, { passive: false });
+    window.addEventListener("pointerup", onPointerRelease);
+    window.addEventListener("pointercancel", onPointerRelease);
+    window.addEventListener("blur", releaseAll);
+    window.addEventListener("contextmenu", onContextMenu);
+
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerRelease);
+      window.removeEventListener("pointercancel", onPointerRelease);
+      window.removeEventListener("blur", releaseAll);
+      window.removeEventListener("contextmenu", onContextMenu);
+      releaseAll();
+    };
+  }, [
+    showTouchControls,
+    updateMoveStick,
+    updateAimStick,
+    releaseMoveStick,
+    releaseAimStick,
+    holdControl,
+    tapAction,
+    ensureAudioUnlocked,
+    requestImmersiveMode,
+  ]);
+
   const touchControlStyle = (id) => {
     const position = touchLayout.positions[id] || { x: 0, y: 0 };
     const controlPosition = getTouchControlPosition(id, position);
@@ -5714,7 +5873,7 @@ export default function GameCanvas({
       >
         <div className="flex items-center gap-2">
           <button
-            onClick={() => void requestImmersiveMode()}
+            onClick={() => void requestImmersiveMode(true)}
             className="game-toolbar-button game-toolbar-button--primary"
           >
             {isFullscreen ? "Arena" : "Fullscreen"}
@@ -5740,7 +5899,7 @@ export default function GameCanvas({
         />
 
         {showTouchControls && (
-          <div className="touch-controls">
+          <div className="touch-controls" ref={touchLayerRef}>
             <div className="touch-controls__cluster">
               <button
                 type="button"
@@ -5748,24 +5907,6 @@ export default function GameCanvas({
                 aria-label="Movement joystick"
                 className={`touch-stick touch-stick--move ${moveStick.active ? "is-active" : ""}`}
                 style={touchControlStyle("move")}
-                onPointerDown={(event) => {
-                  ensureAudioUnlocked();
-                  void requestImmersiveMode();
-                  try {
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                  } catch {
-                    // Browsers throw when the pointer is already gone; dragging
-                    // must keep working instead of aborting this handler.
-                  }
-                  updateMoveStick(event);
-                }}
-                onPointerMove={(event) => {
-                  if (event.currentTarget.hasPointerCapture(event.pointerId))
-                    updateMoveStick(event);
-                }}
-                onPointerUp={releaseMoveStick}
-                onPointerCancel={releaseMoveStick}
-                onLostPointerCapture={releaseMoveStick}
               >
                 <span className="touch-stick__label">Move</span>
                 <span
@@ -5781,10 +5922,6 @@ export default function GameCanvas({
                   data-control-id="jump"
                   className={`touch-button touch-button--wide ${pressedControls.jump ? "is-active" : ""}`}
                   style={touchControlStyle("jump")}
-                  onPointerDown={() => holdControl("jump", true)}
-                  onPointerUp={() => holdControl("jump", false)}
-                  onPointerLeave={() => holdControl("jump", false)}
-                  onPointerCancel={() => holdControl("jump", false)}
                 >
                   Jump
                 </button>
@@ -5793,10 +5930,6 @@ export default function GameCanvas({
                   data-control-id="down"
                   className={`touch-button touch-button--wide ${pressedControls.down ? "is-active" : ""}`}
                   style={touchControlStyle("down")}
-                  onPointerDown={() => holdControl("down", true)}
-                  onPointerUp={() => holdControl("down", false)}
-                  onPointerLeave={() => holdControl("down", false)}
-                  onPointerCancel={() => holdControl("down", false)}
                 >
                   Down
                 </button>
@@ -5805,7 +5938,6 @@ export default function GameCanvas({
                   data-control-id="swap"
                   className={`touch-button touch-button--wide ${pressedControls.swap ? "is-active" : ""}`}
                   style={touchControlStyle("swap")}
-                  onClick={() => tapAction("swap")}
                 >
                   Swap
                 </button>
@@ -5819,7 +5951,6 @@ export default function GameCanvas({
                   data-control-id="reload"
                   className={`touch-button touch-button--wide ${pressedControls.reload ? "is-active" : ""}`}
                   style={touchControlStyle("reload")}
-                  onClick={() => tapAction("reload")}
                 >
                   Reload
                 </button>
@@ -5828,7 +5959,6 @@ export default function GameCanvas({
                   data-control-id="grenade"
                   className={`touch-button touch-button--wide ${pressedControls.grenade ? "is-active" : ""}`}
                   style={touchControlStyle("grenade")}
-                  onClick={() => tapAction("grenade")}
                 >
                   Grenade
                 </button>
@@ -5839,23 +5969,6 @@ export default function GameCanvas({
                 aria-label="Aim and fire joystick"
                 className={`touch-stick touch-stick--aim ${aimStick.active ? "is-active" : ""}`}
                 style={touchControlStyle("aim")}
-                onPointerDown={(event) => {
-                  ensureAudioUnlocked();
-                  void requestImmersiveMode();
-                  try {
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                  } catch {
-                    // See the movement stick: never let capture abort the drag.
-                  }
-                  updateAimStick(event);
-                }}
-                onPointerMove={(event) => {
-                  if (event.currentTarget.hasPointerCapture(event.pointerId))
-                    updateAimStick(event);
-                }}
-                onPointerUp={releaseAimStick}
-                onPointerCancel={releaseAimStick}
-                onLostPointerCapture={releaseAimStick}
               >
                 <span className="touch-stick__label">Aim / Fire</span>
                 <span
@@ -5870,7 +5983,6 @@ export default function GameCanvas({
                 data-control-id="use"
                 className={`touch-button touch-button--wide ${pressedControls.use ? "is-active" : ""}`}
                 style={touchControlStyle("use")}
-                onClick={() => tapAction("interact")}
               >
                 Use
               </button>
