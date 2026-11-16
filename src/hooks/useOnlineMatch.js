@@ -330,63 +330,46 @@ export function useOnlineMatch(user, displayName) {
 
   const leaveRoom = useCallback(async () => {
     const activeRoom = roomRef.current;
-    const activeChannel = roomChannel;
     const userId = user?.id;
+    const invitedUserIds =
+      activeRoom?.role === "host"
+        ? Array.from(inviteTeamsRef.current.keys())
+        : [];
 
     if (activeRoom && leavingRoomRef.current === activeRoom.id) return;
     if (activeRoom) leavingRoomRef.current = activeRoom.id;
 
-    if (activeRoom?.role === "host") {
-      Array.from(inviteTeamsRef.current.keys()).forEach((invitedUserId) => {
-        void sendBroadcast(`game-invites:${invitedUserId}`, "cancel", {
-          roomId: activeRoom.id,
-        }).catch((cancelError) => {
-          setError(getErrorMessage(cancelError));
-        });
-      });
-    }
+    roomRef.current = null;
+    setRoom(null);
+    setRoomChannel(null);
+
     inviteTeamsRef.current.clear();
+    invitedUserIds.forEach((invitedUserId) => {
+      void sendBroadcast(`game-invites:${invitedUserId}`, "cancel", {
+        roomId: activeRoom.id,
+      }).catch((cancelError) => {
+        setError(getErrorMessage(cancelError));
+      });
+    });
 
     try {
-      if (activeChannel && activeRoom?.role === "guest" && userId) {
-        const status = await activeChannel.send({
-          type: "broadcast",
-          event: "leave",
-          payload: { userId },
+      if (activeRoom?.role === "guest" && userId) {
+        await sendBroadcast(`game-room:${activeRoom.id}`, "leave", {
+          userId,
         });
-        if (status !== "ok") {
-          setError("Could not notify the host that you left the match.");
-        }
-      } else if (activeChannel && activeRoom?.role === "host") {
-        const status = await activeChannel.send({
-          type: "broadcast",
-          event: "end",
-          payload: { roomId: activeRoom.id },
+      } else if (activeRoom?.role === "host") {
+        await sendBroadcast(`game-room:${activeRoom.id}`, "end", {
+          roomId: activeRoom.id,
         });
-        if (status !== "ok") {
-          setError("Could not notify players that the match ended.");
-        }
       }
     } catch (leaveError) {
       setError(getErrorMessage(leaveError));
     } finally {
-      if (activeRoom) {
-        if (roomRef.current?.id === activeRoom.id) roomRef.current = null;
-        setRoom((previous) =>
-          previous?.id === activeRoom.id ? null : previous,
-        );
-        setRoomChannel((previous) =>
-          previous === activeChannel ? null : previous,
-        );
-        if (leavingRoomRef.current === activeRoom.id) {
-          leavingRoomRef.current = null;
-        }
-      } else {
-        setRoom(null);
-        setRoomChannel(null);
+      if (activeRoom && leavingRoomRef.current === activeRoom.id) {
+        leavingRoomRef.current = null;
       }
     }
-  }, [roomChannel, user?.id]);
+  }, [user?.id]);
   leaveRoomRef.current = leaveRoom;
 
   return {
