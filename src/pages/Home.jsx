@@ -26,6 +26,7 @@ export default function Home({
   onClearModal,
   accountConnected,
   cloudConfigured,
+  cloudAccount,
   incomingFriendRequests,
   onNavigate,
   onStartMatchmaking,
@@ -163,6 +164,7 @@ export default function Home({
         onClose={() => setMenuOpen(false)}
         profile={profile}
         onUpdateProfile={onUpdateProfile}
+        cloudAccount={cloudAccount}
       />
     </div>
   );

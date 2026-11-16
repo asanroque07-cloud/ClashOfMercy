@@ -317,19 +317,30 @@ export function LobbyHeader({
                         ? cloudAccount.playerProfile?.username
                           ? `@${cloudAccount.playerProfile.username}`
                           : cloudAccount.user.email
-                        : "Guest progress is saved only on this device."}
+                        : "Log in with an existing Google account, or keep playing as a guest."}
                     </span>
                   </span>
                 </div>
                 {cloudAccount.user ? (
-                  <button
-                    type="button"
-                    onClick={cloudAccount.disconnectGoogle}
-                    disabled={cloudAccount.busy}
-                    className="home-settings-account__button"
-                  >
-                    {cloudAccount.busy ? "PLEASE WAIT…" : "DISCONNECT"}
-                  </button>
+                  <div className="home-settings-account__actions">
+                    <button
+                      type="button"
+                      onClick={() => void cloudAccount.switchAccount?.()}
+                      disabled={cloudAccount.busy}
+                      title="Log in with a different Google account"
+                      className="home-settings-account__button"
+                    >
+                      {cloudAccount.busy ? "PLEASE WAIT…" : "SWITCH ACCOUNT"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cloudAccount.disconnectGoogle}
+                      disabled={cloudAccount.busy}
+                      className="home-settings-account__button"
+                    >
+                      {cloudAccount.busy ? "PLEASE WAIT…" : "DISCONNECT"}
+                    </button>
+                  </div>
                 ) : (
                   <button
                     type="button"

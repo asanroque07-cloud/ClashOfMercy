@@ -209,7 +209,10 @@ export function useCloudAccount() {
     };
   }, [user]);
 
-  const connectGoogle = useCallback(async () => {
+  // Google remembers the last account used in a browser, so a plain sign-in
+  // silently reuses it. Asking for the account chooser every time means a
+  // player can log in with any existing Google account they own.
+  const signInWithGoogle = useCallback(async () => {
     if (!supabase) {
       setError("Cloud accounts are not configured. Add the Supabase project URL and publishable key first.");
       return;
@@ -220,7 +223,10 @@ export function useCloudAccount() {
     try {
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin },
+        options: {
+          redirectTo: window.location.origin,
+          queryParams: { prompt: "select_account" },
+        },
       });
       if (authError) setError(getErrorMessage(authError));
     } catch (authError) {
@@ -229,6 +235,35 @@ export function useCloudAccount() {
       setBusy(false);
     }
   }, []);
+
+  const connectGoogle = signInWithGoogle;
+
+  // Switch accounts: the stored session is cleared first so the chooser really
+  // appears instead of signing the current player straight back in.
+  const switchAccount = useCallback(async () => {
+    if (!supabase) {
+      setError("Cloud accounts are not configured. Add the Supabase project URL and publishable key first.");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+    try {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        setError(getErrorMessage(signOutError));
+        setBusy(false);
+        return;
+      }
+    } catch (signOutError) {
+      setError(getErrorMessage(signOutError));
+      setBusy(false);
+      return;
+    }
+    setBusy(false);
+
+    await signInWithGoogle();
+  }, [signInWithGoogle]);
 
   const disconnectGoogle = useCallback(async () => {
     if (!supabase) return;
@@ -370,6 +405,7 @@ export function useCloudAccount() {
     error,
     setError,
     connectGoogle,
+    switchAccount,
     disconnectGoogle,
     findPlayer,
     sendFriendRequest,

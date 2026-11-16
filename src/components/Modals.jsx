@@ -20,6 +20,9 @@ import {
   Settings,
   User,
   Star,
+  LogIn,
+  RefreshCw,
+  LogOut,
 } from "lucide-react";
 import { ADMIRALS_AVATARS, LOBBY_EMOTES } from "@/lib/lobbyData";
 
@@ -938,7 +941,7 @@ function getGameId(profile) {
   return `#OPW${String(seed % 9999).padStart(4, "0")}`;
 }
 
-export function MenuModal({ isOpen, onClose, profile, onUpdateProfile }) {
+export function MenuModal({ isOpen, onClose, profile, onUpdateProfile, cloudAccount }) {
   const [tab, setTab] = useState("profile");
   const [name, setName] = useState(profile.name);
 
@@ -1041,6 +1044,74 @@ export function MenuModal({ isOpen, onClose, profile, onUpdateProfile }) {
                   {profile.rankName} {profile.rankTier} — LVL {profile.level}
                 </div>
               </div>
+            </div>
+
+            {/* Account: log in with an existing account, or switch between them */}
+            <div className="p-4 bg-zinc-900/60 rounded border border-military/50 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <LogIn size={14} className="text-[#76a035]" />
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-stone-300">
+                  {cloudAccount?.user
+                    ? "GOOGLE ACCOUNT CONNECTED"
+                    : "CONNECT AN ACCOUNT"}
+                </span>
+              </div>
+              <p className="font-mono text-[10px] text-stone-500 leading-relaxed break-all">
+                {cloudAccount?.user
+                  ? cloudAccount.user.email ||
+                    cloudAccount.playerProfile?.username ||
+                    "Signed in"
+                  : "Log in with an existing Google account to save your progress and play with friends. Guest progress stays on this device."}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {cloudAccount?.user ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void cloudAccount.switchAccount?.()}
+                      disabled={cloudAccount.busy}
+                      className="flex-1 min-w-[130px] flex items-center justify-center gap-1.5 py-2 rounded border border-[#76a035]/50 bg-[#76a035]/15 text-[#d6f5aa] font-mono text-[10px] font-bold uppercase tracking-widest hover:bg-[#76a035]/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      <RefreshCw size={12} />
+                      {cloudAccount.busy ? "PLEASE WAIT…" : "SWITCH ACCOUNT"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cloudAccount.disconnectGoogle}
+                      disabled={cloudAccount.busy}
+                      className="flex-1 min-w-[130px] flex items-center justify-center gap-1.5 py-2 rounded border border-military text-stone-400 font-mono text-[10px] font-bold uppercase tracking-widest hover:text-white hover:bg-stone-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      <LogOut size={12} />
+                      {cloudAccount.busy ? "PLEASE WAIT…" : "LOG OUT"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void cloudAccount?.connectGoogle?.()}
+                    disabled={!cloudAccount?.configured || cloudAccount?.busy}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded border border-[#76a035]/50 bg-[#76a035]/15 text-[#d6f5aa] font-mono text-[10px] font-bold uppercase tracking-widest hover:bg-[#76a035]/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <LogIn size={12} />
+                    {cloudAccount?.busy
+                      ? "CONNECTING…"
+                      : cloudAccount?.configured
+                        ? "LOG IN WITH GOOGLE"
+                        : "LOGIN UNAVAILABLE"}
+                  </button>
+                )}
+              </div>
+              {cloudAccount && !cloudAccount.configured && (
+                <p className="font-mono text-[9px] text-amber-500/80">
+                  Cloud login needs VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+                  in the app environment.
+                </p>
+              )}
+              {cloudAccount?.error && (
+                <p className="font-mono text-[9px] text-red-400" role="alert">
+                  {cloudAccount.error}
+                </p>
+              )}
             </div>
 
             {/* Name editor */}

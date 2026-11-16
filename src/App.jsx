@@ -1026,6 +1026,7 @@ export default function App() {
                 onClearModal={() => setPendingModal(null)}
                 accountConnected={!!cloudAccount.user}
                 cloudConfigured={cloudAccount.configured}
+                cloudAccount={cloudAccount}
                 incomingFriendRequests={cloudAccount.incomingRequests}
                 onNavigate={handleNavigate}
                 onStartMatchmaking={handleStartMatchmaking}
