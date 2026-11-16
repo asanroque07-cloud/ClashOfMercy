@@ -233,6 +233,48 @@ export function LobbyHeader({
           </button>
         </div>
 
+        {/* Account: sign in, or the account currently connected */}
+        <div className="flex-shrink-0">
+          {cloudAccount.user ? (
+            <div
+              title={
+                cloudAccount.user.email
+                  ? `Signed in as ${cloudAccount.user.email}`
+                  : "Signed in"
+              }
+              className="flex h-[38px] items-center gap-2 rounded border border-emerald-500/40 bg-emerald-500/10 px-2.5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-300"
+            >
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="max-w-[120px] truncate">
+                {cloudAccount.playerProfile?.username
+                  ? `@${cloudAccount.playerProfile.username}`
+                  : cloudAccount.user.email || "ACCOUNT"}
+              </span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void cloudAccount.connectGoogle?.()}
+              disabled={!cloudAccount.configured || cloudAccount.busy}
+              aria-label="Log in with Google"
+              title={
+                cloudAccount.error ||
+                (cloudAccount.configured
+                  ? "Log in with Google to save your account and add friends"
+                  : "Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable login")
+              }
+              className="flex h-[38px] items-center gap-2 rounded border border-military-active bg-[#76a035]/10 px-2.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#76a035] transition-all hover:bg-[#76a035]/25 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <LogIn size={14} />
+              {cloudAccount.busy
+                ? "SIGNING IN…"
+                : cloudAccount.configured
+                  ? "LOGIN"
+                  : "SET UP"}
+            </button>
+          )}
+        </div>
+
         {/* Menu button with dropdown */}
         <div className="flex-shrink-0 relative" ref={menuRef}>
           {activeScreen === "home" ? (
