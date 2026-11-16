@@ -1082,8 +1082,16 @@ export default function GameCanvas({
     [playSfx],
   );
 
-  const requestImmersiveMode = useCallback(async () => {
+  // Fullscreen/orientation requests are only worth making on an explicit tap
+  // (or the first touch of a match). Re-requesting them on every control press
+  // makes some browsers abort the active touch session, which drops the
+  // fingers that are already held down.
+  const lastImmersiveAttemptRef = useRef(0);
+  const requestImmersiveMode = useCallback(async (force = false) => {
     ensureAudioUnlocked();
+    const now = Date.now();
+    if (!force && now - lastImmersiveAttemptRef.current < 4000) return;
+    lastImmersiveAttemptRef.current = now;
     try {
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen?.();
@@ -5855,7 +5863,7 @@ export default function GameCanvas({
       >
         <div className="flex items-center gap-2">
           <button
-            onClick={() => void requestImmersiveMode()}
+            onClick={() => void requestImmersiveMode(true)}
             className="game-toolbar-button game-toolbar-button--primary"
           >
             {isFullscreen ? "Arena" : "Fullscreen"}
