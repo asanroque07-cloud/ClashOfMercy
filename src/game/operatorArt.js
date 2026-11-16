@@ -7,55 +7,83 @@
 // limbs, shading, rim light and a per-state pose so each animation state reads
 // as its own frame rather than a nudged picture.
 //
+// The silhouette follows the reference art: a stocky side-view soldier with a
+// big rounded helmet + goggles, olive field uniform, tan webbing pouches, short
+// chunky legs and a two-handed rifle grip.
+//
 // Coordinate system: the caller draws with the origin at the operator's FEET and
-// the character facing +x (GameCanvas flips the context for facing left). One
-// art unit is UNIT device pixels, so the operator is 29 units (58px) tall.
+// the character facing +x (GameCanvas flips the context for facing left). Shapes
+// are authored in art units and scaled by UNIT, so the operator ends up ~55px
+// tall on screen.
 
 export const UNIT = 2;
-export const OPERATOR_HEIGHT = 58;
+export const OPERATOR_HEIGHT = 56;
 
 const PALETTES = {
   blue: {
-    outline: "#04070b",
-    boot: "#0e1b26",
-    leg: "#22536f",
-    legLight: "#2f6d8e",
-    torso: "#2e6c92",
-    torsoLight: "#4a93b8",
-    torsoShade: "#1b4460",
-    vest: "#153547",
-    vestPlate: "#27566f",
-    strap: "#0a1d28",
-    skin: "#c9a07a",
-    skinShade: "#a0795a",
-    helmet: "#12303f",
-    helmetLight: "#1f4f66",
-    rim: "#7fd4ff",
-    visor: "#67e8f9",
-    accent: "#3f8f6e",
-    teamMark: "#60a5fa",
+    outline: "#0a0e07",
+    // olive-drab uniform
+    uniform: "#4d6b3c",
+    uniformDark: "#3b5430",
+    uniformLight: "#6a8a4f",
+    camo: "#394d2c",
+    // webbing / plate carrier
+    vest: "#38452a",
+    vestLight: "#4f5f38",
+    pouch: "#8f7440",
+    pouchDark: "#6d5730",
+    pack: "#2f3a24",
+    strap: "#232b1b",
+    // helmet + head
+    helmet: "#33412a",
+    helmetLight: "#54663c",
+    helmetDark: "#25301e",
+    boot: "#22281d",
+    bootSole: "#14180f",
+    skin: "#f0c9a1",
+    skinShade: "#c99e78",
+    goggles: "#20262b",
+    goggleStrap: "#2a3226",
+    // team identification
+    visor: "#7fd4ff",
+    trim: "#3b82f6",
+    rim: "#9ad0ff",
   },
   red: {
-    outline: "#0a0405",
-    boot: "#2a0d12",
-    leg: "#5e1c28",
-    legLight: "#7d2a38",
-    torso: "#7a2231",
-    torsoLight: "#a63c4c",
-    torsoShade: "#4d1420",
-    vest: "#3a1019",
-    vestPlate: "#6b1f2d",
-    strap: "#1b0710",
-    skin: "#d1a077",
-    skinShade: "#a6785a",
-    helmet: "#3d1620",
-    helmetLight: "#662631",
-    rim: "#ffa3ad",
-    visor: "#fb7185",
-    accent: "#8a4a2a",
-    teamMark: "#f87171",
+    outline: "#0f0b06",
+    // khaki-drab uniform (reads as the opposing force, same soldier build)
+    uniform: "#6a5f3e",
+    uniformDark: "#544a30",
+    uniformLight: "#8a7c55",
+    camo: "#4d4429",
+    vest: "#3d3626",
+    vestLight: "#5b5238",
+    pouch: "#8a7040",
+    pouchDark: "#66512c",
+    pack: "#332c1f",
+    strap: "#241f16",
+    helmet: "#40382a",
+    helmetLight: "#6a6046",
+    helmetDark: "#2e2819",
+    boot: "#241f17",
+    bootSole: "#15120c",
+    skin: "#eec59c",
+    skinShade: "#c29673",
+    goggles: "#241f19",
+    goggleStrap: "#2e281d",
+    visor: "#ffb4a8",
+    trim: "#ef4444",
+    rim: "#ffc3b8",
   },
 };
+
+// A flat, all-outline palette per team, used for the silhouette pass.
+const MONO = {};
+for (const teamKey of Object.keys(PALETTES)) {
+  MONO[teamKey] = Object.fromEntries(
+    Object.keys(PALETTES[teamKey]).map((k) => [k, PALETTES[teamKey].outline]),
+  );
+}
 
 // Map a weapon id onto the small set of silhouettes we draw.
 export function weaponClassFor(weaponId) {
@@ -235,21 +263,14 @@ function poseFor(state, phase, time, opts) {
   }
 }
 
-function drawLimb(ctx, x0, y0, angle, length, width, color, shade) {
-  ctx.save();
-  ctx.translate(x0, y0);
-  ctx.rotate(angle);
-  ctx.fillStyle = color;
-  ctx.fillRect(0, -width / 2, length, width);
-  if (shade) {
-    ctx.fillStyle = shade;
-    ctx.fillRect(0, width / 2 - Math.max(1, width * 0.28), length, Math.max(1, width * 0.28));
-  }
-  ctx.restore();
-}
-
 /**
  * Draw the operator's body. Origin = feet, +x = facing direction.
+ *
+ * Build, top to bottom (art units, feet at 0):
+ *   helmet        -8.0 .. -5.5 above the shoulders
+ *   face/goggles  -5.7 .. -0.6
+ *   torso        -18.0 .. -10.0
+ *   legs + boots  -9.6 .. 0
  */
 export function drawOperatorBody(ctx, opts) {
   const {
@@ -260,7 +281,8 @@ export function drawOperatorBody(ctx, opts) {
     leaning = 0,
     crouchShift = 0,
   } = opts;
-  const pal = PALETTES[team] ?? PALETTES.blue;
+  const teamKey = team === "red" ? "red" : "blue";
+  const pal = PALETTES[teamKey];
   const pose = poseFor(state, phase, time, {
     lean: leaning,
     reloadProgress: opts.reloadProgress,
@@ -268,188 +290,214 @@ export function drawOperatorBody(ctx, opts) {
     swapProgress: opts.swapProgress,
   });
 
-  const u = UNIT;
-  const snap = (v) => Math.round(v * u) / u;
+  const snap = (v) => Math.round(v * UNIT) / UNIT;
 
-  const hipY = snap(pose.hipY + crouchShift);
-  const chestY = snap(pose.chestY + crouchShift + (pose.bob || 0) * 0.4);
-  const headY = snap(chestY - 6);
+  const LEG = 9.6; // hip height
+  const TORSO_H = 8.4;
+  const THIGH = 5.0;
+  const SHIN = 4.4;
+  // pose.hipY is authored around -13; use it as a vertical offset.
+  const hipY = snap(-LEG + (pose.hipY + 13) * 0.9 + crouchShift);
+  const shoulderY = snap(hipY - TORSO_H);
+  const tH = TORSO_H * (pose.torsoScale ?? 1);
 
-  // ── Dark separation outline ──
-  // A slightly larger silhouette behind the body keeps the operator readable
-  // against dark buildings and smoke without blurring the pixel edges.
+  const backHipX = -1.5;
+  const frontHipX = 1.4;
+  const backKneeX = backHipX + Math.sin(pose.backThigh) * THIGH;
+  const backKneeY = hipY + Math.cos(pose.backThigh) * THIGH;
+  const frontKneeX = frontHipX + Math.sin(pose.frontThigh) * THIGH;
+  const frontKneeY = hipY + Math.cos(pose.frontThigh) * THIGH;
+
+  /**
+   * One complete pass of the body. `grow` inflates every rect, so the first
+   * pass with the mono palette produces a clean silhouette around the real
+   * body instead of blocky boxes behind it.
+   */
+  const paint = (P, grow) => {
+    const R = (x, y, w, h) =>
+      ctx.fillRect(x - grow, y - grow, w + grow * 2, h + grow * 2);
+
+    // ── Back leg (shadow side) ──
+    ctx.save();
+    ctx.translate(backHipX, hipY);
+    ctx.rotate(pose.backThigh);
+    ctx.fillStyle = P.uniformDark;
+    R(-1.5, 0, 3.0, THIGH + 0.4);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(backKneeX, backKneeY);
+    ctx.rotate(pose.backShin);
+    ctx.fillStyle = P.uniformDark;
+    R(-1.35, 0, 2.7, SHIN);
+    ctx.fillStyle = P.boot;
+    R(-1.6, SHIN - 0.7, 4.1, 1.9);
+    ctx.fillStyle = P.bootSole;
+    R(-1.6, SHIN + 1.0, 4.1, 0.6);
+    ctx.restore();
+
+    // ── Front leg (lit) ──
+    ctx.save();
+    ctx.translate(frontHipX, hipY);
+    ctx.rotate(pose.frontThigh);
+    ctx.fillStyle = P.uniform;
+    R(-1.5, 0, 3.1, THIGH + 0.4);
+    ctx.fillStyle = P.camo;
+    R(-0.9, 1.0, 1.3, 1.5); // camo patch
+    ctx.fillStyle = P.uniformLight;
+    R(0.7, 0.2, 0.9, THIGH - 0.6); // lit edge
+    ctx.restore();
+    ctx.save();
+    ctx.translate(frontKneeX, frontKneeY);
+    ctx.rotate(pose.frontShin);
+    ctx.fillStyle = P.uniform;
+    R(-1.4, 0, 2.8, SHIN);
+    ctx.fillStyle = P.uniformLight;
+    R(0.6, 0.2, 0.8, SHIN - 1.0);
+    ctx.fillStyle = P.boot;
+    R(-1.7, SHIN - 0.7, 4.4, 2.0);
+    ctx.fillStyle = P.bootSole;
+    R(-1.7, SHIN + 1.1, 4.4, 0.6);
+    ctx.restore();
+
+    // ── Hips / belt ──
+    ctx.fillStyle = P.vest;
+    R(-3.0, hipY - 1.6, 6.2, 2.6);
+    ctx.fillStyle = P.strap;
+    R(-3.0, hipY - 1.6, 6.2, 0.7);
+    ctx.fillStyle = P.pouch;
+    R(-1.8, hipY - 1.2, 1.5, 1.7);
+    R(0.5, hipY - 1.2, 1.4, 1.7);
+
+    // ── Torso ──
+    ctx.save();
+    ctx.translate(0, hipY - 1.0);
+    ctx.rotate(pose.chestLean * 0.5);
+
+    // field uniform
+    ctx.fillStyle = P.uniform;
+    R(-3.6, -tH, 7.2, tH);
+    // camo blotches (deterministic, so they do not shimmer)
+    ctx.fillStyle = P.camo;
+    R(-2.8, -tH + 0.8, 1.5, 1.3);
+    R(0.4, -tH + 2.4, 1.6, 1.2);
+    R(-1.6, -tH + 4.0, 1.2, 1.1);
+    // top light + underside shadow
+    ctx.fillStyle = P.uniformLight;
+    R(-3.6, -tH, 7.2, 0.8);
+    ctx.fillStyle = P.uniformDark;
+    R(-3.6, -1.2, 7.2, 1.2);
+    R(-3.6, -tH + 0.8, 0.9, tH - 2.0);
+
+    // webbing with tan pouches
+    ctx.fillStyle = P.vest;
+    R(-3.0, -tH + 1.4, 6.0, 5.4);
+    ctx.fillStyle = P.vestLight;
+    R(-3.0, -tH + 1.4, 6.0, 0.6);
+    ctx.fillStyle = P.pouch;
+    R(-2.5, -tH + 2.2, 2.0, 2.2);
+    R(0.2, -tH + 2.2, 2.0, 2.2);
+    ctx.fillStyle = P.pouchDark;
+    R(-2.5, -tH + 3.9, 2.0, 0.5);
+    R(0.2, -tH + 3.9, 2.0, 0.5);
+    ctx.fillStyle = P.strap;
+    R(-3.0, -tH + 5.2, 6.0, 0.7);
+    // team armband
+    ctx.fillStyle = P.trim;
+    R(2.1, -tH + 2.0, 1.3, 1.1);
+
+    // backpack
+    ctx.fillStyle = P.pack;
+    R(-4.8, -tH + 1.8, 1.8, 4.6);
+
+    // ── Head, goggles, helmet ──
+    ctx.save();
+    ctx.translate(0.5, -tH);
+    ctx.rotate(pose.headTilt * 0.5);
+
+    // neck
+    ctx.fillStyle = P.skinShade;
+    R(-1.1, -1.4, 2.4, 1.9);
+    // face below the goggles
+    ctx.fillStyle = P.skin;
+    R(-1.8, -4.6, 3.8, 4.0);
+    ctx.fillStyle = P.skinShade;
+    R(-1.8, -1.8, 3.8, 0.7);
+    // goggle strap + lenses (drawn before the helmet so they stay visible)
+    ctx.fillStyle = P.goggleStrap;
+    R(-2.4, -5.7, 4.9, 1.7);
+    ctx.fillStyle = P.goggles;
+    R(-0.2, -5.6, 2.6, 1.4);
+    ctx.fillStyle = P.visor;
+    R(0.2, -5.3, 1.8, 0.7);
+    // helmet dome: stepped rows so it reads as a rounded shell
+    ctx.fillStyle = P.helmet;
+    R(-2.3, -9.3, 5.4, 1.3);
+    R(-3.0, -8.0, 6.6, 1.4);
+    R(-3.7, -6.6, 8.2, 1.2);
+    ctx.fillStyle = P.helmetLight;
+    R(-1.9, -9.1, 3.4, 0.8);
+    R(-2.7, -7.9, 1.7, 0.6);
+    ctx.fillStyle = P.helmetDark;
+    R(2.4, -6.6, 2.1, 1.1);
+    ctx.fillStyle = P.trim;
+    R(1.4, -7.9, 1.6, 1.1); // team stripe
+    ctx.restore();
+
+    // ── Arms ──
+    const armY = -tH + 2.0;
+    ctx.save();
+    ctx.translate(-2.2, armY);
+    ctx.rotate(pose.armBackAngle);
+    ctx.fillStyle = P.camo;
+    R(-1.1, 0, 2.2, 5.2);
+    ctx.fillStyle = P.vestLight;
+    R(-1.1, 1.2, 2.2, 1.0);
+    ctx.fillStyle = P.skinShade;
+    R(-1.0, 5.0, 2.0, 1.5);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(2.2, armY);
+    ctx.rotate(pose.armFrontAngle);
+    ctx.fillStyle = P.uniformDark;
+    R(-1.1, 0, 2.2, 5.4);
+    ctx.fillStyle = P.uniformLight;
+    R(0.4, 0.2, 0.7, 4.6);
+    ctx.fillStyle = P.vestLight;
+    R(-1.1, 1.4, 2.2, 1.0);
+    ctx.fillStyle = P.skin;
+    R(-1.0, 5.2, 2.0, 1.6);
+    ctx.restore();
+
+    ctx.restore(); // torso
+  };
+
+  // Everything is authored in art units; convert to the 2px art grid.
   ctx.save();
-  ctx.globalAlpha = 0.8;
-  ctx.fillStyle = pal.outline;
-  const oOut = 0.7;
-  // torso + hips
-  ctx.fillRect(-3.4 - oOut, hipY - 9.4 - oOut, 6.8 + oOut * 2, 9.6 + oOut * 2);
-  // head / helmet
-  ctx.fillRect(-2.8 - oOut, hipY - 16.6 - oOut, 5.8 + oOut * 2, 6 + oOut * 2);
-  // legs (a touch wider than the drawn limbs)
-  ctx.fillRect(-2.4 - oOut, hipY, 2.6 + oOut, 13.4);
-  ctx.fillRect(0 + 0.2, hipY, 2.6 + oOut, 13.4);
-  ctx.restore();
+  ctx.scale(UNIT, UNIT);
 
-  // ── Back leg (drawn first, darker) ──
-  const backHipX = -1;
-  const backKneeAngle = pose.backThigh;
-  const backKneeLen = 6.5;
-  const backShinAngle = pose.backThigh + pose.backShin;
-  const backKneeX = backHipX + Math.sin(backKneeAngle) * backKneeLen;
-  const backKneeY = hipY + Math.cos(backKneeAngle) * backKneeLen;
-  ctx.save();
-  ctx.translate(backHipX, hipY);
-  ctx.rotate(backKneeAngle);
-  ctx.fillStyle = pal.leg;
-  ctx.fillRect(-1.2, 0, 2.4, backKneeLen);
-  ctx.restore();
-  ctx.save();
-  ctx.translate(backKneeX, backKneeY);
-  ctx.rotate(backShinAngle - backKneeAngle);
-  ctx.fillStyle = pal.leg;
-  ctx.fillRect(-1.1, 0, 2.2, 5.4);
-  ctx.fillStyle = pal.boot;
-  ctx.fillRect(-1.4, 4.6, 3.6, 1.9); // boot with a forward toe
-  ctx.restore();
+  // 1) silhouette, 2) coloured body
+  paint(MONO[teamKey], 0.62);
+  paint(pal, 0);
 
-  // ── Front leg ──
-  const frontHipX = 1.2;
-  const frontKneeAngle = pose.frontThigh;
-  const frontKneeLen = 6.5;
-  const frontShinAngle = pose.frontThigh + pose.frontShin;
-  const frontKneeX = frontHipX + Math.sin(frontKneeAngle) * frontKneeLen;
-  const frontKneeY = hipY + Math.cos(frontKneeAngle) * frontKneeLen;
-  ctx.save();
-  ctx.translate(frontHipX, hipY);
-  ctx.rotate(frontKneeAngle);
-  ctx.fillStyle = pal.legLight;
-  ctx.fillRect(-1.3, 0, 2.6, frontKneeLen);
-  ctx.fillStyle = pal.leg;
-  ctx.fillRect(0.5, 0, 1.1, frontKneeLen); // inner shading
-  ctx.restore();
-  ctx.save();
-  ctx.translate(frontKneeX, frontKneeY);
-  ctx.rotate(frontShinAngle - frontKneeAngle);
-  ctx.fillStyle = pal.legLight;
-  ctx.fillRect(-1.2, 0, 2.4, 5.6);
-  ctx.fillStyle = pal.boot;
-  ctx.fillRect(-1.5, 4.8, 3.9, 2);
-  ctx.fillStyle = "#1b2630";
-  ctx.fillRect(-1.5, 6.1, 3.9, 0.7); // sole
-  ctx.restore();
-
-  // ── Hips / belt ──
-  ctx.fillStyle = pal.vest;
-  ctx.fillRect(-2.6, hipY - 1.6, 5.4, 2.6);
-  ctx.fillStyle = pal.vestPlate;
-  ctx.fillRect(-0.6, hipY - 1.4, 1.4, 1.8); // buckle
-  // thigh holster
-  ctx.fillStyle = pal.strap;
-  ctx.fillRect(1.4, hipY + 0.4, 1.6, 2.6);
-
-  // ── Torso (lean + breathing) ──
-  ctx.save();
-  ctx.translate(0, hipY - 1.2);
-  ctx.rotate(pose.chestLean * 0.55);
-  const torsoH = 8.6 * (pose.torsoScale ?? 1);
-  ctx.fillStyle = pal.torso;
-  ctx.fillRect(-3.4, -torsoH, 6.8, torsoH);
-  // side shading + highlight
-  ctx.fillStyle = pal.torsoShade;
-  ctx.fillRect(-3.4, -torsoH, 1.5, torsoH);
-  ctx.fillStyle = pal.torsoLight;
-  ctx.fillRect(1.9, -torsoH + 0.6, 1.5, torsoH - 1.2);
-  // plate carrier
-  ctx.fillStyle = pal.vest;
-  ctx.fillRect(-2.6, -torsoH + 1.2, 5.2, 6.2);
-  ctx.fillStyle = pal.vestPlate;
-  ctx.fillRect(-2.2, -torsoH + 1.8, 2.1, 2.2);
-  ctx.fillRect(0.2, -torsoH + 1.8, 1.8, 2.2);
-  ctx.fillStyle = pal.strap;
-  ctx.fillRect(-2.6, -torsoH + 0.9, 5.2, 0.7); // shoulder strap
-  // magazine pouches
-  ctx.fillStyle = pal.vestPlate;
-  ctx.fillRect(-2.2, -torsoH + 4.6, 1.6, 1.8);
-  ctx.fillRect(-0.2, -torsoH + 4.6, 1.6, 1.8);
-  // team accent stripe
-  ctx.fillStyle = pal.accent;
-  ctx.fillRect(-3.2, -torsoH + 7.1, 4.4, 0.8);
-
-  // ── Head + helmet ──
-  ctx.save();
-  ctx.translate(0.5, -torsoH);
-  ctx.rotate(pose.headTilt * 0.5 + (opts.headTiltExtra ?? 0));
-  // neck
-  ctx.fillStyle = pal.skinShade;
-  ctx.fillRect(-1.2, -1.4, 2.4, 1.6);
-  // face
-  ctx.fillStyle = pal.skin;
-  ctx.fillRect(-1.6, -5.4, 3.6, 4);
-  ctx.fillStyle = pal.skinShade;
-  ctx.fillRect(-1.6, -2.2, 3.6, 0.9); // jaw shadow
-  // helmet shell
-  ctx.fillStyle = pal.helmet;
-  ctx.fillRect(-2.2, -6.8, 4.8, 2.6);
-  ctx.fillStyle = pal.helmetLight;
-  ctx.fillRect(-1.4, -7, 3.4, 0.9);
-  ctx.fillStyle = pal.helmet;
-  ctx.fillRect(-2.6, -6.2, 1.6, 1.4); // rear brim
-  ctx.fillStyle = pal.helmetLight;
-  ctx.fillRect(1.4, -6.4, 1.4, 1.2); // brow
-  // visor / goggles glow
-  ctx.fillStyle = "#0a0f14";
-  ctx.fillRect(0.2, -4.6, 2.2, 1.5);
-  ctx.fillStyle = pal.visor;
-  ctx.fillRect(0.5, -4.4, 1.7, 0.9);
-  // breathing mask detail
-  ctx.fillStyle = pal.helmet;
-  ctx.fillRect(0.4, -3, 1.9, 1.2);
-  ctx.restore();
-
-  // ── Arms ──
-  const shoulderY = -torsoH + 1.6;
-  // rear arm
-  ctx.save();
-  ctx.translate(-1.6, shoulderY);
-  ctx.rotate(pose.armBackAngle);
-  ctx.fillStyle = pal.torsoShade;
-  ctx.fillRect(-0.9, 0, 1.8, 5.4);
-  ctx.fillStyle = pal.skinShade;
-  ctx.fillRect(-0.8, 4.8, 1.6, 1.4);
-  ctx.restore();
-  // front arm — reaches toward the weapon grip
-  ctx.save();
-  ctx.translate(1.4, shoulderY);
-  ctx.rotate(pose.armFrontAngle);
-  ctx.fillStyle = pal.torsoLight;
-  ctx.fillRect(-1, 0, 2, 5.8);
-  ctx.fillStyle = pal.vestPlate;
-  ctx.fillRect(-1, 1.4, 2, 1.2); // elbow pad
-  ctx.fillStyle = pal.skin;
-  ctx.fillRect(-0.9, 5.2, 1.8, 1.6); // glove
-  ctx.restore();
-
-  ctx.restore(); // torso
-
-  // ── Rim light on the facing edge (sells the "HD" look) ──
+  // ── Rim light down the facing edge ──
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
-  ctx.fillStyle = "rgba(140, 210, 255, 0.22)";
-  ctx.fillRect(3.1, hipY - 8.4, 0.8, 7.4);
-  ctx.fillRect(2.6, hipY - 15.6, 0.8, 3.2);
+  ctx.fillStyle = "rgba(210, 235, 255, 0.16)";
+  ctx.fillRect(3.4, shoulderY + 0.6, 0.9, TORSO_H - 1.6);
+  ctx.fillRect(3.6, shoulderY + 0.2, 0.8, 3.0);
   ctx.restore();
 
-  // ── Contact shadow already drawn by the caller; add ambient occlusion ──
+  // ── Contact shadow at the boots ──
   ctx.save();
   const ao = ctx.createLinearGradient(0, hipY - 2, 0, 1.5);
   ao.addColorStop(0, "rgba(0,0,0,0)");
   ao.addColorStop(1, "rgba(0,0,0,0.45)");
   ctx.fillStyle = ao;
-  ctx.fillRect(-4, hipY - 2, 8, 3.5);
+  ctx.fillRect(-4.2, hipY - 2, 8.4, 3.5);
   ctx.restore();
 
-  return { shoulderX: 1.4, shoulderY: chestY - 6.4 };
+  ctx.restore(); // art-unit scale
+  return { shoulderX: 2.2 * UNIT, shoulderY: shoulderY * UNIT };
 }
 
 /**
@@ -458,11 +506,11 @@ export function drawOperatorBody(ctx, opts) {
  */
 export function drawWeaponSprite(ctx, x, y, angle, weaponClass, opts = {}) {
   const { alpha = 1, recoil = 0 } = opts;
-  const u = UNIT;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(Math.round(x), Math.round(y));
   ctx.rotate(angle);
+  ctx.scale(UNIT, UNIT); // same 2px art grid as the operator
 
   const metal = "#1c2126";
   const metalLight = "#39424a";
@@ -475,9 +523,9 @@ export function drawWeaponSprite(ctx, x, y, angle, weaponClass, opts = {}) {
     ctx.fillStyle = grip;
     ctx.fillRect(0, -1, 4, 2);
     ctx.fillStyle = "#cbd5e1";
-    ctx.fillRect(4, -1.2, 9, 1.6);
+    ctx.fillRect(4, -1.2, 7, 1.6);
     ctx.fillStyle = "#f8fafc";
-    ctx.fillRect(4, -1.2, 9, 0.6);
+    ctx.fillRect(4, -1.2, 7, 0.6);
     ctx.restore();
     return;
   }
@@ -493,40 +541,40 @@ export function drawWeaponSprite(ctx, x, y, angle, weaponClass, opts = {}) {
   }
   if (weaponClass === "shotgun") {
     ctx.fillStyle = metal;
-    ctx.fillRect(0, -2.2, 26 + kick, 3.6);
+    ctx.fillRect(-1, -2.0, 12 + kick, 3.4);
     ctx.fillStyle = metalLight;
-    ctx.fillRect(2, -3, 16 + kick, 1.4);
+    ctx.fillRect(1, -2.8, 7 + kick, 1.3);
     ctx.fillStyle = "#4a3524";
-    ctx.fillRect(1, 1, 5, 2.6); // wooden pump
+    ctx.fillRect(1, 0.8, 4, 2.4); // wooden pump
     ctx.fillStyle = grip;
-    ctx.fillRect(-3, -0.4, 5, 2.4);
+    ctx.fillRect(-4, -0.6, 3.4, 2.2);
     ctx.restore();
     return;
   }
   if (weaponClass === "sniper") {
     ctx.fillStyle = metal;
-    ctx.fillRect(-2, -1.8, 30 + kick, 3);
+    ctx.fillRect(-1.6, -1.7, 15 + kick, 2.8);
     ctx.fillStyle = metalLight;
-    ctx.fillRect(6, -2.6, 12, 1.2);
+    ctx.fillRect(3, -2.4, 8, 1.1);
     ctx.fillStyle = "#0b0f12";
-    ctx.fillRect(9, -5.6, 9, 2.8); // scope
+    ctx.fillRect(4.4, -5.0, 6.4, 2.4); // scope
     ctx.fillStyle = "#7dd3fc";
-    ctx.fillRect(16.4, -5, 1.6, 1.6); // lens glint
+    ctx.fillRect(9.4, -4.5, 1.3, 1.4); // lens glint
     ctx.fillStyle = grip;
-    ctx.fillRect(-1, 0.8, 4, 3);
-    ctx.fillRect(14, 1, 2, 2.4); // bipod-ish grip
+    ctx.fillRect(-1, 0.7, 3.4, 2.8);
+    ctx.fillRect(7, 0.9, 2, 2.2);
     ctx.restore();
     return;
   }
   if (weaponClass === "dmr") {
     ctx.fillStyle = metal;
-    ctx.fillRect(-1, -1.8, 24 + kick, 2.8);
+    ctx.fillRect(-1.2, -1.7, 12 + kick, 2.7);
     ctx.fillStyle = metalLight;
-    ctx.fillRect(2, -2.6, 10, 1.2);
+    ctx.fillRect(1.6, -2.4, 6, 1.1);
     ctx.fillStyle = "#0b0f12";
-    ctx.fillRect(10, -4, 5, 1.8);
+    ctx.fillRect(4.6, -4.0, 3.6, 1.7);
     ctx.fillStyle = grip;
-    ctx.fillRect(0, 0.8, 3.4, 3);
+    ctx.fillRect(-0.6, 0.7, 3.2, 2.8);
     ctx.restore();
     return;
   }
@@ -542,15 +590,25 @@ export function drawWeaponSprite(ctx, x, y, angle, weaponClass, opts = {}) {
     return;
   }
 
-  // rifle (default) — slimmer than the body so it reads as a held weapon
-  ctx.fillStyle = metal;
-  ctx.fillRect(-1.4, -1.4, 16 + kick, 2.4);
-  ctx.fillStyle = metalLight;
-  ctx.fillRect(1.6, -2.1, 8, 0.9);
-  ctx.fillStyle = accent;
-  ctx.fillRect(13.4 + kick, -1.1, 2, 1.5); // muzzle brake
+  // rifle (default) — chunky silhouette with a stock reaching back towards the
+  // shoulder and a hand on the foregrip, so it reads as carried.
   ctx.fillStyle = grip;
-  ctx.fillRect(1, 0.8, 2, 3.4); // magazine
-  ctx.fillRect(-1.2, 0.7, 2, 1.8); // stock/grip
+  ctx.fillRect(-4.4, -1.0, 3.4, 2.1); // stock
+  ctx.fillStyle = metal;
+  ctx.fillRect(-1.4, -1.6, 12.4 + kick, 3.0); // receiver + barrel
+  ctx.fillStyle = metalLight;
+  ctx.fillRect(1.4, -2.3, 6.4, 1.0); // top rail
+  ctx.fillStyle = accent;
+  ctx.fillRect(9.8 + kick, -1.2, 2.0, 1.9); // muzzle brake
+  ctx.fillStyle = "#0b0f12";
+  ctx.fillRect(11.6 + kick, -0.8, 0.8, 1.1); // bore
+  ctx.fillStyle = grip;
+  ctx.fillRect(1, 1.0, 2.2, 3.4); // magazine
+  ctx.fillRect(-1.2, 0.9, 2.2, 2.0); // pistol grip
+  // leading hand around the foregrip
+  ctx.fillStyle = "#c9a179";
+  ctx.fillRect(4.2, 0.9, 2.6, 2.2);
+  ctx.fillStyle = "#8f6f4e";
+  ctx.fillRect(4.2, 2.6, 2.6, 0.6);
   ctx.restore();
 }
