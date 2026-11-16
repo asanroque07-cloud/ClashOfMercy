@@ -142,7 +142,7 @@ export function LobbyHeader({
           <div className="flex items-center gap-2">
             {activeScreen === "home" ? (
               <h1 className="text-lg md:text-2xl font-display font-extrabold tracking-widest text-[#76a035] glow-green uppercase">
-                OT:WARTACTICS
+                CLASH OF MERCY
               </h1>
             ) : (
               <div className="flex items-center gap-1">
