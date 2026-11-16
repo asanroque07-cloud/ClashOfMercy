@@ -903,6 +903,7 @@ export default function GameCanvas({
   const lastTimeRef = useRef(0);
   const profileRef = useRef(profile);
   const networkSessionRef = useRef(networkSession);
+  const networkTargetsRef = useRef(new Map());
   const remoteInputsRef = useRef(new Map());
   const pendingNetworkActionsRef = useRef(new Set());
   const networkFailureReportedRef = useRef(false);
@@ -928,6 +929,7 @@ export default function GameCanvas({
     grenades: 0,
     inBush: false,
   });
+  const hudRef = useRef(hud);
   const [roundAnim, setRoundAnim] = useState(null);
   const pendingRoundAnim = useRef(null);
   const roundAnimActive = useRef(false);
@@ -2048,6 +2050,7 @@ export default function GameCanvas({
     const s = stateRef.current;
     if (!s || s.over) return;
     if (pausedRef.current) return; // game is paused via the in-game menu
+    const isNetworkGuest = networkSessionRef.current?.role === "guest";
     const me = s.players.find((p) => p.id === "me");
     if (!me) return;
 
@@ -2262,6 +2265,17 @@ export default function GameCanvas({
     }
 
     for (const p of s.players) {
+      if (isNetworkGuest && p.id !== "me") {
+        const target = networkTargetsRef.current.get(p.id);
+        if (target) {
+          const blend = 1 - Math.pow(0.78, dtScale);
+          p.x += (target.x - p.x) * blend;
+          p.y += (target.y - p.y) * blend;
+        }
+        updatePlayerAnim(p, dtScale);
+        continue;
+      }
+
       if (!p.alive) {
         // Individual respawns only happen during live combat. During round
         // transitions the synchronized resetRound() handles respawning.
@@ -2472,6 +2486,37 @@ export default function GameCanvas({
             // so both teams respawn at their bases for the next round.
             startRoundEnd(s);
           }
+        }
+      }
+    }
+
+    if (isNetworkGuest) {
+      const target = networkTargetsRef.current.get("me");
+      const moving =
+        s.mobile.left ||
+        s.mobile.right ||
+        s.mobile.jump ||
+        s.mobile.down ||
+        Math.abs(s.mobile.moveX) > 0.18 ||
+        s.keys.has("a") ||
+        s.keys.has("d") ||
+        s.keys.has("arrowleft") ||
+        s.keys.has("arrowright") ||
+        s.keys.has("w") ||
+        s.keys.has("s") ||
+        s.keys.has("arrowup") ||
+        s.keys.has("arrowdown") ||
+        s.keys.has(" ");
+      if (target && !moving) {
+        const dx = target.x - me.x;
+        const dy = target.y - me.y;
+        if (Math.abs(dx) > 80 || Math.abs(dy) > 80) {
+          me.x = target.x;
+          me.y = target.y;
+        } else {
+          const blend = 1 - Math.pow(0.88, dtScale);
+          me.x += dx * blend;
+          me.y += dy * blend;
         }
       }
     }
@@ -2709,7 +2754,7 @@ export default function GameCanvas({
     const targetCamY = me.underground ? UNDERGROUND_Y - GY : 0;
     s.cameraY = (s.cameraY ?? 0) + (targetCamY - (s.cameraY ?? 0)) * 0.08 * dtScale;
 
-    setHud({
+    const nextHud = {
       hp: me.hp,
       ammo: me.ammo,
       mag: me.mag,
@@ -2719,7 +2764,12 @@ export default function GameCanvas({
       slot: me.slot,
       grenades: me.grenadeCount,
       inBush: me.inBush,
-    });
+    };
+    const previousHud = hudRef.current;
+    if (Object.keys(nextHud).some((key) => nextHud[key] !== previousHud[key])) {
+      hudRef.current = nextHud;
+      setHud(nextHud);
+    }
 
     if (pendingRoundAnim.current && !roundAnimActive.current && !s.over) {
       const ev = pendingRoundAnim.current;
@@ -5030,10 +5080,38 @@ export default function GameCanvas({
         return id;
       };
       const snapshot = payload.state;
-      const players = snapshot.players.map((player) => ({
-        ...player,
-        id: normalizeId(player.id),
-      }));
+      const previousPlayers = new Map(
+        current.players.map((player) => [player.id, player]),
+      );
+      const players = snapshot.players.map((player) => {
+        const id = normalizeId(player.id);
+        const previous = previousPlayers.get(id);
+        networkTargetsRef.current.set(id, { x: player.x, y: player.y });
+        if (!previous) return { ...player, id };
+
+        const localPrediction =
+          id === "me"
+            ? {
+                vx: previous.vx,
+                vy: previous.vy,
+                onGround: previous.onGround,
+                facing: previous.facing,
+                aimAngle: previous.aimAngle,
+                inHouse: previous.inHouse,
+                onLadder: previous.onLadder,
+                climbing: previous.climbing,
+                underground: previous.underground,
+                fallingIntoPit: previous.fallingIntoPit,
+              }
+            : {};
+        return {
+          ...player,
+          id,
+          x: previous.x,
+          y: previous.y,
+          ...localPrediction,
+        };
+      });
       const bullets = snapshot.bullets.map((bullet) => ({
         ...bullet,
         ownerId: normalizeId(bullet.ownerId),
@@ -5198,6 +5276,7 @@ export default function GameCanvas({
       channel.off("broadcast", { event: "leave" });
       channel.off("broadcast", { event: "surrender" });
       remoteInputsRef.current.clear();
+      networkTargetsRef.current.clear();
     };
   }, [
     networkSession?.channel,
