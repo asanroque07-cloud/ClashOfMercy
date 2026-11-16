@@ -58,22 +58,23 @@ export function addMatch(p, m) {
 // ── Lobby State (profile card, friends, shop, store, match history shown in menus) ──
 // this is the shape of everything the lobby screens (Home, ClassicLobby, RankLobby, Shop, Inventory) read/write
 
-// this is the starting lobby state given to a brand-new player (before any save data exists)
+// this is the starting lobby state given to a brand-new player (before any save data exists).
+// A fresh recruit starts at the bottom of the ladder: level 1, Bronze tier 1, and no diamonds.
 function defaultLobbyState() {
   return {
     lobbyProfile: {
       name: "Recruit",
       country: "",
       avatarId: "avatar_default",
-      level: 12,
-      xp: 340,
+      level: 1,
+      xp: 0,
       xpRequired: 500,
       weaponsCount: INITIAL_WEAPONS.filter((w) => w.owned).length,
       matchesCount: 0,
       coins: 5000,
-      diamonds: 75,
-      rankName: "Gold",
-      rankTier: 2,
+      diamonds: 0,
+      rankName: "Bronze",
+      rankTier: 1,
       selectedRole: "Core",
       selectedPlace: GAME_MAPS[0].name,
     },

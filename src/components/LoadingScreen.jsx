@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { VERSION_LABEL } from "@/lib/version";
 
 // This is the animated boot-up screen shown once when the app first opens: it plays through a
 // sequence of phases (logo -> title -> subtitle -> progress bar) before calling onDone() to reveal the game.
@@ -100,7 +101,7 @@ export default function LoadingScreen({ onDone }) {
               textShadow: "0 0 12px oklch(0.70 0.18 130 / 50%)",
             }}
           >
-            V 1.0.0
+            {VERSION_LABEL}
           </div>
         )}
 
@@ -171,7 +172,7 @@ export default function LoadingScreen({ onDone }) {
               textShadow: "0 0 10px oklch(0.70 0.18 130 / 45%)",
             }}
           >
-            V 1.0.0
+            {VERSION_LABEL}
           </div>
         )}
 

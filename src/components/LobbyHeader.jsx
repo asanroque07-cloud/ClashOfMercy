@@ -16,6 +16,7 @@ import {
   Music2,
   VolumeX,
   LogIn,
+  BookOpen,
 } from "lucide-react";
 import { ADMIRALS_AVATARS } from "@/lib/lobbyData";
 import ControllerSettingsModal from "@/components/ControllerSettingsModal";
@@ -42,6 +43,7 @@ export function LobbyHeader({
   soundOn,
   onToggleMusic,
   onToggleSound,
+  onOpenTutorial,
   cloudAccount,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -412,6 +414,30 @@ export function LobbyHeader({
                   <span />
                 </span>
                 <span className="home-settings-row__state">{soundOn ? "On" : "Off"}</span>
+              </button>
+
+              {/* How to play (replays the first-run tutorial) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onOpenTutorial?.();
+                }}
+                className="home-settings-controller"
+              >
+                <span className="home-settings-row__icon">
+                  <BookOpen size={15} />
+                </span>
+                <span className="home-settings-row__copy">
+                  <span className="home-settings-row__label">How to play</span>
+                  <span className="home-settings-row__hint">
+                    Replay the recruit tutorial
+                  </span>
+                </span>
+                <ChevronRight
+                  size={14}
+                  className="home-settings-controller__arrow"
+                />
               </button>
 
               {/* Controller settings */}
