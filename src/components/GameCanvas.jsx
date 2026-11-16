@@ -915,6 +915,7 @@ export default function GameCanvas({
   const remoteInputsRef = useRef(new Map());
   const pendingNetworkActionsRef = useRef(new Set());
   const networkFailureReportedRef = useRef(false);
+  const attachedNetworkHandlersRef = useRef(new WeakMap());
   const networkResultRecordedRef = useRef(false);
   const onMatchEndRef = useRef(onMatchEnd);
   const onConnectionLostRef = useRef(onConnectionLost);
@@ -5196,10 +5197,18 @@ export default function GameCanvas({
       );
     };
 
-    channel.on("broadcast", { event: "input" }, handleInput);
-    channel.on("broadcast", { event: "state" }, handleState);
-    channel.on("broadcast", { event: "leave" }, handleLeave);
-    channel.on("broadcast", { event: "surrender" }, handleSurrender);
+    // @supabase/realtime-js 2.119 removed RealtimeChannel.off(), so listeners
+    // cannot be detached one by one any more. The channel itself is unsubscribed
+    // and removed by useOnlineMatch when the room closes, so register each
+    // handler only once per channel/role to stop re-runs stacking duplicates.
+    const attachedNetworkHandlers = attachedNetworkHandlersRef.current;
+    if (attachedNetworkHandlers.get(channel) !== session.role) {
+      attachedNetworkHandlers.set(channel, session.role);
+      channel.on("broadcast", { event: "input" }, handleInput);
+      channel.on("broadcast", { event: "state" }, handleState);
+      channel.on("broadcast", { event: "leave" }, handleLeave);
+      channel.on("broadcast", { event: "surrender" }, handleSurrender);
+    }
 
     // Guests depend on the host for every frame of state. If the host leaves
     // without announcing it (closed tab, lost connection) the guest would be
@@ -5302,10 +5311,6 @@ export default function GameCanvas({
     return () => {
       window.clearInterval(interval);
       window.clearInterval(hostWatchdog);
-      channel.off("broadcast", { event: "input" });
-      channel.off("broadcast", { event: "state" });
-      channel.off("broadcast", { event: "leave" });
-      channel.off("broadcast", { event: "surrender" });
       remoteInputsRef.current.clear();
       networkTargetsRef.current.clear();
     };
