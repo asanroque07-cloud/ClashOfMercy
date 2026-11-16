@@ -295,6 +295,16 @@
   gap: 10px;
 }
 
+.home-settings-account__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.home-settings-account__actions > * {
+  flex: 1;
+  min-width: 0;
+}
+
 .home-settings-account__button {
   min-height: 34px;
   border: 1px solid rgba(118, 160, 53, 0.5);
