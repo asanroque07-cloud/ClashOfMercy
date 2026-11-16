@@ -658,6 +658,17 @@ button.home-settings-controller {
   touch-action: none;
 }
 
+/* Holding a control must never start a text selection or pop the native
+   copy/callout menu mid-firefight. */
+.game-frame,
+.game-frame * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .touch-controls {
   position: absolute;
   inset: 0;

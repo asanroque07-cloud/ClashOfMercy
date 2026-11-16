@@ -5801,11 +5801,21 @@ export default function GameCanvas({
       held.clear();
     };
 
+    // A long press on a control would otherwise open the native text-selection
+    // / copy callout on top of the match.
+    const onContextMenu = (event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".game-stage")) {
+        event.preventDefault();
+      }
+    };
+
     window.addEventListener("pointerdown", onPointerDown, { passive: false });
     window.addEventListener("pointermove", onPointerMove, { passive: false });
     window.addEventListener("pointerup", onPointerRelease);
     window.addEventListener("pointercancel", onPointerRelease);
     window.addEventListener("blur", releaseAll);
+    window.addEventListener("contextmenu", onContextMenu);
 
     return () => {
       window.removeEventListener("pointerdown", onPointerDown);
@@ -5813,6 +5823,7 @@ export default function GameCanvas({
       window.removeEventListener("pointerup", onPointerRelease);
       window.removeEventListener("pointercancel", onPointerRelease);
       window.removeEventListener("blur", releaseAll);
+      window.removeEventListener("contextmenu", onContextMenu);
       releaseAll();
     };
   }, [
