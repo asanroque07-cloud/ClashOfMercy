@@ -739,6 +739,19 @@ export default function App() {
     });
   };
 
+  // Applies a finished match from GameCanvas to the lobby save: coins, XP,
+  // level progress and the match history entry the History modal shows.
+  const handleMatchRecorded = useCallback((record) => {
+    const outcome = record?.result === "victory" ? "victory" : "defeat";
+    handleOfflineRewards(
+      Math.max(0, Math.round(record?.coinsEarned || 0)),
+      outcome === "victory" ? 15 : 5,
+      outcome === "victory" ? 120 : 60,
+      outcome,
+      lobbyState?.activeMap?.name || "Unknown",
+    );
+  }, [lobbyState?.activeMap?.name]);
+
   // ── Launch real GameCanvas (switch from lobby into the live match) ──
   const handleLaunchGame = (fromScreen) => {
     requestPhoneFullscreen(true);
@@ -862,6 +875,51 @@ export default function App() {
   // The app now auto-rotates into landscape (see the forced-landscape effect
   // above), so the blocking "rotate your device" overlay is no longer needed.
   const showRotateOverlay = false;
+
+  // ── Full-screen real GameCanvas (the actual playable match) ────
+  if (screen === "game") {
+    return (
+      <>
+        <BackgroundMusic combatMode enabled={musicEnabled} />
+        <div className="fixed inset-0 z-[200] bg-black">
+          <GameCanvas
+            mode={canvasMode}
+            role={toGameRole(lobbyProfile.selectedRole)}
+            mapId={activeOnlineRoom?.mapId || toGameMapId(activeMap.name)}
+            profile={gameProfile}
+            soundEnabled={soundEnabled}
+            teamConfig={teamConfig}
+            networkSession={networkSession}
+            onNetworkError={pushAlert}
+            onProfileChange={handleGameProfileChange}
+            onMatchEnd={handleMatchRecorded}
+            onExit={handleExitGame}
+          />
+        </div>
+        <OnlineMatchOverlay
+          onlineMatch={onlineMatch}
+          onAcceptInvite={onlineMatch.acceptInvite}
+          onDeclineInvite={onlineMatch.declineInvite}
+          onStartHostRoom={() =>
+            handleQueueMatchLaunch(onlineMatch.room.mode)
+          }
+        />
+        {showRotateOverlay && (
+          <div className="rotate-device-overlay">
+            <div className="rotate-device-card">
+              <div className="display text-xl text-[#76a035]">
+                Rotate Device
+              </div>
+              <p className="mt-2 text-sm text-stone-300">
+                This game is tuned for landscape mode. Rotate your phone to
+                continue the match.
+              </p>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   // ── Main lobby shell: header + toasts + whichever screen is active ──
   return (

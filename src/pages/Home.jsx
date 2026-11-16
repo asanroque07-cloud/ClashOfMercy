@@ -2,7 +2,7 @@
 // central menu, the friends list, and all the pop-up dialogs (shop, inventory,
 // settings, etc.). It doesn't own the data itself — App.jsx passes everything
 // in as props and Home just arranges it on screen.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MainMenu } from "@/components/MainMenu";
 import { FriendList } from "@/components/FriendList";
 import {
@@ -47,23 +47,17 @@ export default function Home({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // App.tsx can ask Home to open a specific modal (e.g. the header's settings button uses this)
-  if (pendingModal === "loadout" && !loadoutOpen) {
-    setLoadoutOpen(true);
+  // App.tsx can ask Home to open a specific modal (e.g. the header's settings
+  // button uses this). This runs after render rather than during it, because
+  // updating App's state while Home renders is not allowed by React.
+  useEffect(() => {
+    if (!pendingModal) return;
+    if (pendingModal === "loadout") setLoadoutOpen(true);
+    else if (pendingModal === "store") setStoreOpen(true);
+    else if (pendingModal === "history") setHistoryOpen(true);
+    else if (pendingModal === "settings") setMenuOpen(true);
     onClearModal();
-  }
-  if (pendingModal === "store" && !storeOpen) {
-    setStoreOpen(true);
-    onClearModal();
-  }
-  if (pendingModal === "history" && !historyOpen) {
-    setHistoryOpen(true);
-    onClearModal();
-  }
-  if (pendingModal === "settings" && !menuOpen) {
-    setMenuOpen(true);
-    onClearModal();
-  }
+  }, [pendingModal, onClearModal]);
 
   return (
     <div className="lobby-home h-full min-h-0 overflow-y-auto overscroll-contain p-2 sm:p-4 md:p-5 grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 w-full">

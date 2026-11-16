@@ -466,6 +466,12 @@ const ANIM_SQUASH_MAX = 0.32; // max landing squash (harder-hitting impact)
 const ANIM_RECOIL_KICK = 0.2; // max body recoil rotation per shot (punchier)
 const ANIM_SMOOTH = 0.22; // smoothing factor (snappier but still smooth)
 
+// Starts the gun-swap animation. Kept at module scope because updatePlayerAnim
+// (also module scope) needs it; the component-level triggerWeaponSwap adds SFX.
+function beginWeaponSwapAnim(p) {
+  p.weaponSwapTimer = p.weaponSwapDur || 18;
+}
+
 function updatePlayerAnim(p, dtScale) {
   p.animTime += dtScale;
 
@@ -546,7 +552,7 @@ function updatePlayerAnim(p, dtScale) {
   // Detect weapon/slot changes that happened outside the explicit trigger
   // paths (a safety net so any swap animates even if a call site was missed).
   if (p.prevSlot !== p.slot || p.prevWeaponId !== p.primaryWeaponId) {
-    if (p.weaponSwapTimer <= 0) triggerWeaponSwap(p);
+    if (p.weaponSwapTimer <= 0) beginWeaponSwapAnim(p);
     p.prevSlot = p.slot;
     p.prevWeaponId = p.primaryWeaponId;
   }
@@ -896,6 +902,7 @@ export default function GameCanvas({
   teamConfig,
   networkSession,
   onNetworkError,
+  onMatchEnd,
 }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
@@ -908,10 +915,12 @@ export default function GameCanvas({
   const pendingNetworkActionsRef = useRef(new Set());
   const networkFailureReportedRef = useRef(false);
   const networkResultRecordedRef = useRef(false);
+  const onMatchEndRef = useRef(onMatchEnd);
   const soundEnabledRef = useRef(soundEnabled);
   const pausedRef = useRef(false);
   profileRef.current = profile;
   networkSessionRef.current = networkSession;
+  onMatchEndRef.current = onMatchEnd;
   soundEnabledRef.current = soundEnabled;
   const spriteRef = useRef({});
   const audioCtxRef = useRef(null);
@@ -1386,7 +1395,7 @@ export default function GameCanvas({
   // new weapon rises back up — a clear "I'm changing guns" readout. Called from
   // cycleWeaponSlot, keyboard 1/2/3, and house weapon pickup.
   function triggerWeaponSwap(p) {
-    p.weaponSwapTimer = p.weaponSwapDur;
+    beginWeaponSwapAnim(p);
     if (typeof playSfx === "function") {
       try { playSfx("load"); } catch (_) {}
     }
@@ -1690,6 +1699,7 @@ export default function GameCanvas({
       coinsEarned: (result === "victory" ? 350 : 80) + me.kills * 25,
     };
     const newProfile = addMatch(profileRef.current, record);
+    onMatchEndRef.current?.(record);
     setTimeout(() => {
       onProfileChange(newProfile);
       setOver({ result, record });
@@ -5148,6 +5158,7 @@ export default function GameCanvas({
           };
           networkResultRecordedRef.current = true;
           const newProfile = addMatch(profileRef.current, record);
+          onMatchEndRef.current?.(record);
           setTimeout(() => {
             onProfileChange(newProfile);
             setOver({ result: record.result, record });
