@@ -27,8 +27,21 @@ import {
 // ──── Constants (tunable game-feel numbers: world size, gravity, jump strength, speed) ────
 const VIEW_W = 960,
   VIEW_H = 540,
-  WORLD_W = 2800;
+  WORLD_W = 3600;
 const GY = 490; // GROUND_Y
+// ── Camera zoom ──
+// The match is rendered 1.5x larger so operators are actually readable on a
+// phone. The camera marks the top-left corner of the VISIBLE WORLD region, and
+// that region is the canvas size divided by the zoom.
+const CAM_ZOOM = 1.5;
+const VIEW_WW = VIEW_W / CAM_ZOOM; // visible world width
+// Ground line is kept well above the bottom edge so the operator never hides
+// behind the on-screen touch controls.
+const FLOOR_SCREEN_Y = 428; // screen y the surface ground line sits on
+const CAM_TOP = GY - FLOOR_SCREEN_Y / CAM_ZOOM; // world y of the view's top edge
+// Base (spawn/flag) anchors. Pulled in from the map edge so a player standing on
+// their base is not hidden behind the on-screen touch controls.
+const BASE_X = 300;
 const PW = 22,
   PH = 34; // player width/height
 const GRAV = 0.55,
@@ -113,6 +126,13 @@ const WORLDS = {
       { x: 2080, y: GY - 70, w: 120, h: 14, type: "platform" },
       { x: 2280, y: GY - 52, w: 44, h: 52, type: "box" },
       { x: 2410, y: GY - 110, w: 20, h: 110, type: "wall" },
+      // ── East district (the battlefield now runs to x=3600) ──
+      { x: 2560, y: GY - 150, w: 190, h: 150, type: "roof" }, // climbable ruin
+      { x: 2846, y: GY - 96, w: 150, h: 14, type: "platform" }, // bunker catwalk
+      { x: 2860, y: GY - 56, w: 120, h: 56, type: "sandbag" }, // bunker wall
+      { x: 3050, y: GY - 40, w: 70, h: 40, type: "car" },
+      { x: 3160, y: GY - 120, w: 160, h: 120, type: "roof" }, // second rooftop
+      { x: 3340, y: GY - 52, w: 44, h: 52, type: "box" },
     ],
     bushes: [
       { x: 690, y: GY, r: 44 },
@@ -123,6 +143,9 @@ const WORLDS = {
       { x: 600, topY: GY - 70, botY: UNDERGROUND_Y }, // into sewer below overpass
       { x: 1240, topY: GY - 80, botY: UNDERGROUND_Y }, // sewer access
       { x: 2120, topY: GY - 70, botY: UNDERGROUND_Y },
+      { x: 2630, topY: GY - 150, botY: GY }, // up to the east rooftop
+      { x: 2916, topY: GY - 96, botY: GY }, // up to the bunker catwalk
+      { x: 3230, topY: GY - 120, botY: GY }, // up to the far rooftop
     ],
     pits: [
       { x: 590, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" }, // manhole
@@ -131,7 +154,7 @@ const WORLDS = {
     ],
     // underground sewer tunnel runs the whole width at UNDERGROUND_Y
     tunnel: { y: UNDERGROUND_Y, leftWall: 80, rightWall: WORLD_W - 80 },
-    hkitX: [450, 1080, 1400, 2060, 2270],
+    hkitX: [450, 1080, 1400, 2060, 2270, 2700, 3200],
     // Underground health kits (IMPROVEMENT_TODO #4) — sustain long sewer standoffs
     hkitXUnderground: [500, 900, 2100],
     // Underground cover (IMPROVEMENT_TODO #12) — pillars & rubble in the sewer
@@ -161,6 +184,12 @@ const WORLDS = {
       { x: 1980, y: GY - 80, w: 60, h: 80, type: "rock" },
       { x: 2280, y: GY - 52, w: 44, h: 52, type: "box" },
       { x: 2410, y: GY - 96, w: 18, h: 96, type: "wall" },
+      // ── Eastern jungle (the battlefield now runs to x=3600) ──
+      { x: 2540, y: GY - 130, w: 170, h: 130, type: "roof" }, // temple terrace
+      { x: 2800, y: GY - 70, w: 60, h: 70, type: "rock" },
+      { x: 2940, y: GY - 110, w: 180, h: 14, type: "bridge" },
+      { x: 3180, y: GY - 52, w: 44, h: 52, type: "box" },
+      { x: 3300, y: GY - 96, w: 60, h: 96, type: "rock" },
     ],
     bushes: [
       { x: 470, y: GY, r: 50 },
@@ -173,13 +202,14 @@ const WORLDS = {
     ladders: [
       { x: 700, topY: GY, botY: UNDERGROUND_Y }, // mine shaft ladder
       { x: 1450, topY: GY, botY: UNDERGROUND_Y },
+      { x: 2610, topY: GY - 130, botY: GY }, // up to the temple terrace
     ],
     pits: [
       { x: 690, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "mine" }, // cave entrance
       { x: 1440, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "mine" },
     ],
     tunnel: { y: UNDERGROUND_Y, leftWall: 120, rightWall: WORLD_W - 120 },
-    hkitX: [450, 1080, 1400, 2060, 2270],
+    hkitX: [450, 1080, 1400, 2060, 2270, 2700, 3200],
     // Underground health kits (IMPROVEMENT_TODO #4)
     hkitXUnderground: [600, 1700, 2200],
     // Underground cover (IMPROVEMENT_TODO #12) — support beams & broken cart in mine
@@ -209,6 +239,12 @@ const WORLDS = {
       { x: 2160, y: GY - 40, w: 80, h: 40, type: "sandbag" },
       { x: 2280, y: GY - 52, w: 44, h: 52, type: "box" },
       { x: 2410, y: GY - 92, w: 18, h: 92, type: "wall" },
+      // ── Eastern desert (the battlefield now runs to x=3600) ──
+      { x: 2540, y: GY - 140, w: 180, h: 140, type: "roof" }, // ruined outpost
+      { x: 2780, y: GY - 90, w: 180, h: 14, type: "platform" },
+      { x: 2820, y: GY - 40, w: 90, h: 40, type: "sandbag" },
+      { x: 3040, y: GY - 60, w: 70, h: 60, type: "rock" },
+      { x: 3200, y: GY - 40, w: 80, h: 40, type: "sandbag" },
     ],
     bushes: [
       { x: 640, y: GY, r: 36 },
@@ -218,13 +254,15 @@ const WORLDS = {
     ladders: [
       { x: 550, topY: GY, botY: UNDERGROUND_Y }, // down into a dug trench system (aligned with pit)
       { x: 1890, topY: GY, botY: UNDERGROUND_Y }, // aligned with pit
+      { x: 2610, topY: GY - 140, botY: GY }, // up to the outpost roof
+      { x: 2870, topY: GY - 90, botY: GY }, // up to the catwalk
     ],
     pits: [
       { x: 550, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
       { x: 1890, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
     ],
     trench: { y: UNDERGROUND_Y, leftWall: 100, rightWall: WORLD_W - 100 },
-    hkitX: [450, 1080, 1400, 2060, 2270],
+    hkitX: [450, 1080, 1400, 2060, 2270, 2700, 3200],
     // Underground health kits (IMPROVEMENT_TODO #4)
     hkitXUnderground: [550, 1700, 2200],
     // Underground cover (IMPROVEMENT_TODO #12) — sandbag piles & broken crates in trench
@@ -253,12 +291,20 @@ const WORLDS = {
       { x: 2000, y: GY - 120, w: 160, h: 14, type: "platform" },
       { x: 2280, y: GY - 52, w: 44, h: 52, type: "box" },
       { x: 2410, y: GY - 92, w: 20, h: 92, type: "wall" },
+      // ── Eastern galleries (the battlefield now runs to x=3600) ──
+      { x: 2540, y: GY - 150, w: 180, h: 150, type: "roof" },
+      { x: 2820, y: GY - 130, w: 180, h: 14, type: "platform" }, // catwalk
+      { x: 3060, y: GY - 52, w: 44, h: 52, type: "box" },
+      { x: 3180, y: GY - 140, w: 170, h: 140, type: "roof" },
     ],
     bushes: [],
     ladders: [
       { x: 620, topY: GY, botY: UNDERGROUND_Y }, // shaft ladder
       { x: 1270, topY: GY, botY: UNDERGROUND_Y },
       { x: 2060, topY: GY, botY: UNDERGROUND_Y },
+      { x: 2610, topY: GY - 150, botY: GY }, // up to the gallery roof
+      { x: 2870, topY: GY - 130, botY: GY }, // up to the catwalk
+      { x: 3250, topY: GY - 140, botY: GY }, // up to the far gallery
     ],
     pits: [
       { x: 610, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
@@ -266,7 +312,7 @@ const WORLDS = {
       { x: 2050, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
     ],
     tunnel: { y: UNDERGROUND_Y, leftWall: 140, rightWall: WORLD_W - 140 },
-    hkitX: [450, 1080, 1400, 2060, 2270],
+    hkitX: [450, 1080, 1400, 2060, 2270, 2700, 3200],
     // Underground health kits (IMPROVEMENT_TODO #4)
     hkitXUnderground: [650, 1700, 2200],
     // Underground cover (IMPROVEMENT_TODO #12) — metal crates & cable drums in shaft
@@ -302,7 +348,7 @@ function getFloorAt(x, underground, prevFeetY) {
   if (underground) return UNDERGROUND_Y;
   for (const s of WORLD.structures) {
     if (s.type === "box" || s.type === "rock" || s.type === "car" ||
-        s.type === "sandbag") {
+        s.type === "sandbag" || s.type === "roof") {
       if (x + PW / 2 > s.x + 2 && x - PW / 2 < s.x + s.w - 2 && s.y < fl)
         fl = s.y;
     } else if (s.type === "stair" && s.dir) {
@@ -355,7 +401,7 @@ function resolveX(oldX, newX, y, underground) {
       sR = s.x + s.w;
     const standable =
       s.type === "box" || s.type === "rock" || s.type === "car" ||
-      s.type === "sandbag";
+      s.type === "sandbag" || s.type === "roof";
     if (standable && y <= s.y + 2) continue; // standing on top
     if (y - PH < GY && y > s.y) {
       if (newX + PW / 2 > sL && newX - PW / 2 < sR) {
@@ -1271,8 +1317,8 @@ export default function GameCanvas({
         })),
       ],
       flags: [
-        { x: 120, y: GY, team: "blue", carrier: null },
-        { x: WORLD_W - 120, y: GY, team: "red", carrier: null },
+        { x: BASE_X, y: GY, team: "blue", carrier: null },
+        { x: WORLD_W - BASE_X, y: GY, team: "red", carrier: null },
       ],
       score: { blue: 0, red: 0, msg: "", msgUntil: 0 },
       keys: new Set(),
@@ -1851,7 +1897,7 @@ export default function GameCanvas({
     s.explosions = [];
     for (const f of s.flags) {
       f.carrier = null;
-      f.x = f.team === "blue" ? 120 : WORLD_W - 120;
+      f.x = f.team === "blue" ? BASE_X : WORLD_W - BASE_X;
       f.y = GY;
     }
     for (const k of s.healthKits) {
@@ -1980,7 +2026,7 @@ export default function GameCanvas({
     const canSee = !isOccluded(p.x, target.x, p.underground);
     // If carrying flag, run to base instead of fighting
     if (p.hasFlag) {
-      const baseX = p.team === "blue" ? 120 : WORLD_W - 120;
+      const baseX = p.team === "blue" ? BASE_X : WORLD_W - BASE_X;
       p.vx = baseX > p.x ? SPD * 0.9 : -SPD * 0.9;
       p.facing = baseX > p.x ? 1 : -1;
       // Jump over obstacles while carrying flag
@@ -2145,8 +2191,11 @@ export default function GameCanvas({
     const roundFrozen = rs.phase !== "live";
 
     if (!me.inHouse && !showTouchControls) {
-      const wx = s.mouse.x + s.cameraX;
-      me.aimAngle = Math.atan2(s.mouse.y - (me.y - PH / 2 - 4), wx - me.x);
+      // Mouse position is in screen pixels; convert it into world space with
+      // the same zoom + camera the renderer uses, or aiming would drift.
+      const wx = s.cameraX + s.mouse.x / CAM_ZOOM;
+      const wy = CAM_TOP + (s.cameraY || 0) + s.mouse.y / CAM_ZOOM;
+      me.aimAngle = Math.atan2(wy - (me.y - PH / 2 - 4), wx - me.x);
       me.facing = wx > me.x ? 1 : -1;
     } else if (!me.inHouse && showTouchControls) {
       if (s.mobile.fire) {
@@ -2530,13 +2579,13 @@ export default function GameCanvas({
         if (flag.carrier === p.id) {
           flag.x = p.x;
           flag.y = p.y - PH;
-          const baseX = p.team === "blue" ? 120 : WORLD_W - 120;
+          const baseX = p.team === "blue" ? BASE_X : WORLD_W - BASE_X;
           if (Math.abs(p.x - baseX) < 60) {
             flag.carrier = null;
             p.hasFlag = false;
             const ef = s.flags.find((f) => f.team !== p.team);
             if (ef) {
-              ef.x = ef.team === "blue" ? 120 : WORLD_W - 120;
+              ef.x = ef.team === "blue" ? BASE_X : WORLD_W - BASE_X;
               ef.y = GY;
               ef.carrier = null;
             }
@@ -2816,7 +2865,10 @@ export default function GameCanvas({
       if (l.y >= GY - 6) l.vy = 0;
     }
     if (s.loot.length > 20) s.loot = s.loot.slice(-20);
-    s.cameraX = Math.max(0, Math.min(me.x - VIEW_W / 2, WORLD_W - VIEW_W));
+    s.cameraX = Math.max(
+      0,
+      Math.min(me.x - VIEW_WW / 2, WORLD_W - VIEW_WW),
+    );
     // Vertical camera: when the player goes underground, shift the view down
     // so the tunnel/sewer level is visible. Smoothly interpolate.
     const targetCamY = me.underground ? UNDERGROUND_Y - GY : 0;
@@ -2917,7 +2969,8 @@ export default function GameCanvas({
     ctx.save();
     ctx.translate(s.shake.x, s.shake.y);
     ctx.save();
-    ctx.translate(-s.cameraX, -(s.cameraY || 0));
+    ctx.scale(CAM_ZOOM, CAM_ZOOM);
+    ctx.translate(-s.cameraX, -(CAM_TOP + (s.cameraY || 0)));
 
     // Ground — only fill the surface soil layer (GY to UNDERGROUND_Y). The
     // underground floor is drawn by drawUnderground() below. The soil between
@@ -2939,8 +2992,8 @@ export default function GameCanvas({
     drawInteractionPrompts(ctx, me);
 
     // Bases & flags
-    drawBase(ctx, 120, "blue");
-    drawBase(ctx, WORLD_W - 120, "red");
+    drawBase(ctx, BASE_X, "blue");
+    drawBase(ctx, WORLD_W - BASE_X, "red");
     for (const f of s.flags) {
       if (f.carrier) continue;
       ctx.strokeStyle = "#ccc";
@@ -3547,6 +3600,48 @@ export default function GameCanvas({
         // Top highlight glow
         ctx.fillStyle = "rgba(132,204,22,0.08)";
         ctx.fillRect(s.x - 1, s.y - 2, s.w + 2, 4);
+      } else if (s.type === "roof") {
+        // Multi-storey ruin with a walkable rooftop deck (reached by a ladder).
+        ctx.fillStyle = shade(wallC, -0.14);
+        ctx.fillRect(s.x, s.y, s.w, s.h);
+        ctx.fillStyle = darkC;
+        ctx.fillRect(s.x, s.y, 6, s.h);
+        ctx.fillRect(s.x + s.w - 6, s.y, 6, s.h);
+        // floor slabs
+        ctx.fillStyle = "rgba(0,0,0,0.26)";
+        for (let fy = s.y + 46; fy < GY; fy += 52) {
+          ctx.fillRect(s.x + 4, fy, s.w - 8, 3);
+        }
+        // windows — a few lit, most dark
+        for (let wy = s.y + 14; wy < GY - 22; wy += 26) {
+          for (let wx = s.x + 16; wx < s.x + s.w - 22; wx += 30) {
+            const seed = (wx * 7 + wy * 13) % 10;
+            ctx.fillStyle =
+              seed < 3 ? "rgba(253,224,71,0.30)" : "rgba(6,10,18,0.78)";
+            ctx.fillRect(wx, wy, 16, 14);
+            ctx.strokeStyle = "rgba(0,0,0,0.45)";
+            ctx.lineWidth = 0.7;
+            ctx.strokeRect(wx, wy, 16, 14);
+          }
+        }
+        // roof deck: cap along the top plus small parapet blocks at each end
+        ctx.fillStyle = lightC;
+        ctx.fillRect(s.x, s.y, s.w, 4);
+        ctx.fillStyle = darkC;
+        ctx.fillRect(s.x, s.y, 10, 12);
+        ctx.fillRect(s.x + s.w - 10, s.y, 10, 12);
+        // rooftop vent + antenna
+        ctx.fillStyle = darkC;
+        ctx.fillRect(s.x + 16, s.y - 18, 10, 16);
+        ctx.strokeStyle = "rgba(180,200,220,0.4)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(s.x + 21, s.y - 18);
+        ctx.lineTo(s.x + 21, s.y - 40);
+        ctx.stroke();
+        // street-level doorway
+        ctx.fillStyle = "#12161c";
+        ctx.fillRect(s.x + s.w / 2 - 13, GY - 36, 26, 36);
       } else if (s.type === "box") {
         ctx.fillStyle = "#6b4423";
         ctx.fillRect(s.x, s.y, s.w, s.h);
@@ -4550,9 +4645,10 @@ export default function GameCanvas({
     // Warm flickering light sources near ladder/pit openings (screen space).
     // Project world x -> screen x using the camera, and the underground floor
     // -> screen y.
-    const screenFloorY = UNDERGROUND_Y - (s.cameraY || 0);
+    const screenFloorY =
+      (UNDERGROUND_Y - (CAM_TOP + (s.cameraY || 0))) * CAM_ZOOM;
     for (const lad of (WORLD.ladders || [])) {
-      const sx = lad.x - s.cameraX;
+      const sx = (lad.x - s.cameraX) * CAM_ZOOM;
       if (sx < -80 || sx > VIEW_W + 80) continue;
       const flicker = 0.7 + 0.3 * Math.sin(t * 9 + lad.x);
       const radius = 90 * flicker;
@@ -4683,7 +4779,7 @@ export default function GameCanvas({
     // Camera viewport indicator
     ctx.strokeStyle = "rgba(255,255,255,0.2)";
     ctx.lineWidth = 1;
-    ctx.strokeRect(mx + s.cameraX * scale, my, VIEW_W * scale, mh);
+    ctx.strokeRect(mx + s.cameraX * scale, my, VIEW_WW * scale, mh);
 
     // Flags
     for (const f of s.flags) {
