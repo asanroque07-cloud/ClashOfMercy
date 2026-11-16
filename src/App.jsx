@@ -863,58 +863,17 @@ export default function App() {
   // above), so the blocking "rotate your device" overlay is no longer needed.
   const showRotateOverlay = false;
 
-  // ── Full-screen real GameCanvas (the actual playable match) ────
-  if (screen === "game") {
-    return (
-      <>
-        <BackgroundMusic combatMode enabled={musicEnabled} />
-        <div className="fixed inset-0 z-[200] bg-black">
-          <GameCanvas
-            mode={canvasMode}
-            role={toGameRole(lobbyProfile.selectedRole)}
-            mapId={activeOnlineRoom?.mapId || toGameMapId(activeMap.name)}
-            profile={gameProfile}
-            soundEnabled={soundEnabled}
-            teamConfig={teamConfig}
-            networkSession={networkSession}
-            onNetworkError={pushAlert}
-            onProfileChange={handleGameProfileChange}
-            onExit={handleExitGame}
-          />
-        </div>
-        <OnlineMatchOverlay
-          onlineMatch={onlineMatch}
-          onAcceptInvite={onlineMatch.acceptInvite}
-          onDeclineInvite={onlineMatch.declineInvite}
-          onStartHostRoom={() =>
-            handleQueueMatchLaunch(onlineMatch.room.mode)
-          }
-        />
-        {showRotateOverlay && (
-          <div className="rotate-device-overlay">
-            <div className="rotate-device-card">
-              <div className="display text-xl text-[#76a035]">
-                Rotate Device
-              </div>
-              <p className="mt-2 text-sm text-stone-300">
-                This game is tuned for landscape mode. Rotate your phone to
-                continue the match.
-              </p>
-            </div>
-          </div>
-        )}
-      </>
-    );
-  }
-
   // ── Main lobby shell: header + toasts + whichever screen is active ──
   return (
     <>
-      {/* screen can never be "game" here — that case returns its own JSX above — so music always plays in lobby mode */}
-      <BackgroundMusic combatMode={false} enabled={musicEnabled} />
+      <BackgroundMusic combatMode={screen === "game"} enabled={musicEnabled} />
       <div
         className="app-shell"
-        style={{ background: "oklch(0.10 0.018 120)" }}
+        aria-hidden={screen === "game"}
+        style={{
+          background: "oklch(0.10 0.018 120)",
+          visibility: screen === "game" ? "hidden" : undefined,
+        }}
       >
         {/* Header */}
         <LobbyHeader
@@ -952,7 +911,7 @@ export default function App() {
 
         {/* Main content */}
         <div className="flex-1 min-h-0 overflow-hidden">
-          {screen === "home" && (
+          {(screen === "home" || screen === "game") && (
             <div className="screen-shell">
               <Home
                 profile={lobbyProfile}
@@ -1190,6 +1149,22 @@ export default function App() {
           )}
         </div>
       </div>
+      {screen === "game" && (
+        <div className="fixed inset-0 z-[200] bg-black">
+          <GameCanvas
+            mode={canvasMode}
+            role={toGameRole(lobbyProfile.selectedRole)}
+            mapId={activeOnlineRoom?.mapId || toGameMapId(activeMap.name)}
+            profile={gameProfile}
+            soundEnabled={soundEnabled}
+            teamConfig={teamConfig}
+            networkSession={networkSession}
+            onNetworkError={pushAlert}
+            onProfileChange={handleGameProfileChange}
+            onExit={handleExitGame}
+          />
+        </div>
+      )}
       <OnlineMatchOverlay
         onlineMatch={onlineMatch}
         onAcceptInvite={onlineMatch.acceptInvite}
