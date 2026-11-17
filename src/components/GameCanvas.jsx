@@ -84,7 +84,9 @@ const HEALTH_REGEN_RATE = 8; // hp per second
 // buildWorld(mapId) returns { structures, bushes, ladders, pits, tunnels,
 // hkitX, undergroundY, layers } used by the geometry helpers + renderer.
 const GROUND_Y = GY; // surface ground line
-const UNDERGROUND_Y = GY + 150; // underground floor (sewer / mine tunnel level)
+// Underground floor (sewer / mine tunnel level). Deep enough that the lower
+// level plays as its own stretch of map rather than a shallow trench.
+const UNDERGROUND_Y = GY + 240;
 
 // Per-map world layouts. Structure types:
 //   wall    – solid vertical wall (blocks movement + bullets)
@@ -159,6 +161,12 @@ const WORLDS = {
       { x: 2900, w: 32, h: 46, type: "rubble" },
       { x: 3300, w: 26, h: 60, type: "pillar" },
     ],
+    // Underground catwalks — a second walkable level above the service road
+    underPlatforms: [
+      { x: 700, w: 180, y: UNDERGROUND_Y - 84 },
+      { x: 1600, w: 200, y: UNDERGROUND_Y - 84 },
+      { x: 2500, w: 190, y: UNDERGROUND_Y - 150 },
+    ],
     // House (armory) placed in the clear 1320–1710 gap (IMPROVEMENT_TODO #2)
     houseX: 1360,
   },
@@ -222,6 +230,12 @@ const WORLDS = {
       { x: 2900, w: 34, h: 50, type: "rubble" },
       { x: 3300, w: 24, h: 64, type: "beam" },
     ],
+    // Underground catwalks — mine gantries above the road
+    underPlatforms: [
+      { x: 600, w: 170, y: UNDERGROUND_Y - 84 },
+      { x: 1720, w: 190, y: UNDERGROUND_Y - 84 },
+      { x: 2650, w: 190, y: UNDERGROUND_Y - 150 },
+    ],
     // House placed in the jungle's clearest gap (1540–1710) — narrower (IMPROVEMENT_TODO #2)
     houseX: 1540, houseW: 170,
   },
@@ -282,6 +296,12 @@ const WORLDS = {
       { x: 2900, w: 28, h: 50, type: "rubble" },
       { x: 3300, w: 32, h: 52, type: "sandpile" },
     ],
+    // Underground catwalks — timber walkways above the trench road
+    underPlatforms: [
+      { x: 650, w: 180, y: UNDERGROUND_Y - 84 },
+      { x: 1700, w: 180, y: UNDERGROUND_Y - 84 },
+      { x: 2600, w: 190, y: UNDERGROUND_Y - 150 },
+    ],
     // House placed in the clear 1290–1710 gap (IMPROVEMENT_TODO #2)
     houseX: 1360,
   },
@@ -339,6 +359,12 @@ const WORLDS = {
       { x: 2900, w: 30, h: 50, type: "rubble" },
       { x: 3300, w: 28, h: 56, type: "crate" },
     ],
+    // Underground catwalks — steel catwalks above the shaft road
+    underPlatforms: [
+      { x: 720, w: 190, y: UNDERGROUND_Y - 84 },
+      { x: 1650, w: 180, y: UNDERGROUND_Y - 84 },
+      { x: 2550, w: 200, y: UNDERGROUND_Y - 150 },
+    ],
     // House placed in the clear 1380–1710 gap (IMPROVEMENT_TODO #2)
     houseX: 1400,
   },
@@ -362,7 +388,18 @@ function getFloorAt(x, underground, prevFeetY) {
   let fl = underground ? UNDERGROUND_Y : GY;
   // Underground layer: bounded by tunnel/sewer/trench side walls (a flat floor
   // across the span; nothing to stand on above while underground).
-  if (underground) return UNDERGROUND_Y;
+  if (underground) {
+    // The road is the base floor; underground catwalks add a second walkable
+    // level above it (one-way, exactly like the surface platforms).
+    let fl = UNDERGROUND_Y;
+    for (const pl of (WORLD.underPlatforms || [])) {
+      if (x + PW / 2 > pl.x + 2 && x - PW / 2 < pl.x + pl.w - 2 && pl.y < fl) {
+        const wasAbove = prevFeetY === undefined || prevFeetY <= pl.y + 4;
+        if (wasAbove) fl = pl.y;
+      }
+    }
+    return fl;
+  }
   for (const s of WORLD.structures) {
     if (s.type === "box" || s.type === "rock" || s.type === "car" ||
         s.type === "sandbag" || s.type === "bunker" || s.type === "ore") {
@@ -502,7 +539,7 @@ function findCoverNear(x, fromX, underground) {
 // is within (or just outside) the ladder's vertical span.
 function findLadderNear(x, y) {
   for (const lad of (WORLD.ladders || [])) {
-    if (Math.abs(x - lad.x) < 22 && y >= lad.topY - 10 && y <= lad.botY + 10) {
+    if (Math.abs(x - lad.x) < 30 && y >= lad.topY - 12 && y <= lad.botY + 12) {
       return lad;
     }
   }
@@ -4016,6 +4053,49 @@ export default function GameCanvas({
         ctx.lineTo(lad.x + 7, ry);
         ctx.stroke();
       }
+    }
+
+    // ── Underground catwalks ──
+    // Steel walkways hung above the road give the lower level its own
+    // verticality: climb a ladder, then drop onto a catwalk instead of the road.
+    for (const pl of (WORLD.underPlatforms || [])) {
+      // Support posts down to the road
+      ctx.strokeStyle = "#2f333b";
+      ctx.lineWidth = 4;
+      for (let sx = pl.x + 14; sx < pl.x + pl.w; sx += 60) {
+        ctx.beginPath();
+        ctx.moveTo(sx, pl.y + 10);
+        ctx.lineTo(sx, uy);
+        ctx.stroke();
+      }
+      // Deck
+      const deck = ctx.createLinearGradient(pl.x, pl.y, pl.x, pl.y + 12);
+      deck.addColorStop(0, "#8d949e");
+      deck.addColorStop(1, "#4a5058");
+      roundRectPath(ctx, pl.x, pl.y, pl.w, 12, 5);
+      ctx.fillStyle = deck;
+      ctx.fill();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Railing
+      ctx.strokeStyle = "rgba(200,208,216,0.75)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pl.x + 4, pl.y - 12);
+      ctx.lineTo(pl.x + pl.w - 4, pl.y - 12);
+      ctx.stroke();
+      ctx.lineWidth = 1.5;
+      for (let rx = pl.x + 8; rx < pl.x + pl.w - 4; rx += 26) {
+        ctx.beginPath();
+        ctx.moveTo(rx, pl.y - 12);
+        ctx.lineTo(rx, pl.y);
+        ctx.stroke();
+      }
+      // Top highlight
+      ctx.fillStyle = "rgba(255,255,255,0.3)";
+      roundRectPath(ctx, pl.x + 5, pl.y + 2, Math.max(8, pl.w - 10), 2.5, 2);
+      ctx.fill();
     }
 
     // ── Underground cover objects (IMPROVEMENT_TODO #12) ──
