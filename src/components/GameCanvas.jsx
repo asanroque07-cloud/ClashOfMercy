@@ -27,7 +27,10 @@ import {
 // ──── Constants (tunable game-feel numbers: world size, gravity, jump strength, speed) ────
 const VIEW_W = 960,
   VIEW_H = 540,
-  WORLD_W = 2800;
+  WORLD_W = 3600;
+// The canvas draws in 960×540 world units but backs those with 2× the pixels,
+// so rounded cartoon shapes and gradients come out crisp instead of chunky.
+const RENDER_SCALE = 2;
 const GY = 490; // GROUND_Y
 const PW = 22,
   PH = 34; // player width/height
@@ -113,6 +116,14 @@ const WORLDS = {
       { x: 2080, y: GY - 70, w: 120, h: 14, type: "platform" },
       { x: 2280, y: GY - 52, w: 44, h: 52, type: "box" },
       { x: 2410, y: GY - 110, w: 20, h: 110, type: "wall" },
+      // ── Eastern district: bunker line, mine works, elevated slab ──
+      { x: 2500, y: GY - 60, w: 88, h: 60, type: "stair", dir: "right" },
+      { x: 2600, y: GY - 100, w: 150, h: 100, type: "bunker" },
+      { x: 2790, y: GY - 46, w: 64, h: 46, type: "ore" },
+      { x: 2910, y: GY - 96, w: 150, h: 14, type: "platform" },
+      { x: 3090, y: GY - 110, w: 20, h: 110, type: "wall" },
+      { x: 3170, y: GY - 44, w: 70, h: 44, type: "car" },
+      { x: 3300, y: GY - 56, w: 44, h: 56, type: "box" },
     ],
     bushes: [
       { x: 690, y: GY, r: 44 },
@@ -123,23 +134,30 @@ const WORLDS = {
       { x: 600, topY: GY - 70, botY: UNDERGROUND_Y }, // into sewer below overpass
       { x: 1240, topY: GY - 80, botY: UNDERGROUND_Y }, // sewer access
       { x: 2120, topY: GY - 70, botY: UNDERGROUND_Y },
+      { x: 2700, topY: GY, botY: UNDERGROUND_Y }, // eastern district access
+      { x: 3150, topY: GY, botY: UNDERGROUND_Y },
     ],
     pits: [
       { x: 590, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" }, // manhole
       { x: 1230, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
       { x: 2110, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
+      { x: 2690, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
+      { x: 3140, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
     ],
     // underground sewer tunnel runs the whole width at UNDERGROUND_Y
     tunnel: { y: UNDERGROUND_Y, leftWall: 80, rightWall: WORLD_W - 80 },
-    hkitX: [450, 1080, 1400, 2060, 2270],
+    hkitX: [450, 1080, 1400, 2060, 2270, 2650, 3150, 3350],
     // Underground health kits (IMPROVEMENT_TODO #4) — sustain long sewer standoffs
-    hkitXUnderground: [500, 900, 2100],
+    hkitXUnderground: [500, 900, 2100, 2700, 3200],
     // Underground cover (IMPROVEMENT_TODO #12) — pillars & rubble in the sewer
     underCover: [
       { x: 700, w: 26, h: 60, type: "pillar" },
       { x: 1100, w: 30, h: 50, type: "rubble" },
       { x: 1500, w: 26, h: 60, type: "pillar" },
       { x: 1900, w: 32, h: 46, type: "rubble" },
+      { x: 2450, w: 26, h: 60, type: "pillar" },
+      { x: 2900, w: 32, h: 46, type: "rubble" },
+      { x: 3300, w: 26, h: 60, type: "pillar" },
     ],
     // House (armory) placed in the clear 1320–1710 gap (IMPROVEMENT_TODO #2)
     houseX: 1360,
@@ -161,6 +179,14 @@ const WORLDS = {
       { x: 1980, y: GY - 80, w: 60, h: 80, type: "rock" },
       { x: 2280, y: GY - 52, w: 44, h: 52, type: "box" },
       { x: 2410, y: GY - 96, w: 18, h: 96, type: "wall" },
+      // ── Eastern works: mine head, bunker outpost, rope bridge over the pit ──
+      { x: 2500, y: GY - 64, w: 88, h: 64, type: "stair", dir: "right" },
+      { x: 2610, y: GY - 96, w: 130, h: 96, type: "bunker" },
+      { x: 2780, y: GY - 60, w: 64, h: 60, type: "ore" },
+      { x: 2900, y: GY - 100, w: 60, h: 100, type: "rock" },
+      { x: 3050, y: GY - 120, w: 160, h: 14, type: "bridge" },
+      { x: 3250, y: GY - 96, w: 18, h: 96, type: "wall" },
+      { x: 3320, y: GY - 52, w: 44, h: 52, type: "box" },
     ],
     bushes: [
       { x: 470, y: GY, r: 50 },
@@ -173,21 +199,28 @@ const WORLDS = {
     ladders: [
       { x: 700, topY: GY, botY: UNDERGROUND_Y }, // mine shaft ladder
       { x: 1450, topY: GY, botY: UNDERGROUND_Y },
+      { x: 2700, topY: GY, botY: UNDERGROUND_Y }, // eastern mine access
+      { x: 3150, topY: GY, botY: UNDERGROUND_Y },
     ],
     pits: [
       { x: 690, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "mine" }, // cave entrance
       { x: 1440, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "mine" },
+      { x: 2690, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "mine" },
+      { x: 3140, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "mine" },
     ],
     tunnel: { y: UNDERGROUND_Y, leftWall: 120, rightWall: WORLD_W - 120 },
-    hkitX: [450, 1080, 1400, 2060, 2270],
+    hkitX: [450, 1080, 1400, 2060, 2270, 2650, 3150, 3350],
     // Underground health kits (IMPROVEMENT_TODO #4)
-    hkitXUnderground: [600, 1700, 2200],
+    hkitXUnderground: [600, 1700, 2200, 2750, 3250],
     // Underground cover (IMPROVEMENT_TODO #12) — support beams & broken cart in mine
     underCover: [
       { x: 650, w: 24, h: 64, type: "beam" },
       { x: 1100, w: 34, h: 48, type: "rubble" },
       { x: 1600, w: 24, h: 64, type: "beam" },
       { x: 2100, w: 30, h: 50, type: "rubble" },
+      { x: 2450, w: 24, h: 64, type: "beam" },
+      { x: 2900, w: 34, h: 50, type: "rubble" },
+      { x: 3300, w: 24, h: 64, type: "beam" },
     ],
     // House placed in the jungle's clearest gap (1540–1710) — narrower (IMPROVEMENT_TODO #2)
     houseX: 1540, houseW: 170,
@@ -209,6 +242,14 @@ const WORLDS = {
       { x: 2160, y: GY - 40, w: 80, h: 40, type: "sandbag" },
       { x: 2280, y: GY - 52, w: 44, h: 52, type: "box" },
       { x: 2410, y: GY - 92, w: 18, h: 92, type: "wall" },
+      // ── Eastern works: bunker, ore cart, rock outcrops over the trench ──
+      { x: 2500, y: GY - 64, w: 88, h: 64, type: "stair", dir: "right" },
+      { x: 2610, y: GY - 92, w: 140, h: 92, type: "bunker" },
+      { x: 2790, y: GY - 48, w: 64, h: 48, type: "ore" },
+      { x: 2900, y: GY - 70, w: 70, h: 70, type: "rock" },
+      { x: 3050, y: GY - 40, w: 80, h: 40, type: "sandbag" },
+      { x: 3180, y: GY - 92, w: 18, h: 92, type: "wall" },
+      { x: 3300, y: GY - 52, w: 44, h: 52, type: "box" },
     ],
     bushes: [
       { x: 640, y: GY, r: 36 },
@@ -218,21 +259,28 @@ const WORLDS = {
     ladders: [
       { x: 550, topY: GY, botY: UNDERGROUND_Y }, // down into a dug trench system (aligned with pit)
       { x: 1890, topY: GY, botY: UNDERGROUND_Y }, // aligned with pit
+      { x: 2700, topY: GY, botY: UNDERGROUND_Y }, // eastern trench access
+      { x: 3150, topY: GY, botY: UNDERGROUND_Y },
     ],
     pits: [
       { x: 550, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
       { x: 1890, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 2690, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 3140, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
     ],
     trench: { y: UNDERGROUND_Y, leftWall: 100, rightWall: WORLD_W - 100 },
-    hkitX: [450, 1080, 1400, 2060, 2270],
+    hkitX: [450, 1080, 1400, 2060, 2270, 2650, 3150, 3350],
     // Underground health kits (IMPROVEMENT_TODO #4)
-    hkitXUnderground: [550, 1700, 2200],
+    hkitXUnderground: [550, 1700, 2200, 2750, 3250],
     // Underground cover (IMPROVEMENT_TODO #12) — sandbag piles & broken crates in trench
     underCover: [
       { x: 700, w: 32, h: 52, type: "sandpile" },
       { x: 1100, w: 28, h: 50, type: "rubble" },
       { x: 1500, w: 32, h: 52, type: "sandpile" },
       { x: 1900, w: 28, h: 50, type: "rubble" },
+      { x: 2450, w: 32, h: 52, type: "sandpile" },
+      { x: 2900, w: 28, h: 50, type: "rubble" },
+      { x: 3300, w: 32, h: 52, type: "sandpile" },
     ],
     // House placed in the clear 1290–1710 gap (IMPROVEMENT_TODO #2)
     houseX: 1360,
@@ -253,28 +301,43 @@ const WORLDS = {
       { x: 2000, y: GY - 120, w: 160, h: 14, type: "platform" },
       { x: 2280, y: GY - 52, w: 44, h: 52, type: "box" },
       { x: 2410, y: GY - 92, w: 20, h: 92, type: "wall" },
+      // ── Eastern works: second bunker block, ore rail, long catwalk ──
+      { x: 2500, y: GY - 64, w: 88, h: 64, type: "stair", dir: "right" },
+      { x: 2610, y: GY - 100, w: 150, h: 100, type: "bunker" },
+      { x: 2800, y: GY - 50, w: 64, h: 50, type: "ore" },
+      { x: 2920, y: GY - 130, w: 180, h: 14, type: "platform" },
+      { x: 3100, y: GY - 92, w: 20, h: 92, type: "wall" },
+      { x: 3190, y: GY - 52, w: 44, h: 52, type: "box" },
+      { x: 3310, y: GY - 92, w: 20, h: 92, type: "wall" },
     ],
     bushes: [],
     ladders: [
       { x: 620, topY: GY, botY: UNDERGROUND_Y }, // shaft ladder
       { x: 1270, topY: GY, botY: UNDERGROUND_Y },
       { x: 2060, topY: GY, botY: UNDERGROUND_Y },
+      { x: 2700, topY: GY, botY: UNDERGROUND_Y }, // eastern works access
+      { x: 3150, topY: GY, botY: UNDERGROUND_Y },
     ],
     pits: [
       { x: 610, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
       { x: 1260, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
       { x: 2050, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 2690, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 3140, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
     ],
     tunnel: { y: UNDERGROUND_Y, leftWall: 140, rightWall: WORLD_W - 140 },
-    hkitX: [450, 1080, 1400, 2060, 2270],
+    hkitX: [450, 1080, 1400, 2060, 2270, 2650, 3150, 3350],
     // Underground health kits (IMPROVEMENT_TODO #4)
-    hkitXUnderground: [650, 1700, 2200],
+    hkitXUnderground: [650, 1700, 2200, 2750, 3250],
     // Underground cover (IMPROVEMENT_TODO #12) — metal crates & cable drums in shaft
     underCover: [
       { x: 700, w: 28, h: 56, type: "crate" },
       { x: 1100, w: 30, h: 50, type: "rubble" },
       { x: 1500, w: 28, h: 56, type: "crate" },
       { x: 1900, w: 30, h: 50, type: "rubble" },
+      { x: 2450, w: 28, h: 56, type: "crate" },
+      { x: 2900, w: 30, h: 50, type: "rubble" },
+      { x: 3300, w: 28, h: 56, type: "crate" },
     ],
     // House placed in the clear 1380–1710 gap (IMPROVEMENT_TODO #2)
     houseX: 1400,
@@ -302,7 +365,7 @@ function getFloorAt(x, underground, prevFeetY) {
   if (underground) return UNDERGROUND_Y;
   for (const s of WORLD.structures) {
     if (s.type === "box" || s.type === "rock" || s.type === "car" ||
-        s.type === "sandbag") {
+        s.type === "sandbag" || s.type === "bunker" || s.type === "ore") {
       if (x + PW / 2 > s.x + 2 && x - PW / 2 < s.x + s.w - 2 && s.y < fl)
         fl = s.y;
     } else if (s.type === "stair" && s.dir) {
@@ -355,7 +418,7 @@ function resolveX(oldX, newX, y, underground) {
       sR = s.x + s.w;
     const standable =
       s.type === "box" || s.type === "rock" || s.type === "car" ||
-      s.type === "sandbag";
+      s.type === "sandbag" || s.type === "bunker" || s.type === "ore";
     if (standable && y <= s.y + 2) continue; // standing on top
     if (y - PH < GY && y > s.y) {
       if (newX + PW / 2 > sL && newX - PW / 2 < sR) {
@@ -2879,7 +2942,10 @@ export default function GameCanvas({
     if (!s || !canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
+    // Everything below is written in 960×540 world units; the transform maps
+    // that onto the higher-resolution backing store.
+    ctx.setTransform(RENDER_SCALE, 0, 0, RENDER_SCALE, 0, 0);
+    ctx.imageSmoothingEnabled = true;
     ctx.clearRect(0, 0, VIEW_W, VIEW_H);
     const me = s.players.find((p) => p.id === "me");
     if (!me) return;
@@ -3534,45 +3600,34 @@ export default function GameCanvas({
     const lightC = shade(wallC, 0.2);
     for (const s of STRUCTURES()) {
       if (s.type === "wall") {
-        // Base
-        ctx.fillStyle = wallC;
-        ctx.fillRect(s.x, s.y, s.w, s.h);
-        // Edge highlights
-        ctx.fillStyle = darkC;
-        ctx.fillRect(s.x, s.y, 3, s.h);
-        ctx.fillRect(s.x + s.w - 3, s.y, 3, s.h);
-        ctx.fillStyle = lightC;
-        ctx.fillRect(s.x, s.y, s.w, 3);
-        // Brick / panel lines
-        ctx.strokeStyle = darkC;
-        ctx.lineWidth = 0.5;
-        for (let wy = s.y + 16; wy < GY; wy += 22) {
+        // Rounded concrete post with a soft top light and a chunky ink outline
+        cartoonShadow(ctx, s.x - 2, GY - 1, s.w + 4);
+        cartoonBlock(ctx, s.x, s.y, s.w, s.h, lightC, wallC, 6);
+        ctx.strokeStyle = "rgba(0,0,0,0.16)";
+        ctx.lineWidth = 1;
+        for (let wy = s.y + 18; wy < GY - 4; wy += 24) {
           ctx.beginPath();
-          ctx.moveTo(s.x, wy);
-          ctx.lineTo(s.x + s.w, wy);
+          ctx.moveTo(s.x + 3, wy);
+          ctx.lineTo(s.x + s.w - 3, wy);
           ctx.stroke();
         }
-        // Top highlight glow
-        ctx.fillStyle = "rgba(132,204,22,0.08)";
-        ctx.fillRect(s.x - 1, s.y - 2, s.w + 2, 4);
+        ctx.fillStyle = "rgba(255,255,255,0.26)";
+        roundRectPath(ctx, s.x + 4, s.y + 5, Math.max(3, s.w * 0.3), Math.max(8, s.h * 0.4), 3);
+        ctx.fill();
       } else if (s.type === "box") {
-        ctx.fillStyle = "#6b4423";
-        ctx.fillRect(s.x, s.y, s.w, s.h);
-        ctx.strokeStyle = "#3a2008";
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(s.x, s.y, s.w, s.h);
-        ctx.strokeStyle = "#3a2008";
-        ctx.lineWidth = 1.2;
+        cartoonShadow(ctx, s.x - 2, GY - 1, s.w + 4);
+        cartoonBlock(ctx, s.x, s.y, s.w, s.h, "#a3713c", "#6b4423", 7);
+        ctx.strokeStyle = "#4a2c10";
+        ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.moveTo(s.x + 2, s.y + 2);
-        ctx.lineTo(s.x + s.w - 2, s.y + s.h - 2);
+        ctx.moveTo(s.x + 5, s.y + 5);
+        ctx.lineTo(s.x + s.w - 5, s.y + s.h - 5);
+        ctx.moveTo(s.x + s.w - 5, s.y + 5);
+        ctx.lineTo(s.x + 5, s.y + s.h - 5);
         ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(s.x + s.w - 2, s.y + 2);
-        ctx.lineTo(s.x + 2, s.y + s.h - 2);
-        ctx.stroke();
-        ctx.fillStyle = "rgba(255,255,255,0.06)";
-        ctx.fillRect(s.x + 2, s.y + 2, s.w - 4, 4);
+        ctx.fillStyle = "rgba(255,255,255,0.22)";
+        roundRectPath(ctx, s.x + 5, s.y + 5, s.w - 10, 5, 3);
+        ctx.fill();
       } else if (s.type === "stair" && s.dir) {
         ctx.fillStyle = "#504535";
         ctx.beginPath();
@@ -3603,29 +3658,19 @@ export default function GameCanvas({
           ctx.stroke();
         }
       } else if (s.type === "platform") {
-        // Collapsed overpass / concrete slab — thick one-way platform
-        ctx.fillStyle = "#4a4a5a";
-        ctx.fillRect(s.x, s.y, s.w, s.h);
-        ctx.fillStyle = "#5a5a6e";
-        ctx.fillRect(s.x, s.y, s.w, 3);
-        ctx.fillStyle = "#2a2a3a";
-        ctx.fillRect(s.x, s.y + s.h - 2, s.w, 2);
-        // Rebar stubs
-        ctx.strokeStyle = "#6a6a3a";
-        ctx.lineWidth = 1;
-        for (let rx = s.x + 10; rx < s.x + s.w; rx += 24) {
-          ctx.beginPath();
-          ctx.moveTo(rx, s.y + s.h);
-          ctx.lineTo(rx, s.y + s.h + 6);
-          ctx.stroke();
-        }
-        // Cracks
-        ctx.strokeStyle = "rgba(0,0,0,0.3)";
-        ctx.lineWidth = 0.6;
-        ctx.beginPath();
-        ctx.moveTo(s.x + s.w * 0.3, s.y);
-        ctx.lineTo(s.x + s.w * 0.4, s.y + s.h);
+        // Cast concrete catwalk — rounded slab with an ink outline
+        const slab = ctx.createLinearGradient(s.x, s.y, s.x, s.y + s.h);
+        slab.addColorStop(0, "#83839c");
+        slab.addColorStop(1, "#45455a");
+        roundRectPath(ctx, s.x, s.y, s.w, s.h, 6);
+        ctx.fillStyle = slab;
+        ctx.fill();
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 2;
         ctx.stroke();
+        ctx.fillStyle = "rgba(255,255,255,0.32)";
+        roundRectPath(ctx, s.x + 5, s.y + 3, Math.max(6, s.w - 10), 3, 2);
+        ctx.fill();
       } else if (s.type === "bridge") {
         // Rope bridge — wooden planks slung between two posts
         ctx.strokeStyle = "#5a4020";
@@ -3700,8 +3745,8 @@ export default function GameCanvas({
         ctx.closePath();
         ctx.fill();
         // Outline
-        ctx.strokeStyle = "#2a2a2a";
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(s.x, GY);
         ctx.lineTo(s.x + s.w * 0.15, s.y + s.h * 0.3);
@@ -3710,50 +3755,121 @@ export default function GameCanvas({
         ctx.lineTo(s.x + s.w, GY);
         ctx.stroke();
       } else if (s.type === "car") {
-        // Wrecked car — body, roof, wheels
-        const cx = s.x + s.w / 2;
-        // Shadow
-        ctx.fillStyle = "rgba(0,0,0,0.3)";
-        ctx.beginPath();
-        ctx.ellipse(cx, GY - 2, s.w / 2 + 4, 5, 0, 0, Math.PI * 2);
+        // Wrecked car — rounded cartoon body, cabin, wheels
+        cartoonShadow(ctx, s.x - 2, GY - 1, s.w + 4);
+        const body = ctx.createLinearGradient(s.x, s.y + s.h * 0.4, s.x, s.y + s.h);
+        body.addColorStop(0, "#ab4a4a");
+        body.addColorStop(1, "#6d2626");
+        roundRectPath(ctx, s.x, s.y + s.h * 0.4, s.w, s.h * 0.6, 8);
+        ctx.fillStyle = body;
         ctx.fill();
-        // Body
-        ctx.fillStyle = "#7a3030";
-        ctx.fillRect(s.x, s.y + s.h * 0.4, s.w, s.h * 0.6);
-        // Cabin / roof
-        ctx.fillStyle = "#6a2828";
-        ctx.beginPath();
-        ctx.moveTo(s.x + s.w * 0.2, s.y + s.h * 0.4);
-        ctx.lineTo(s.x + s.w * 0.3, s.y);
-        ctx.lineTo(s.x + s.w * 0.7, s.y);
-        ctx.lineTo(s.x + s.w * 0.8, s.y + s.h * 0.4);
-        ctx.closePath();
-        ctx.fill();
-        // Windows (broken/dark)
-        ctx.fillStyle = "#1a1a2a";
-        ctx.fillRect(s.x + s.w * 0.28, s.y + 3, s.w * 0.44, s.h * 0.32);
-        // Wheels
-        ctx.fillStyle = "#1a1a1a";
-        ctx.beginPath();
-        ctx.arc(s.x + s.w * 0.25, s.y + s.h, 7, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(s.x + s.w * 0.75, s.y + s.h, 7, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#3a3a3a";
-        ctx.beginPath();
-        ctx.arc(s.x + s.w * 0.25, s.y + s.h, 3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(s.x + s.w * 0.75, s.y + s.h, 3, 0, Math.PI * 2);
-        ctx.fill();
-        // Rust streaks
-        ctx.strokeStyle = "rgba(120,60,20,0.4)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(s.x + s.w * 0.4, s.y + s.h * 0.4);
-        ctx.lineTo(s.x + s.w * 0.4, s.y + s.h * 0.9);
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 2;
         ctx.stroke();
+        roundRectPath(ctx, s.x + s.w * 0.18, s.y, s.w * 0.64, s.h * 0.56, 7);
+        ctx.fillStyle = "#8f3737";
+        ctx.fill();
+        ctx.strokeStyle = INK;
+        ctx.stroke();
+        ctx.fillStyle = "#28303e";
+        roundRectPath(ctx, s.x + s.w * 0.26, s.y + 4, s.w * 0.48, s.h * 0.3, 4);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.25)";
+        roundRectPath(ctx, s.x + s.w * 0.3, s.y + 6, s.w * 0.16, s.h * 0.12, 3);
+        ctx.fill();
+        for (const wx of [s.x + s.w * 0.26, s.x + s.w * 0.74]) {
+          ctx.fillStyle = INK;
+          ctx.beginPath();
+          ctx.arc(wx, s.y + s.h, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#9aa0a6";
+          ctx.beginPath();
+          ctx.arc(wx, s.y + s.h, 3.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (s.type === "bunker") {
+        // Reinforced concrete bunker: rounded slab, roof lip, firing slit and
+        // a hazard-striped skirt. Solid cover you can stand on.
+        cartoonShadow(ctx, s.x - 3, GY - 1, s.w + 6);
+        cartoonBlock(ctx, s.x, s.y, s.w, s.h, "#9aa088", "#5d6354", 10);
+        cartoonBlock(ctx, s.x - 6, s.y - 9, s.w + 12, 13, "#b3b99f", "#7b8172", 6);
+        roundRectPath(
+          ctx,
+          s.x + s.w * 0.14,
+          s.y + s.h * 0.33,
+          s.w * 0.72,
+          Math.max(10, s.h * 0.16),
+          5,
+        );
+        ctx.fillStyle = "#14180f";
+        ctx.fill();
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        roundRectPath(
+          ctx,
+          s.x + s.w * 0.4,
+          GY - s.h * 0.44,
+          s.w * 0.2,
+          s.h * 0.44,
+          4,
+        );
+        ctx.fillStyle = "#2c3324";
+        ctx.fill();
+        ctx.strokeStyle = INK;
+        ctx.stroke();
+        // Hazard stripe along the base
+        ctx.save();
+        roundRectPath(ctx, s.x + 8, GY - 20, s.w - 16, 11, 4);
+        ctx.clip();
+        ctx.fillStyle = "#c9a227";
+        ctx.fillRect(s.x + 8, GY - 20, s.w - 16, 11);
+        ctx.fillStyle = INK;
+        for (let hx = s.x - 12; hx < s.x + s.w; hx += 16) {
+          ctx.beginPath();
+          ctx.moveTo(hx, GY - 9);
+          ctx.lineTo(hx + 9, GY - 21);
+          ctx.lineTo(hx + 15, GY - 21);
+          ctx.lineTo(hx + 6, GY - 9);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      } else if (s.type === "ore") {
+        // Mine cart loaded with ore — climbable solid cover
+        cartoonShadow(ctx, s.x - 2, GY - 1, s.w + 4);
+        const tub = ctx.createLinearGradient(s.x, s.y + 6, s.x, GY);
+        tub.addColorStop(0, "#8b95a1");
+        tub.addColorStop(1, "#49515b");
+        roundRectPath(ctx, s.x, s.y + 6, s.w, s.h - 6, 8);
+        ctx.fillStyle = tub;
+        ctx.fill();
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        for (const [t, color] of [
+          [0.24, "#e0a92f"],
+          [0.46, "#a9d14a"],
+          [0.68, "#e0703a"],
+        ]) {
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(s.x + s.w * t, s.y + 7, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = INK;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+        for (const wx of [s.x + s.w * 0.22, s.x + s.w * 0.78]) {
+          ctx.fillStyle = INK;
+          ctx.beginPath();
+          ctx.arc(wx, GY - 5, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#b9c0c7";
+          ctx.beginPath();
+          ctx.arc(wx, GY - 5, 2.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
   }
@@ -3814,6 +3930,25 @@ export default function GameCanvas({
     // Floor top edge
     ctx.fillStyle = shade(mapDef.wallColor, -0.3);
     ctx.fillRect(tun.leftWall, uy, tun.rightWall - tun.leftWall, 3);
+
+    // Underground service road: a paved strip along the whole tunnel with a
+    // dashed centre line, so the lower level reads as a real road to fight on.
+    const roadGrad = ctx.createLinearGradient(0, uy, 0, uy + 22);
+    roadGrad.addColorStop(0, "#49505a");
+    roadGrad.addColorStop(1, "#2b3138");
+    roundRectPath(ctx, tun.leftWall, uy, tun.rightWall - tun.leftWall, 22, 6);
+    ctx.fillStyle = roadGrad;
+    ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "rgba(228,196,84,0.85)";
+    for (let dx = tun.leftWall + 20; dx < tun.rightWall - 40; dx += 48) {
+      roundRectPath(ctx, dx, uy + 9, 22, 4, 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "rgba(255,255,255,0.16)";
+    ctx.fillRect(tun.leftWall + 6, uy + 2, tun.rightWall - tun.leftWall - 12, 1.5);
     // Side walls (the soil walls of the tunnel)
     ctx.fillStyle = shade(mapDef.wallColor, -0.45);
     ctx.fillRect(tun.leftWall - 8, uy, 8, VIEW_H - uy + 40);
@@ -4105,6 +4240,47 @@ export default function GameCanvas({
     const f = (v) =>
       Math.max(0, Math.min(255, Math.round(v + (amt > 0 ? (255 - v) * amt : v * amt))));
     return `rgb(${f(r)},${f(g)},${f(b)})`;
+  }
+
+  // ── Cartoon drawing helpers ────────────────────────────────────────────
+  // The art is smooth and rounded rather than pixel-blocky: soft fills, round
+  // corners and a single bold ink outline on every object.
+  const INK = "#1b1a14";
+
+  function roundRectPath(ctx, x, y, w, h, r) {
+    const radius = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+
+  // Filled, rounded block with a vertical gradient and a chunky ink outline.
+  function cartoonBlock(ctx, x, y, w, h, top, bottom, radius = 7, outline = INK) {
+    const gradient = ctx.createLinearGradient(x, y, x, y + h);
+    gradient.addColorStop(0, top);
+    gradient.addColorStop(1, bottom);
+    roundRectPath(ctx, x, y, w, h, radius);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Soft blob shadow under a ground object.
+  function cartoonShadow(ctx, x, y, w) {
+    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    ctx.beginPath();
+    ctx.ellipse(x + w / 2, y, w / 2 + 4, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   function drawBushes(ctx) {
@@ -5882,8 +6058,8 @@ export default function GameCanvas({
       <div className="game-stage">
         <canvas
           ref={canvasRef}
-          width={VIEW_W}
-          height={VIEW_H}
+          width={VIEW_W * RENDER_SCALE}
+          height={VIEW_H * RENDER_SCALE}
           className="scanline game-canvas"
           style={{ cursor: showTouchControls ? "default" : "crosshair" }}
         />
