@@ -20,9 +20,20 @@ import {
 } from "../game/operatorArt";
 import {
   getTouchControlPosition,
+  getTouchControlScale,
   loadTouchLayout,
   saveTouchLayout,
 } from "../lib/touchControls";
+import {
+  ArrowUp,
+  ArrowDown,
+  ArrowLeftRight,
+  RotateCw,
+  Bomb,
+  Hand,
+  Move,
+  Crosshair,
+} from "lucide-react";
 
 // ──── Constants (tunable game-feel numbers: world size, gravity, jump strength, speed) ────
 const VIEW_W = 960,
@@ -86,7 +97,7 @@ const HEALTH_REGEN_RATE = 8; // hp per second
 const GROUND_Y = GY; // surface ground line
 // Underground floor (sewer / mine tunnel level). Deep enough that the lower
 // level plays as its own stretch of map rather than a shallow trench.
-const UNDERGROUND_Y = GY + 240;
+const UNDERGROUND_Y = GY + 320;
 
 // Per-map world layouts. Structure types:
 //   wall    – solid vertical wall (blocks movement + bullets)
@@ -140,11 +151,11 @@ const WORLDS = {
       { x: 3150, topY: GY, botY: UNDERGROUND_Y },
     ],
     pits: [
-      { x: 590, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" }, // manhole
-      { x: 1230, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
-      { x: 2110, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
-      { x: 2690, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
-      { x: 3140, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
+      { x: 590, w: 46, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" }, // manhole
+      { x: 1230, w: 46, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
+      { x: 2110, w: 46, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
+      { x: 2690, w: 46, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
+      { x: 3140, w: 46, topY: GY, botY: UNDERGROUND_Y, kind: "sewer" },
     ],
     // underground sewer tunnel runs the whole width at UNDERGROUND_Y
     tunnel: { y: UNDERGROUND_Y, leftWall: 80, rightWall: WORLD_W - 80 },
@@ -165,7 +176,7 @@ const WORLDS = {
     underPlatforms: [
       { x: 700, w: 180, y: UNDERGROUND_Y - 84 },
       { x: 1600, w: 200, y: UNDERGROUND_Y - 84 },
-      { x: 2500, w: 190, y: UNDERGROUND_Y - 150 },
+      { x: 2500, w: 190, y: UNDERGROUND_Y - 220 },
     ],
     // House (armory) placed in the clear 1320–1710 gap (IMPROVEMENT_TODO #2)
     houseX: 1360,
@@ -211,10 +222,10 @@ const WORLDS = {
       { x: 3150, topY: GY, botY: UNDERGROUND_Y },
     ],
     pits: [
-      { x: 690, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "mine" }, // cave entrance
-      { x: 1440, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "mine" },
-      { x: 2690, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "mine" },
-      { x: 3140, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "mine" },
+      { x: 690, w: 40, topY: GY, botY: UNDERGROUND_Y, kind: "mine" }, // cave entrance
+      { x: 1440, w: 40, topY: GY, botY: UNDERGROUND_Y, kind: "mine" },
+      { x: 2690, w: 40, topY: GY, botY: UNDERGROUND_Y, kind: "mine" },
+      { x: 3140, w: 40, topY: GY, botY: UNDERGROUND_Y, kind: "mine" },
     ],
     tunnel: { y: UNDERGROUND_Y, leftWall: 120, rightWall: WORLD_W - 120 },
     hkitX: [450, 1080, 1400, 2060, 2270, 2650, 3150, 3350],
@@ -234,7 +245,7 @@ const WORLDS = {
     underPlatforms: [
       { x: 600, w: 170, y: UNDERGROUND_Y - 84 },
       { x: 1720, w: 190, y: UNDERGROUND_Y - 84 },
-      { x: 2650, w: 190, y: UNDERGROUND_Y - 150 },
+      { x: 2650, w: 190, y: UNDERGROUND_Y - 220 },
     ],
     // House placed in the jungle's clearest gap (1540–1710) — narrower (IMPROVEMENT_TODO #2)
     houseX: 1540, houseW: 170,
@@ -277,10 +288,10 @@ const WORLDS = {
       { x: 3150, topY: GY, botY: UNDERGROUND_Y },
     ],
     pits: [
-      { x: 550, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
-      { x: 1890, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
-      { x: 2690, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
-      { x: 3140, w: 30, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 550, w: 46, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 1890, w: 46, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 2690, w: 46, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 3140, w: 46, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
     ],
     trench: { y: UNDERGROUND_Y, leftWall: 100, rightWall: WORLD_W - 100 },
     hkitX: [450, 1080, 1400, 2060, 2270, 2650, 3150, 3350],
@@ -300,7 +311,7 @@ const WORLDS = {
     underPlatforms: [
       { x: 650, w: 180, y: UNDERGROUND_Y - 84 },
       { x: 1700, w: 180, y: UNDERGROUND_Y - 84 },
-      { x: 2600, w: 190, y: UNDERGROUND_Y - 150 },
+      { x: 2600, w: 190, y: UNDERGROUND_Y - 220 },
     ],
     // House placed in the clear 1290–1710 gap (IMPROVEMENT_TODO #2)
     houseX: 1360,
@@ -339,11 +350,11 @@ const WORLDS = {
       { x: 3150, topY: GY, botY: UNDERGROUND_Y },
     ],
     pits: [
-      { x: 610, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
-      { x: 1260, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
-      { x: 2050, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
-      { x: 2690, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
-      { x: 3140, w: 26, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 610, w: 40, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 1260, w: 40, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 2050, w: 40, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 2690, w: 40, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
+      { x: 3140, w: 40, topY: GY, botY: UNDERGROUND_Y, kind: "shaft" },
     ],
     tunnel: { y: UNDERGROUND_Y, leftWall: 140, rightWall: WORLD_W - 140 },
     hkitX: [450, 1080, 1400, 2060, 2270, 2650, 3150, 3350],
@@ -363,7 +374,7 @@ const WORLDS = {
     underPlatforms: [
       { x: 720, w: 190, y: UNDERGROUND_Y - 84 },
       { x: 1650, w: 180, y: UNDERGROUND_Y - 84 },
-      { x: 2550, w: 200, y: UNDERGROUND_Y - 150 },
+      { x: 2550, w: 200, y: UNDERGROUND_Y - 220 },
     ],
     // House placed in the clear 1380–1710 gap (IMPROVEMENT_TODO #2)
     houseX: 1400,
@@ -4021,6 +4032,24 @@ export default function GameCanvas({
       ctx.moveTo(pitX + pitW / 2, GY);
       ctx.lineTo(pitX + pitW / 2 + 2, GY);
       ctx.stroke();
+      // Street sign over the opening: a dark plate with a yellow chevron, so
+      // the way down to the lower level is obvious from the surface.
+      ctx.fillStyle = "rgba(10,12,8,0.92)";
+      roundRectPath(ctx, pitX - 26, GY - 30, 52, 16, 4);
+      ctx.fill();
+      ctx.strokeStyle = "#c9a227";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = "#e6d189";
+      ctx.beginPath();
+      ctx.moveTo(pitX - 8, GY - 25);
+      ctx.lineTo(pitX, GY - 17);
+      ctx.lineTo(pitX + 8, GY - 25);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#f3e6b0";
+      ctx.fillRect(pitX - 7, GY - 27, 14, 2.5);
+
       // Kind label (subtle)
       if (pit.kind === "sewer") {
         ctx.fillStyle = "rgba(80,120,60,0.3)";
@@ -6112,13 +6141,16 @@ export default function GameCanvas({
     requestImmersiveMode,
   ]);
 
+  // Each control can carry its own size on top of the global scale.
+  const controlScale = (id) => getTouchControlScale(touchLayout, id);
+
   const touchControlStyle = (id) => {
     const position = touchLayout.positions[id] || { x: 0, y: 0 };
     const controlPosition = getTouchControlPosition(id, position);
     return {
       left: `${controlPosition.x * 100}%`,
       top: `${controlPosition.y * 100}%`,
-      "--touch-control-scale": String(touchLayout.scale),
+      "--touch-control-scale": String(controlScale(id)),
     };
   };
 
@@ -6164,11 +6196,13 @@ export default function GameCanvas({
                 className={`touch-stick touch-stick--move ${moveStick.active ? "is-active" : ""}`}
                 style={touchControlStyle("move")}
               >
-                <span className="touch-stick__label">Move</span>
+                <span className="touch-stick__label">
+                  <Move size={13} strokeWidth={3} />
+                </span>
                 <span
                   className="touch-stick__thumb"
                   style={{
-                    transform: `translate(${moveStick.x / touchLayout.scale}px, ${moveStick.y / touchLayout.scale}px)`,
+                    transform: `translate(${moveStick.x / controlScale("move")}px, ${moveStick.y / controlScale("move")}px)`,
                   }}
                 />
               </button>
@@ -6176,26 +6210,29 @@ export default function GameCanvas({
                 <button
                   type="button"
                   data-control-id="jump"
+                  aria-label="Jump"
                   className={`touch-button touch-button--wide ${pressedControls.jump ? "is-active" : ""}`}
                   style={touchControlStyle("jump")}
                 >
-                  Jump
+                  <ArrowUp size={22} strokeWidth={3} />
                 </button>
                 <button
                   type="button"
                   data-control-id="down"
+                  aria-label="Drop down or climb down"
                   className={`touch-button touch-button--wide ${pressedControls.down ? "is-active" : ""}`}
                   style={touchControlStyle("down")}
                 >
-                  Down
+                  <ArrowDown size={22} strokeWidth={3} />
                 </button>
                 <button
                   type="button"
                   data-control-id="swap"
+                  aria-label="Swap weapon"
                   className={`touch-button touch-button--wide ${pressedControls.swap ? "is-active" : ""}`}
                   style={touchControlStyle("swap")}
                 >
-                  Swap
+                  <ArrowLeftRight size={20} strokeWidth={3} />
                 </button>
               </div>
             </div>
@@ -6205,18 +6242,20 @@ export default function GameCanvas({
                 <button
                   type="button"
                   data-control-id="reload"
+                  aria-label="Reload"
                   className={`touch-button touch-button--wide ${pressedControls.reload ? "is-active" : ""}`}
                   style={touchControlStyle("reload")}
                 >
-                  Reload
+                  <RotateCw size={20} strokeWidth={3} />
                 </button>
                 <button
                   type="button"
                   data-control-id="grenade"
+                  aria-label="Throw grenade"
                   className={`touch-button touch-button--wide ${pressedControls.grenade ? "is-active" : ""}`}
                   style={touchControlStyle("grenade")}
                 >
-                  Grenade
+                  <Bomb size={20} strokeWidth={3} />
                 </button>
               </div>
               <button
@@ -6226,21 +6265,24 @@ export default function GameCanvas({
                 className={`touch-stick touch-stick--aim ${aimStick.active ? "is-active" : ""}`}
                 style={touchControlStyle("aim")}
               >
-                <span className="touch-stick__label">Aim / Fire</span>
+                <span className="touch-stick__label">
+                  <Crosshair size={13} strokeWidth={3} />
+                </span>
                 <span
                   className="touch-stick__thumb"
                   style={{
-                    transform: `translate(${aimStick.x / touchLayout.scale}px, ${aimStick.y / touchLayout.scale}px)`,
+                    transform: `translate(${aimStick.x / controlScale("aim")}px, ${aimStick.y / controlScale("aim")}px)`,
                   }}
                 />
               </button>
               <button
                 type="button"
                 data-control-id="use"
+                aria-label="Use"
                 className={`touch-button touch-button--wide ${pressedControls.use ? "is-active" : ""}`}
                 style={touchControlStyle("use")}
               >
-                Use
+                <Hand size={20} strokeWidth={3} />
               </button>
             </div>
           </div>

@@ -1,9 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  ArrowDown,
+  ArrowLeftRight,
+  ArrowUp,
+  Bomb,
+  Crosshair,
+  Hand,
+  Move,
+  RotateCw,
+} from "lucide-react";
+import {
   DEFAULT_TOUCH_LAYOUT,
+  MAX_TOUCH_SIZE,
+  MIN_TOUCH_SIZE,
   TOUCH_CONTROL_ANCHORS,
   TOUCH_CONTROL_IDS,
   clampTouchOffset,
+  clampTouchSize,
   getTouchControlPosition,
   loadTouchLayout,
   saveTouchLayout,
@@ -20,15 +33,31 @@ const CONTROL_LABELS = {
   use: "USE",
 };
 
+// Same glyphs the match uses, so the editor and the pad look identical.
+const CONTROL_ICONS = {
+  move: Move,
+  jump: ArrowUp,
+  down: ArrowDown,
+  swap: ArrowLeftRight,
+  reload: RotateCw,
+  grenade: Bomb,
+  aim: Crosshair,
+  use: Hand,
+};
+
 /**
  * Touch controller editor.
  *
  * The preview deliberately reuses the real in-match widget classes
  * (touch-stick / touch-button) at the real anchors and scale, so what you drag
  * here is exactly what you get when the match starts.
+ *
+ * Tapping a control selects it; the selected control gets its own size slider
+ * on top of the global pad size.
  */
 export default function ControllerSettingsModal({ onClose }) {
   const [layout, setLayout] = useState(loadTouchLayout);
+  const [selected, setSelected] = useState("jump");
   // The arena is 960x540. Widgets keep their in-game pixel size, so the whole
   // pad is scaled by the ratio between the preview and a real match screen.
   const [stageScale, setStageScale] = useState(0.6);
@@ -52,12 +81,20 @@ export default function ControllerSettingsModal({ onClose }) {
     return () => observer.disconnect();
   }, []);
 
+  const sizeOf = (id) => layout.sizes?.[id] ?? 1;
+  const setSize = (id, value) =>
+    setLayout((current) => ({
+      ...current,
+      sizes: { ...current.sizes, [id]: clampTouchSize(value) },
+    }));
+
   const startDrag = (event) => {
     const target = event.target.closest("[data-control-id]");
     if (!target || !event.currentTarget.contains(target)) return;
     event.preventDefault();
     event.stopPropagation();
     const id = target.dataset.controlId;
+    setSelected(id); // tapping a control selects it for resizing
     dragRef.current = {
       id,
       pointerId: event.pointerId,
@@ -110,6 +147,8 @@ export default function ControllerSettingsModal({ onClose }) {
     dragRef.current = null;
   };
 
+  const selectedSize = sizeOf(selected);
+
   return (
     <div
       className="controller-settings-backdrop"
@@ -139,9 +178,9 @@ export default function ControllerSettingsModal({ onClose }) {
         </div>
 
         <p className="controller-settings-help">
-          This is the live match screen. Drag any control to move it, and use the
-          size slider to scale the whole pad — the preview uses the same
-          positions and sizes the match will use.
+          This is the live match screen. Drag any control to move it, tap one to
+          select it, then use its size slider to resize that button on its own.
+          The preview uses the same positions and sizes the match will use.
         </p>
 
         <div
@@ -173,15 +212,16 @@ export default function ControllerSettingsModal({ onClose }) {
           </div>
 
           {TOUCH_CONTROL_IDS.map((id) => {
-            const anchor = TOUCH_CONTROL_ANCHORS[id];
             const position = layout.positions[id] || { x: 0, y: 0 };
             const controlPosition = getTouchControlPosition(id, position);
             const isStick = id === "move" || id === "aim";
+            const Icon = CONTROL_ICONS[id];
             const className = [
               isStick ? "touch-stick" : "touch-button touch-button--wide",
               id === "move" ? "touch-stick--move" : "",
               id === "aim" ? "touch-stick--aim" : "",
               "controller-settings-ghost",
+              id === selected ? "is-selected" : "",
             ]
               .filter(Boolean)
               .join(" ");
@@ -190,32 +230,56 @@ export default function ControllerSettingsModal({ onClose }) {
                 key={id}
                 type="button"
                 data-control-id={id}
-                aria-label={`${CONTROL_LABELS[id]} control — drag to reposition`}
+                aria-label={`${CONTROL_LABELS[id]} control — drag to reposition${id === selected ? " (selected)" : ""}`}
                 className={className}
                 style={{
                   left: `${controlPosition.x * 100}%`,
                   top: `${controlPosition.y * 100}%`,
-                  "--touch-control-scale": String(layout.scale * stageScale),
+                  "--touch-control-scale": String(
+                    layout.scale * sizeOf(id) * stageScale,
+                  ),
                 }}
               >
                 {isStick ? (
                   <>
                     <span className="touch-stick__label">
-                      {CONTROL_LABELS[id]}
+                      <Icon size={13} strokeWidth={3} />
                     </span>
                     <span className="touch-stick__thumb" />
                   </>
                 ) : (
-                  CONTROL_LABELS[id]
+                  <Icon size={20} strokeWidth={3} />
                 )}
               </button>
             );
           })}
         </div>
 
+        <div className="controller-settings-size-row">
+          <label className="controller-settings-size">
+            <span>{CONTROL_LABELS[selected]} size</span>
+            <input
+              type="range"
+              min={MIN_TOUCH_SIZE}
+              max={MAX_TOUCH_SIZE}
+              step="0.05"
+              value={selectedSize}
+              onChange={(event) => setSize(selected, Number(event.target.value))}
+            />
+            <span>{Math.round(selectedSize * 100)}%</span>
+          </label>
+          <button
+            type="button"
+            className="controller-settings-button controller-settings-button--small"
+            onClick={() => setSize(selected, 1)}
+          >
+            Reset this control
+          </button>
+        </div>
+
         <div className="controller-settings-actions">
           <label className="controller-settings-size">
-            <span>Control size</span>
+            <span>All controls</span>
             <input
               type="range"
               min="0.65"
