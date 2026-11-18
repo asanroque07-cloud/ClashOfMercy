@@ -875,8 +875,11 @@ function getAnimTransform(p) {
   return { bob, sway, lean, squashX, squashY, speedT, moving, gun: getGunTransform(p) };
 }
 function getLoadoutWeapon(profile, role, mode) {
+  // The loadout modal sets profile.loadout.primary — that gun is what the player
+  // spawns with. Older saves without a loadout fall back to the role table.
   const eqId =
-    mode === "classic" ? profile.equipped.core : profile.equipped[role];
+    profile.loadout?.primary ||
+    (mode === "classic" ? profile.equipped.core : profile.equipped[role]);
   const u = profile.upgrades[eqId] || { damage: 0, fireRate: 0, magazine: 0 };
   return applyUpgrades(weaponById(eqId), u);
 }
@@ -1300,7 +1303,8 @@ export default function GameCanvas({
     // Resolve the per-map house position so it never overlaps structures.
     resolveHouse(WORLD);
     const myW = getLoadoutWeapon(profile, role, mode);
-    const hasKnife = profile.ownedWeapons.includes("knife");
+    // Slot 2 is whatever melee weapon the loadout has equipped.
+    const meleeWeaponId = profile.loadout?.secondary || "knife";
     const hasGrenade = profile.ownedWeapons.includes("grenade");
     const availHouseWeapons = getAvailableGuns(profile, mode);
     const aiNames = ["Ghost", "Viper", "Thorn", "Rook", "Ares", "Blaze"];
@@ -1340,7 +1344,7 @@ export default function GameCanvas({
         slot: 0,
         primaryWeaponId: wid,
         ownPrimaryId: wid,
-        hasKnife: isAI || hasKnife,
+        meleeWeaponId,
         grenadeCount: isAI ? 2 : hasGrenade ? 3 : 0,
         lootWeaponId: null,
         reloadTimer: 0,
@@ -1649,7 +1653,7 @@ export default function GameCanvas({
 
   function cycleWeaponSlot(p) {
     const available = [0];
-    if (p.hasKnife) available.push(1);
+    if (p.meleeWeaponId) available.push(1);
     if (p.grenadeCount > 0) available.push(2);
     const currentIndex = Math.max(0, available.indexOf(p.slot));
     const next = available[(currentIndex + 1) % available.length];
@@ -1747,8 +1751,8 @@ export default function GameCanvas({
     // Can't fire while swapping weapons — the gun is mid-change.
     if (p.weaponSwapTimer > 0) return;
     const now = performance.now();
-    if (p.slot === 1 && p.hasKnife) {
-      const md = weaponById("knife");
+    if (p.slot === 1 && p.meleeWeaponId) {
+      const md = weaponById(p.meleeWeaponId);
       if (now - p.lastFire < 1000 / (md?.fireRate ?? 1.8)) return;
       p.lastFire = now;
       // Knife swing particles
@@ -1812,14 +1816,14 @@ export default function GameCanvas({
       laser: false,
       scope: false,
     };
+    // Attachments are configured per gun in the loadout modal, so a gun carries
+    // exactly the attachments picked for it.
     let spread = w.spread;
-    if (wa.laser && prof.attachments.laser)
-      spread = Math.max(0.001, spread - 0.04);
-    if (wa.scope && prof.attachments.scope)
-      spread = Math.max(0.001, spread - 0.02);
+    if (wa.laser) spread = Math.max(0.001, spread - 0.04);
+    if (wa.scope) spread = Math.max(0.001, spread - 0.02);
     // Recoil adds spread
     spread += p.recoil * 0.03;
-    const range = w.range + (wa.scope && prof.attachments.scope ? 300 : 0);
+    const range = w.range + (wa.scope ? 300 : 0);
     const pellets = w.id === "shotgun" ? 6 : 1;
     for (let i = 0; i < pellets; i++) {
       const angle = p.aimAngle + (Math.random() - 0.5) * spread * 2;
@@ -2540,7 +2544,7 @@ export default function GameCanvas({
           throwGrenade(player, s);
         const requestedSlot = keys.has("1")
           ? 0
-          : keys.has("2") && player.hasKnife
+          : keys.has("2") && player.meleeWeaponId
             ? 1
             : keys.has("3") && player.grenadeCount > 0
               ? 2
@@ -3652,7 +3656,7 @@ export default function GameCanvas({
           laser: false,
           scope: false,
         };
-        if (wa.laser && prof.attachments.laser && p.id === "me") {
+        if (wa.laser && p.id === "me") {
           ctx.strokeStyle = "rgba(255,0,0,0.6)";
           ctx.lineWidth = 0.5;
           ctx.beginPath();
@@ -5617,7 +5621,7 @@ export default function GameCanvas({
       const me = s.players.find((p) => p.id === "me");
       if (!me || !me.alive) return;
       if (e.key === "1" && me.slot !== 0) { me.slot = 0; triggerWeaponSwap(me); }
-      if (e.key === "2" && me.hasKnife && me.slot !== 1) { me.slot = 1; triggerWeaponSwap(me); }
+      if (e.key === "2" && me.meleeWeaponId && me.slot !== 1) { me.slot = 1; triggerWeaponSwap(me); }
       if (e.key === "3" && me.grenadeCount > 0 && me.slot !== 2) { me.slot = 2; triggerWeaponSwap(me); }
       if (e.key.toLowerCase() === "e") performInteract(me, s);
       if (e.key.toLowerCase() === "q" && me.inHouse)
