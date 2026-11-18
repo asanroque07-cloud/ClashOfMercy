@@ -36,6 +36,7 @@ import {
   saveProfile,
 } from "@/lib/storage";
 import { supabase } from "@/lib/supabaseClient";
+import { HEROES } from "@/lib/gameTypes";
 
 const MUSIC_SETTING_KEY = "opwar_music_enabled";
 const SOUND_SETTING_KEY = "opwar_sound_enabled";
@@ -642,6 +643,39 @@ export default function App() {
     });
   };
 
+  // Heroes are bought with in-match coins and then equipped in the loadout.
+  const handleBuyHero = (heroId) => {
+    const hero = HEROES.find((h) => h.id === heroId);
+    if (!hero) return;
+    setGameProfile((prev) => {
+      if (!prev) return prev;
+      if ((prev.ownedHeroes || []).includes(heroId)) return prev;
+      if ((prev.coins ?? 0) < hero.cost) {
+        pushAlert({ message: "Not enough coins for that hero.", type: "error" });
+        return prev;
+      }
+      const next = {
+        ...prev,
+        coins: prev.coins - hero.cost,
+        ownedHeroes: [...(prev.ownedHeroes || []), heroId],
+        hero: heroId,
+      };
+      saveProfile(next);
+      pushAlert({ message: `${hero.name} recruited! ⚡`, type: "success" });
+      return next;
+    });
+  };
+
+  const handleSelectHero = (heroId) => {
+    setGameProfile((prev) => {
+      if (!prev) return prev;
+      if (!(prev.ownedHeroes || []).includes(heroId)) return prev;
+      const next = { ...prev, hero: heroId };
+      saveProfile(next);
+      return next;
+    });
+  };
+
   // Attachments are stored per gun, so configuring one gun never changes another.
   const handleToggleWeaponAttachment = (weaponId, attachmentId) => {
     setGameProfile((prev) => {
@@ -1101,6 +1135,8 @@ export default function App() {
                 }
                 onSelectLoadoutWeapon={handleSelectLoadoutWeapon}
                 onToggleWeaponAttachment={handleToggleWeaponAttachment}
+                onBuyHero={handleBuyHero}
+                onSelectHero={handleSelectHero}
                 onBuyItem={handleBuyItem}
                 onBuyEmote={handleBuyEmote}
                 onSelectEmote={handleSelectEmote}

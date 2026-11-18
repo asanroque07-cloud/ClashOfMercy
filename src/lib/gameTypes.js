@@ -323,6 +323,68 @@ export function applyUpgrades(w, u) {
   };
 }
 
+// HEROES are the playable operators. Each one is bought once and then equipped
+// in the loadout; the id is what GameCanvas uses to pick the ability.
+export const HEROES = [
+  {
+    id: "jack",
+    name: "Jack",
+    subtitle: "Man × Cyborg",
+    cost: 0,
+    ability: "Rocket",
+    abilityKey: "v",
+    cooldownMs: 6000,
+    abilityDescription:
+      "Fires a shoulder rocket that explodes on impact. Free starter hero.",
+  },
+  {
+    id: "lorg",
+    name: "Lorg",
+    subtitle: "Man",
+    cost: 1500,
+    ability: "Air Dive",
+    abilityKey: "v",
+    cooldownMs: 9000,
+    abilityDescription:
+      "Jets up and hovers, firing from the air for a few seconds.",
+  },
+  {
+    id: "nijel",
+    name: "Nijel",
+    subtitle: "Woman",
+    cost: 2000,
+    ability: "Field Heal",
+    abilityKey: "v",
+    cooldownMs: 9000,
+    abilityDescription: "Heals every teammate still standing.",
+  },
+  {
+    id: "trojan",
+    name: "Trojan",
+    subtitle: "Man",
+    cost: 2500,
+    ability: "Cloak",
+    abilityKey: "v",
+    cooldownMs: 15000,
+    abilityDescription:
+      "Turns invisible for 10 seconds — enemies lose your position.",
+  },
+  {
+    id: "minel",
+    name: "Minel",
+    subtitle: "Woman",
+    cost: 3000,
+    ability: "Blink",
+    abilityKey: "v",
+    cooldownMs: 7000,
+    abilityDescription:
+      "Teleports on command, in whichever direction you are aiming.",
+  },
+];
+
+// this is for looking up a hero by id; falls back to the free starter hero
+export const heroById = (id) => HEROES.find((h) => h.id === id) ?? HEROES[0];
+
 // DEFAULT_PROFILE is the starting save given to a brand-new player (before any
 // saved data exists in localStorage): starting coins, the two free weapons,
 // empty upgrades, and an empty match history.
@@ -337,6 +399,9 @@ export const DEFAULT_PROFILE = {
   //   primary   -> slot 1, any gun
   //   secondary -> slot 2, a melee weapon (knife / axe / boxing gloves)
   loadout: { primary: "ar15", secondary: "knife" },
+  // heroes: the starter hero is free, the rest are bought in the loadout
+  hero: "jack",
+  ownedHeroes: ["jack"],
   activeEmote: "",
   upgrades: {},
   attachments: { laser: false, scope: false },

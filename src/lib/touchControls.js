@@ -8,6 +8,7 @@ export const TOUCH_CONTROL_IDS = [
   "grenade",
   "aim",
   "use",
+  "skill",
 ];
 export const TOUCH_CONTROL_ANCHORS = {
   move: { x: 0.07, y: 0.86 },
@@ -18,6 +19,7 @@ export const TOUCH_CONTROL_ANCHORS = {
   grenade: { x: 0.78, y: 0.9 },
   aim: { x: 0.87, y: 0.86 },
   use: { x: 0.94, y: 0.86 },
+  skill: { x: 0.7, y: 0.72 },
 };
 export const DEFAULT_TOUCH_LAYOUT = { scale: 1, positions: {}, sizes: {} };
 

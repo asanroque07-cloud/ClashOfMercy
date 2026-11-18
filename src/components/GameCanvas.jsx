@@ -7,6 +7,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import {
   mapById,
   weaponById,
+  heroById,
   WEAPONS,
   applyUpgrades,
   EMOTES,
@@ -17,6 +18,7 @@ import {
   drawWeaponSprite,
   operatorStateFor,
   weaponClassFor,
+  OPERATOR_HEIGHT,
 } from "../game/operatorArt";
 import {
   getTouchControlPosition,
@@ -33,6 +35,7 @@ import {
   Hand,
   Move,
   Crosshair,
+  Zap,
 } from "lucide-react";
 import SwapIcon from "./SwapIcon";
 
@@ -64,7 +67,9 @@ function resolveHouse(mapDef) {
   HOUSE = { x, y: GY - 180, w, h: 180 };
   DOOR = { x: x + Math.round(w / 2) - 30, w: 60 };
 }
-const PLAYER_SPRITE_HEIGHT = 58;
+// Character box height. The operator art is authored 56px tall, so this is also
+// the on-screen size of the hero: bigger reads better on a phone.
+const PLAYER_SPRITE_HEIGHT = 72;
 const PLAYER_SPRITE_PATHS = {
   blue: { stand: "/sprites/blue-stand.png", run: "/sprites/blue-run.png" },
   red: { stand: "/sprites/red-stand.png", run: "/sprites/red-run.png" },
@@ -898,6 +903,7 @@ function findBestTarget(me, s) {
         p.team !== me.team &&
         p.alive &&
         !p.inBush &&
+        !p.cloakTimer &&
         !isOccluded(me.x, p.x, me.underground) &&
         // can't see a target on a different layer (surface vs underground)
         me.underground === p.underground,
@@ -1306,6 +1312,8 @@ export default function GameCanvas({
     // Slot 2 is whatever melee weapon the loadout has equipped.
     const meleeWeaponId = profile.loadout?.secondary || "knife";
     const hasGrenade = profile.ownedWeapons.includes("grenade");
+    // The equipped hero is what gives the player their skill (see useAbility).
+    const myHero = heroById(profile.hero);
     const availHouseWeapons = getAvailableGuns(profile, mode);
     const aiNames = ["Ghost", "Viper", "Thorn", "Rook", "Ares", "Blaze"];
 
@@ -1345,6 +1353,10 @@ export default function GameCanvas({
         primaryWeaponId: wid,
         ownPrimaryId: wid,
         meleeWeaponId,
+        heroId: isAI ? null : myHero.id,
+        heroAbilityCd: 0,
+        cloakTimer: 0,
+        flyTimer: 0,
         grenadeCount: isAI ? 2 : hasGrenade ? 3 : 0,
         lootWeaponId: null,
         reloadTimer: 0,
@@ -1744,6 +1756,104 @@ export default function GameCanvas({
     });
   }
 
+  // ──── Hero abilities ────
+  // One skill per hero, on its own cooldown. V / the SKILL pad button fires it.
+  function useAbility(p, s) {
+    if (!p.alive || !p.heroId || p.inHouse) return;
+    if (p.heroAbilityCd > 0) return;
+    const hero = heroById(p.heroId);
+    if (!hero) return;
+
+    if (p.heroId === "jack") {
+      // Jack (man × cyborg): shoulder rocket down the aim line.
+      _bid++;
+      const rx = p.x + Math.cos(p.aimAngle) * 18;
+      const ry = p.y - PH / 2 - 4 + Math.sin(p.aimAngle) * 18;
+      s.bullets.push({
+        x: rx,
+        y: ry,
+        vx: Math.cos(p.aimAngle) * 17,
+        vy: Math.sin(p.aimAngle) * 17,
+        damage: 80,
+        range: 1100,
+        dist: 0,
+        team: p.team,
+        id: _bid,
+        ownerId: p.id,
+        isGrenade: true,
+        explodeTimer: 140,
+        underground: !!p.underground,
+        isRocket: true,
+      });
+      spawnParticles(s.particles, rx, ry, {
+        count: 10,
+        speed: 2.4,
+        spread: 1.1,
+        angle: p.aimAngle + Math.PI,
+        life: 24,
+        size: 3,
+        color: "#f59e0b",
+        gravity: -0.02,
+        shrink: true,
+      });
+      addShake(3);
+    } else if (p.heroId === "lorg") {
+      // Lorg (man): jet dive — hover and shoot from the air.
+      p.flyTimer = 210;
+      p.vy = -8;
+      p.onGround = false;
+      spawnParticles(s.particles, p.x, p.y, {
+        count: 12,
+        speed: 3,
+        spread: 1.4,
+        angle: Math.PI / 2,
+        life: 22,
+        size: 3,
+        color: "#7dd3fc",
+        gravity: 0,
+        shrink: true,
+      });
+    } else if (p.heroId === "nijel") {
+      // Nijel (woman): heal the whole squad.
+      for (const t of s.players) {
+        if (t.team !== p.team || !t.alive) continue;
+        t.hp = Math.min(t.maxHp, t.hp + 45);
+        spawnParticles(s.particles, t.x, t.y - PH / 2, {
+          count: 8,
+          speed: 1.6,
+          spread: Math.PI * 2,
+          life: 30,
+          size: 3,
+          color: "#4ade80",
+          gravity: -0.05,
+          shrink: true,
+        });
+      }
+    } else if (p.heroId === "trojan") {
+      // Trojan (man): invisible for 10 seconds.
+      p.cloakTimer = 600;
+    } else if (p.heroId === "minel") {
+      // Minel (woman): teleport where she is aiming, on demand.
+      const dir = Math.cos(p.aimAngle) >= 0 ? 1 : -1;
+      const fromX = p.x;
+      p.x = Math.max(30, Math.min(WORLD_W - 30, p.x + dir * 200));
+      p.vx = 0;
+      for (const bx of [fromX, p.x]) {
+        spawnParticles(s.particles, bx, p.y - PH / 2, {
+          count: 10,
+          speed: 2,
+          spread: Math.PI * 2,
+          life: 22,
+          size: 2.5,
+          color: "#c084fc",
+          gravity: 0,
+          shrink: true,
+        });
+      }
+    }
+    p.heroAbilityCd = hero.cooldownMs;
+  }
+
   function fire(p, s) {
     // Can't fire while climbing a ladder — both hands are on the rungs
     // (IMPROVEMENT_TODO #3). Throwing grenades is blocked in throwGrenade().
@@ -2098,7 +2208,7 @@ export default function GameCanvas({
   // Improved AI: uses cover, retreats when low, strafes, jumps more tactically
   function updateAI(p, s) {
     const enemies = s.players.filter(
-      (x) => x.team !== p.team && x.alive && !x.inBush,
+      (x) => x.team !== p.team && x.alive && !x.inBush && !x.cloakTimer,
     );
     if (enemies.length === 0) {
       p.vx = 0;
@@ -2597,7 +2707,15 @@ export default function GameCanvas({
         continue;
       }
       if (p.isAI) updateAI(p, s);
-      p.vy += GRAV * dtScale;
+      // Hero timers: ability cooldown, Trojan's cloak, Lorg's jets.
+      if (p.heroAbilityCd > 0)
+        p.heroAbilityCd = Math.max(0, p.heroAbilityCd - dtScale * (1000 / 60));
+      if (p.cloakTimer > 0) p.cloakTimer = Math.max(0, p.cloakTimer - dtScale);
+      if (p.flyTimer > 0) p.flyTimer = Math.max(0, p.flyTimer - dtScale);
+      if (p.flyTimer > 0) {
+        // Hovering: gravity off, slow descent.
+        p.vy = Math.min(p.vy * 0.85, 0.6);
+      } else p.vy += GRAV * dtScale;
 
       // Health regen
       if (p.lastDamageTime > 0 && performance.now() - p.lastDamageTime > HEALTH_REGEN_DELAY && p.hp < p.maxHp) {
@@ -3512,6 +3630,12 @@ export default function GameCanvas({
       // Now the local origin is at the feet; draw the sprite so its bottom is
       // at the origin and centered horizontally. Account for facing flip.
       if (p.facing < 0) ctx.scale(-1, 1);
+      // Scale the authored 56px art up to the current character box so heroes
+      // read clearly on a phone screen.
+      const artScale = spriteH / OPERATOR_HEIGHT;
+      ctx.scale(artScale, artScale);
+      // Trojans blink out of sight for a few seconds.
+      if (p.cloakTimer > 0) ctx.globalAlpha *= 0.3;
       // Layered pixel-art operator: legs, armour, helmet and arms are drawn
       // separately so each animation state has its own real pose.
       const activeWeapon = weaponById(p.primaryWeaponId);
@@ -5633,6 +5757,7 @@ export default function GameCanvas({
           (s.houseWeaponIndex + 1) % s.availHouseWeapons.length;
       if (e.key.toLowerCase() === "g" && me.grenadeCount > 0 && !me.inHouse)
         throwGrenade(me, s);
+      if (e.key.toLowerCase() === "v" && !me.inHouse) useAbility(me, s);
       if (e.key.toLowerCase() === "r" && me.slot === 0 && !me.inHouse)
         startReload(me);
     };
@@ -6096,6 +6221,7 @@ export default function GameCanvas({
           throwGrenade(me, s);
         if (action === "interact") performInteract(me, s);
         if (action === "swap") cycleWeaponSlot(me);
+        if (action === "skill") useAbility(me, s);
       });
     },
     [ensureAudioUnlocked, requestImmersiveMode, runPlayerAction, flashControl],
@@ -6124,6 +6250,7 @@ export default function GameCanvas({
       "reload",
       "grenade",
       "use",
+      "skill",
     ];
     const HIT_SLOP = 14; // extra grace around each widget for thumb accuracy
     const held = new Map(); // pointerId -> { id, rect }
@@ -6167,6 +6294,7 @@ export default function GameCanvas({
       else if (id === "reload") tapAction("reload");
       else if (id === "grenade") tapAction("grenade");
       else if (id === "use") tapAction("interact");
+      else if (id === "skill") tapAction("skill");
     };
 
     const release = (id) => {
@@ -6371,6 +6499,15 @@ export default function GameCanvas({
                   style={touchControlStyle("grenade")}
                 >
                   <Bomb size={20} strokeWidth={3} />
+                </button>
+                <button
+                  type="button"
+                  data-control-id="skill"
+                  aria-label="Hero skill"
+                  className={`touch-button touch-button--wide ${pressedControls.skill ? "is-active" : ""}`}
+                  style={touchControlStyle("skill")}
+                >
+                  <Zap size={20} strokeWidth={3} />
                 </button>
               </div>
               <button
