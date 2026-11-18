@@ -95,6 +95,7 @@ export function LoadoutModal({
   onSelectEmote,
   onBuyHero,
   onSelectHero,
+  coins,
 }) {
   const [tab, setTab] = useState("weapons");
   // When set, the weapons tab shows that gun's attachment configuration.
@@ -408,14 +409,14 @@ export function LoadoutModal({
               </div>
               <div className="flex items-center gap-1 font-mono text-xs font-bold text-yellow-400">
                 <Coins size={13} className="text-yellow-500" />
-                {(gameProfile.coins ?? 0).toLocaleString()}
+                {(coins ?? 0).toLocaleString()}
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {HEROES.map((hero) => {
                 const owned = ownedHeroes.includes(hero.id);
                 const equipped = activeHeroId === hero.id;
-                const affordable = (gameProfile.coins ?? 0) >= hero.cost;
+                const affordable = (coins ?? 0) >= hero.cost;
                 return (
                   <div
                     key={hero.id}
@@ -569,6 +570,7 @@ const STORE_TABS = [
   { id: "attachment", label: "ATTACHMENTS", icon: <Paperclip size={13} /> },
   { id: "emote", label: "EMOTES", icon: <Laugh size={13} /> },
   { id: "cosmetic", label: "COSMETICS", icon: <Sparkles size={13} /> },
+  { id: "hero", label: "HEROES", icon: <Star size={13} /> },
 ];
 
 // this is for deciding which store tab a weapon belongs under (used to filter the weapon grid)
@@ -600,6 +602,10 @@ export function StoreModal({
   ownedEmoteIds,
   onBuyItem,
   onBuyEmote,
+  ownedHeroes = ["jack"],
+  activeHeroId = "jack",
+  onBuyHero,
+  onSelectHero,
 }) {
   const [tab, setTab] = useState("all");
 
@@ -613,6 +619,7 @@ export function StoreModal({
   const filteredCosmetics =
     tab === "all" || tab === "cosmetic" ? storeItems : [];
   const filteredEmotes = tab === "all" || tab === "emote" ? LOBBY_EMOTES : [];
+  const filteredHeroes = tab === "all" || tab === "hero" ? HEROES : [];
 
   const renderCurrencyBadge = (cost, type) =>
     type === "coins" ? (
@@ -878,8 +885,86 @@ export function StoreModal({
             </div>
           )}
 
+          {filteredHeroes.length > 0 && (
+            <div>
+              <h3 className="text-xs font-mono font-black tracking-widest text-cyan-300 mb-3 flex items-center gap-2">
+                <span className="inline-block w-6 h-px bg-cyan-400" />
+                HERO ROSTER
+                <span className="text-stone-600">({filteredHeroes.length})</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filteredHeroes.map((hero) => {
+                  const owned = ownedHeroes.includes(hero.id);
+                  const equipped = activeHeroId === hero.id;
+                  const affordable = coins >= hero.cost;
+                  return (
+                    <div
+                      key={hero.id}
+                      className={`p-4 border rounded flex flex-col justify-between transition-all ${owned ? "border-cyan-500/40 bg-cyan-950/10" : "border-military/60 bg-stone-900/40 hover:bg-stone-900/70"}`}
+                    >
+                      <div>
+                        <div className="flex justify-between items-start mb-1 gap-2">
+                          <div>
+                            <h4 className="font-display font-bold text-white text-sm leading-tight">
+                              {hero.name}
+                            </h4>
+                            <div className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">
+                              {hero.subtitle}
+                            </div>
+                          </div>
+                          <span className="text-[9px] bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 px-1.5 py-0.5 rounded font-mono uppercase whitespace-nowrap flex-shrink-0">
+                            {hero.ability}
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-400 font-sans mb-2">
+                          {hero.abilityDescription}
+                        </p>
+                        <div className="font-mono text-[9px] text-stone-500 mb-2">
+                          SKILL COOLDOWN {(hero.cooldownMs / 1000).toFixed(0)}S ·
+                          FIRED WITH V / SKILL
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-military/20">
+                        {owned ? (
+                          <span className="text-xs text-emerald-500 font-mono font-bold flex items-center gap-1.5">
+                            <Check size={14} /> OWNED
+                          </span>
+                        ) : (
+                          renderCurrencyBadge(hero.cost, "coins")
+                        )}
+                        {!owned && (
+                          <button
+                            onClick={() => onBuyHero?.(hero.id)}
+                            disabled={!affordable}
+                            className={`px-3 py-1.5 rounded text-xs font-mono font-bold uppercase transition-all ${affordable ? "bg-amber-500 text-stone-950 hover:bg-amber-400 cursor-pointer" : "bg-stone-800 text-stone-500 border border-stone-700 cursor-not-allowed"}`}
+                          >
+                            {affordable ? "Recruit" : "Need Coins"}
+                          </button>
+                        )}
+                        {owned && !equipped && onSelectHero && (
+                          <button
+                            onClick={() => onSelectHero(hero.id)}
+                            className="px-3 py-1.5 rounded text-xs font-mono font-bold uppercase bg-[#76a035] hover:bg-[#86b53b] text-black cursor-pointer transition-all"
+                          >
+                            Equip
+                          </button>
+                        )}
+                        {owned && equipped && (
+                          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#76a035]">
+                            EQUIPPED
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {filteredWeapons.length === 0 &&
             filteredEmotes.length === 0 &&
+            filteredHeroes.length === 0 &&
             filteredCosmetics.length === 0 && (
               <div className="text-center py-16 text-stone-500 font-mono">
                 <div className="text-4xl mb-3">🎖️</div>

@@ -138,6 +138,7 @@ export default function Home({
         isOpen={loadoutOpen}
         onClose={() => setLoadoutOpen(false)}
         gameProfile={gameProfile}
+        coins={profile.coins}
         ownedEmoteIds={ownedEmoteIds}
         onSelectLoadoutWeapon={onSelectLoadoutWeapon}
         onToggleAttachment={onToggleWeaponAttachment}
@@ -156,6 +157,10 @@ export default function Home({
         ownedEmoteIds={ownedEmoteIds}
         onBuyItem={onBuyItem}
         onBuyEmote={onBuyEmote}
+        ownedHeroes={gameProfile?.ownedHeroes || ["jack"]}
+        activeHeroId={gameProfile?.hero || "jack"}
+        onBuyHero={onBuyHero}
+        onSelectHero={onSelectHero}
       />
 
       <HistoryModal

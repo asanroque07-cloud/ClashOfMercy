@@ -79,7 +79,7 @@ export function MainMenu({
                 />
               </div>
               <div className="text-[10px] font-mono text-stone-400 leading-none">
-                WEAPONS • ATTACHMENTS • EMOTES
+                HEROES • WEAPONS • EMOTES
               </div>
             </button>
 

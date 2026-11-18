@@ -643,27 +643,31 @@ export default function App() {
     });
   };
 
-  // Heroes are bought with in-match coins and then equipped in the loadout.
+  // Heroes are bought with the coins shown in the lobby/store and then
+  // equipped; ownership itself lives on the match profile.
   const handleBuyHero = (heroId) => {
     const hero = HEROES.find((h) => h.id === heroId);
     if (!hero) return;
+    if ((gameProfile?.ownedHeroes || []).includes(heroId)) return;
+    if ((lobbyProfile?.coins ?? 0) < hero.cost) {
+      pushAlert({ message: "Not enough coins for that hero.", type: "error" });
+      return;
+    }
+    updateLobbyState((s) => ({
+      ...s,
+      lobbyProfile: { ...s.lobbyProfile, coins: s.lobbyProfile.coins - hero.cost },
+    }));
     setGameProfile((prev) => {
       if (!prev) return prev;
-      if ((prev.ownedHeroes || []).includes(heroId)) return prev;
-      if ((prev.coins ?? 0) < hero.cost) {
-        pushAlert({ message: "Not enough coins for that hero.", type: "error" });
-        return prev;
-      }
       const next = {
         ...prev,
-        coins: prev.coins - hero.cost,
         ownedHeroes: [...(prev.ownedHeroes || []), heroId],
         hero: heroId,
       };
       saveProfile(next);
-      pushAlert({ message: `${hero.name} recruited! ⚡`, type: "success" });
       return next;
     });
+    pushAlert({ message: `${hero.name} recruited! ⚡`, type: "success" });
   };
 
   const handleSelectHero = (heroId) => {
