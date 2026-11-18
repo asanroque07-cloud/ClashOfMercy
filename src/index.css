@@ -2846,3 +2846,95 @@ html.mobile-game-ui .home-settings-menu {
   border-color: #d7f0ab;
   box-shadow: 0 0 0 2px rgba(170, 221, 84, 0.6);
 }
+
+/* ── Fullscreen controller editor ──────────────────────────── */
+.controller-settings-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #10150d, #050704 78%);
+}
+
+.controller-settings-preview--full {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  max-height: none;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.controller-settings-topbar {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.controller-settings-topbar > * {
+  pointer-events: auto;
+}
+
+.controller-settings-card {
+  max-width: min(430px, 62vw);
+  padding: 10px 12px;
+  border: 1px solid rgba(118, 160, 53, 0.4);
+  border-radius: 10px;
+  background: rgba(8, 12, 7, 0.92);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.controller-settings-card .controller-settings-help {
+  margin: 6px 0 0;
+}
+
+.controller-settings-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 20px);
+  padding: 8px 10px;
+  border: 1px solid rgba(118, 160, 53, 0.4);
+  border-radius: 10px;
+  background: rgba(8, 12, 7, 0.94);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.controller-settings-toolbar .controller-settings-size {
+  flex: 0 1 210px;
+  min-width: 170px;
+  gap: 8px;
+  grid-template-columns: auto minmax(70px, 1fr) 38px;
+  font-size: 9px;
+}
+
+.controller-settings-toolbar .controller-settings-buttons {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .controller-settings-toolbar .controller-settings-size {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
+
+/* In fullscreen the info card sits where the HUD panel normally does, so the
+   mock HUD is nudged down to stay visible behind it. */
+.controller-settings-fullscreen .controller-settings-hud__panel {
+  top: 108px;
+}

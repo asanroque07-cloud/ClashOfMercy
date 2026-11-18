@@ -46,11 +46,12 @@ const CONTROL_ICONS = {
 };
 
 /**
- * Touch controller editor.
+ * Fullscreen touch controller editor.
  *
- * The preview deliberately reuses the real in-match widget classes
- * (touch-stick / touch-button) at the real anchors and scale, so what you drag
- * here is exactly what you get when the match starts.
+ * It fills the whole screen instead of sitting in a small dialog, so the pad is
+ * arranged in the real play space: the preview reuses the actual in-match
+ * widget classes and is scaled by the ratio between the screen and the 960-wide
+ * arena, so what you drag is exactly what you get in the match.
  *
  * Tapping a control selects it; the selected control gets its own size slider
  * on top of the global pad size.
@@ -58,8 +59,6 @@ const CONTROL_ICONS = {
 export default function ControllerSettingsModal({ onClose }) {
   const [layout, setLayout] = useState(loadTouchLayout);
   const [selected, setSelected] = useState("jump");
-  // The arena is 960x540. Widgets keep their in-game pixel size, so the whole
-  // pad is scaled by the ratio between the preview and a real match screen.
   const [stageScale, setStageScale] = useState(0.6);
   const previewRef = useRef(null);
   const dragRef = useRef(null);
@@ -80,6 +79,15 @@ export default function ControllerSettingsModal({ onClose }) {
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  // Escape closes the editor, like any fullscreen surface.
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   const sizeOf = (id) => layout.sizes?.[id] ?? 1;
   const setSize = (id, value) =>
@@ -150,22 +158,87 @@ export default function ControllerSettingsModal({ onClose }) {
   const selectedSize = sizeOf(selected);
 
   return (
-    <div
-      className="controller-settings-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+    <section
+      className="controller-settings-fullscreen"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="controller-settings-title"
     >
-      <section
-        className="controller-settings-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="controller-settings-title"
+      <div
+        ref={previewRef}
+        className="controller-settings-preview controller-settings-preview--full"
+        onPointerDownCapture={startDrag}
+        onPointerMoveCapture={moveDrag}
+        onPointerUpCapture={finishDrag}
+        onPointerCancelCapture={finishDrag}
       >
-        <div className="controller-settings-header">
-          <div>
+        {/* Static mock of the in-match HUD so the pad is judged in context */}
+        <div className="controller-settings-hud" aria-hidden="true">
+          <div className="controller-settings-hud__panel">
+            <span className="controller-settings-hud__name">CALLSIGN</span>
+            <span className="controller-settings-hud__bar">
+              <i />
+            </span>
+            <span className="controller-settings-hud__meta">AR-15 · 30/30</span>
+          </div>
+          <div className="controller-settings-hud__score">
+            <span>★ 0</span>
+            <b>VS</b>
+            <span>★ 0</span>
+          </div>
+        </div>
+
+        {TOUCH_CONTROL_IDS.map((id) => {
+          const position = layout.positions[id] || { x: 0, y: 0 };
+          const controlPosition = getTouchControlPosition(id, position);
+          const isStick = id === "move" || id === "aim";
+          const Icon = CONTROL_ICONS[id];
+          const className = [
+            isStick ? "touch-stick" : "touch-button touch-button--wide",
+            id === "move" ? "touch-stick--move" : "",
+            id === "aim" ? "touch-stick--aim" : "",
+            "controller-settings-ghost",
+            id === selected ? "is-selected" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+          return (
+            <button
+              key={id}
+              type="button"
+              data-control-id={id}
+              aria-label={`${CONTROL_LABELS[id]} control — drag to reposition${id === selected ? " (selected)" : ""}`}
+              className={className}
+              style={{
+                left: `${controlPosition.x * 100}%`,
+                top: `${controlPosition.y * 100}%`,
+                "--touch-control-scale": String(
+                  layout.scale * sizeOf(id) * stageScale,
+                ),
+              }}
+            >
+              {isStick ? (
+                <>
+                  <span className="touch-stick__label">
+                    <Icon size={13} strokeWidth={3} />
+                  </span>
+                  <span className="touch-stick__thumb" />
+                </>
+              ) : (
+                <Icon size={20} strokeWidth={3} />
+              )}
+            </button>
+          );
+        })}
+
+        <div className="controller-settings-topbar">
+          <div className="controller-settings-card">
             <div className="controller-settings-eyebrow">TOUCH CONTROLLER</div>
             <h2 id="controller-settings-title">Match controller</h2>
+            <p className="controller-settings-help">
+              Drag any control to place it, tap one to select it, then resize it
+              below.
+            </p>
           </div>
           <button
             type="button"
@@ -177,87 +250,9 @@ export default function ControllerSettingsModal({ onClose }) {
           </button>
         </div>
 
-        <p className="controller-settings-help">
-          This is the live match screen. Drag any control to move it, tap one to
-          select it, then use its size slider to resize that button on its own.
-          The preview uses the same positions and sizes the match will use.
-        </p>
-
-        <div
-          ref={previewRef}
-          className="controller-settings-preview"
-          onPointerDownCapture={startDrag}
-          onPointerMoveCapture={moveDrag}
-          onPointerUpCapture={finishDrag}
-          onPointerCancelCapture={finishDrag}
-        >
-          <span className="controller-settings-preview__title">
-            LIVE MATCH LAYOUT
-          </span>
-
-          {/* Static mock of the in-match HUD so the layout is judged in context */}
-          <div className="controller-settings-hud" aria-hidden="true">
-            <div className="controller-settings-hud__panel">
-              <span className="controller-settings-hud__name">CALLSIGN</span>
-              <span className="controller-settings-hud__bar">
-                <i />
-              </span>
-              <span className="controller-settings-hud__meta">AR-15 · 30/30</span>
-            </div>
-            <div className="controller-settings-hud__score">
-              <span>★ 0</span>
-              <b>VS</b>
-              <span>★ 0</span>
-            </div>
-          </div>
-
-          {TOUCH_CONTROL_IDS.map((id) => {
-            const position = layout.positions[id] || { x: 0, y: 0 };
-            const controlPosition = getTouchControlPosition(id, position);
-            const isStick = id === "move" || id === "aim";
-            const Icon = CONTROL_ICONS[id];
-            const className = [
-              isStick ? "touch-stick" : "touch-button touch-button--wide",
-              id === "move" ? "touch-stick--move" : "",
-              id === "aim" ? "touch-stick--aim" : "",
-              "controller-settings-ghost",
-              id === selected ? "is-selected" : "",
-            ]
-              .filter(Boolean)
-              .join(" ");
-            return (
-              <button
-                key={id}
-                type="button"
-                data-control-id={id}
-                aria-label={`${CONTROL_LABELS[id]} control — drag to reposition${id === selected ? " (selected)" : ""}`}
-                className={className}
-                style={{
-                  left: `${controlPosition.x * 100}%`,
-                  top: `${controlPosition.y * 100}%`,
-                  "--touch-control-scale": String(
-                    layout.scale * sizeOf(id) * stageScale,
-                  ),
-                }}
-              >
-                {isStick ? (
-                  <>
-                    <span className="touch-stick__label">
-                      <Icon size={13} strokeWidth={3} />
-                    </span>
-                    <span className="touch-stick__thumb" />
-                  </>
-                ) : (
-                  <Icon size={20} strokeWidth={3} />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="controller-settings-size-row">
+        <div className="controller-settings-toolbar">
           <label className="controller-settings-size">
-            <span>{CONTROL_LABELS[selected]} size</span>
+            <span>{CONTROL_LABELS[selected]}</span>
             <input
               type="range"
               min={MIN_TOUCH_SIZE}
@@ -268,18 +263,8 @@ export default function ControllerSettingsModal({ onClose }) {
             />
             <span>{Math.round(selectedSize * 100)}%</span>
           </label>
-          <button
-            type="button"
-            className="controller-settings-button controller-settings-button--small"
-            onClick={() => setSize(selected, 1)}
-          >
-            Reset this control
-          </button>
-        </div>
-
-        <div className="controller-settings-actions">
-          <label className="controller-settings-size">
-            <span>All controls</span>
+          <label className="controller-settings-size controller-settings-size--all">
+            <span>All</span>
             <input
               type="range"
               min="0.65"
@@ -298,23 +283,30 @@ export default function ControllerSettingsModal({ onClose }) {
           <div className="controller-settings-buttons">
             <button
               type="button"
-              className="controller-settings-button"
+              className="controller-settings-button controller-settings-button--small"
+              onClick={() => setSize(selected, 1)}
+            >
+              Reset control
+            </button>
+            <button
+              type="button"
+              className="controller-settings-button controller-settings-button--small"
               onClick={() =>
                 setLayout({ ...DEFAULT_TOUCH_LAYOUT, positions: {} })
               }
             >
-              Reset layout
+              Reset all
             </button>
             <button
               type="button"
-              className="controller-settings-button controller-settings-button--primary"
+              className="controller-settings-button controller-settings-button--primary controller-settings-button--small"
               onClick={onClose}
             >
               Done
             </button>
           </div>
         </div>
-      </section>
-    </div>
+      </div>
+    </section>
   );
 }
