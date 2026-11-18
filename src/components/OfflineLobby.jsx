@@ -15,6 +15,7 @@ import {
   Map as MapIcon,
 } from "lucide-react";
 import { ADMIRALS_AVATARS, GAME_MAPS } from "@/lib/lobbyData";
+import { weaponById } from "@/lib/gameTypes";
 
 // these are for naming the AI teammates/enemies that fill out an offline (vs. bots) match
 const BOT_NAMES_ALLIES = [
@@ -143,6 +144,7 @@ function TeamRow({
 export function OfflineLobby({
   profile,
   weapons,
+  gameProfile,
   activeMap,
   onUpdatePlace,
   onLaunchGame,
@@ -151,8 +153,10 @@ export function OfflineLobby({
   const [allyCount, setAllyCount] = useState(3);
   const [enemyCount, setEnemyCount] = useState(3);
 
-  const activeWeapon =
-    weapons.find((w) => w.equipped && w.owned)?.name || "M4 Tactical Rifle";
+  // Show the gun the loadout actually carries into the match (slot 1).
+  const activeWeapon = gameProfile?.loadout?.primary
+    ? weaponById(gameProfile.loadout.primary).name
+    : weapons.find((w) => w.equipped && w.owned)?.name || "M4 Tactical Rifle";
   const currentAvatar =
     ADMIRALS_AVATARS.find((a) => a.id === profile.avatarId) ||
     ADMIRALS_AVATARS[0];

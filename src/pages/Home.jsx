@@ -16,6 +16,7 @@ import {
 // friends list, and whichever popup modal (loadout/store/history/menu) is currently open.
 export default function Home({
   profile,
+  gameProfile,
   friends,
   weapons,
   storeItems,
@@ -36,7 +37,8 @@ export default function Home({
   onAcceptFriendRequest,
   onRemoveFriend,
   onInviteFriend,
-  onEquipWeapon,
+  onSelectLoadoutWeapon,
+  onToggleWeaponAttachment,
   onBuyItem,
   onBuyEmote,
   onSelectEmote,
@@ -133,10 +135,10 @@ export default function Home({
       <LoadoutModal
         isOpen={loadoutOpen}
         onClose={() => setLoadoutOpen(false)}
-        weapons={weapons}
-        profile={profile}
+        gameProfile={gameProfile}
         ownedEmoteIds={ownedEmoteIds}
-        onEquipToggle={onEquipWeapon}
+        onSelectLoadoutWeapon={onSelectLoadoutWeapon}
+        onToggleAttachment={onToggleWeaponAttachment}
         onSelectEmote={onSelectEmote}
       />
 

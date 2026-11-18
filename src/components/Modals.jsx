@@ -25,59 +25,100 @@ import {
   LogOut,
 } from "lucide-react";
 import { ADMIRALS_AVATARS, LOBBY_EMOTES } from "@/lib/lobbyData";
+import { WEAPONS, weaponById } from "@/lib/gameTypes";
 
 // This file holds the popup dialogs opened from the Home screen: Loadout (equip weapons/attachments/
 // emotes), Store (buy skins/badges/crates), History (past matches), and Menu (settings/logout).
 
+// Attachments the match code actually implements (see GameCanvas weaponAttachments).
+const LOADOUT_ATTACHMENTS = [
+  {
+    id: "laser",
+    name: "Laser Sight",
+    icon: "🔦",
+    effect: "-40% bullet spread, visible laser dot",
+  },
+  {
+    id: "scope",
+    name: "4x Scope",
+    icon: "🔭",
+    effect: "+300 range and tighter accuracy",
+  },
+];
+
+// this is for drawing a weapon's four stat bars on a loadout card
+function WeaponStats({ weapon }) {
+  return (
+    <div className="space-y-1.5 font-mono text-[10px]">
+      {[
+        { label: "DAMAGE", val: weapon.damage, color: "bg-red-500" },
+        {
+          label: "FIRE RATE",
+          val: Math.round(weapon.fireRate * 10) / 10,
+          color: "bg-blue-500",
+        },
+        {
+          label: "ACCURACY",
+          val: Math.round(100 - Math.min(95, (weapon.spread ?? 0) * 400)),
+          color: "bg-emerald-500",
+        },
+        {
+          label: "RANGE",
+          val: Math.round(weapon.range / 16),
+          color: "bg-yellow-500",
+        },
+      ].map((s) => (
+        <div key={s.label}>
+          <div className="flex justify-between mb-0.5 text-stone-300">
+            <span>{s.label}</span>
+            <span className="font-bold">{s.val}</span>
+          </div>
+          <div className="w-full bg-stone-800 h-1 rounded-full overflow-hidden">
+            <div
+              className={`${s.color} h-full`}
+              style={{ width: `${Math.min(100, Number(s.val) || 0)}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function LoadoutModal({
   isOpen,
   onClose,
-  weapons,
-  profile,
+  gameProfile,
   ownedEmoteIds,
-  onEquipToggle,
+  onSelectLoadoutWeapon,
+  onToggleAttachment,
   onSelectEmote,
 }) {
   const [tab, setTab] = useState("weapons");
-  const [expandedWeapon, setExpandedWeapon] = useState(null); // reserved for a future "expand weapon details" UI; not wired up yet
+  // When set, the weapons tab shows that gun's attachment configuration.
+  const [configuringId, setConfiguringId] = useState(null);
 
   if (!isOpen) return null;
 
-  const isAllowedForRole = (category) => {
-    const role = profile.selectedRole;
-    if (role === "Core") return true;
-    if (role === "Sniper") return category === "Sniper Rifle";
-    if (role === "Marksman") return category === "Marksman Weapon";
-    if (role === "Gunner") return category === "Heavy Gun";
-    if (role === "Scout")
-      return category === "Silenced Weapon" || category === "Tactical Gear";
-    return true;
-  };
+  const guns = WEAPONS.filter((w) => w.category === "weapon");
+  const meleeWeapons = WEAPONS.filter((w) => w.isMelee);
+  const primaryId = gameProfile.loadout?.primary ?? "ar15";
+  const secondaryId = gameProfile.loadout?.secondary ?? "knife";
+  const primary = weaponById(primaryId);
+  const secondary = weaponById(secondaryId);
+  const configuring = configuringId ? weaponById(configuringId) : null;
+  const configuringAttachments =
+    (configuringId && gameProfile.weaponAttachments?.[configuringId]) || {};
 
-  const mainWeapons = weapons.filter(
-    (w) =>
-      w.owned && w.category !== "Attachment" && w.category !== "Tactical Gear",
-  );
-  const attachments = weapons.filter(
-    (w) =>
-      w.owned &&
-      (w.category === "Attachment" || w.category === "Tactical Gear"),
-  );
   const ownedEmotes = LOBBY_EMOTES.filter((e) => ownedEmoteIds.includes(e.id));
-  const activeEmoteId = profile.activeEmoteId;
+  const activeEmoteId = gameProfile.activeEmoteId ?? gameProfile.activeEmote;
 
   const TABS = [
     {
       id: "weapons",
       label: "WEAPONS",
       icon: <Swords size={13} />,
-      count: mainWeapons.length,
-    },
-    {
-      id: "attachments",
-      label: "ATTACHMENTS",
-      icon: <Paperclip size={13} />,
-      count: attachments.length,
+      count: guns.length + meleeWeapons.length,
     },
     {
       id: "emotes",
@@ -86,6 +127,10 @@ export function LoadoutModal({
       count: ownedEmotes.length,
     },
   ];
+
+  const attachmentCount = (id) =>
+    Object.values(gameProfile.weaponAttachments?.[id] || {}).filter(Boolean)
+      .length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
@@ -106,12 +151,46 @@ export function LoadoutModal({
           </button>
         </div>
 
+        {/* Equipped slots — exactly one gun and one melee */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-black/30 border-b border-military/40 flex-shrink-0">
+          <div className="flex items-center gap-3 px-3 py-2 rounded border border-emerald-500/50 bg-emerald-950/20">
+            <span className="font-mono text-[9px] font-black tracking-widest text-emerald-400/80">
+              SLOT 1
+            </span>
+            <div className="min-w-0">
+              <div className="font-display font-bold text-sm text-white truncate">
+                {primary.icon} {primary.name}
+              </div>
+              <div className="font-mono text-[9px] text-stone-400 uppercase tracking-widest">
+                PRIMARY · {attachmentCount(primary.id)} ATTACHMENT
+                {attachmentCount(primary.id) === 1 ? "" : "S"}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 px-3 py-2 rounded border border-amber-500/50 bg-amber-950/20">
+            <span className="font-mono text-[9px] font-black tracking-widest text-amber-400/80">
+              SLOT 2
+            </span>
+            <div className="min-w-0">
+              <div className="font-display font-bold text-sm text-white truncate">
+                {secondary.icon} {secondary.name}
+              </div>
+              <div className="font-mono text-[9px] text-stone-400 uppercase tracking-widest">
+                MELEE · PRESS 2 IN MATCH
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Tabs */}
         <div className="flex gap-1 px-4 pt-3 pb-0 overflow-x-auto flex-shrink-0">
           {TABS.map((t) => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                setTab(t.id);
+                setConfiguringId(null);
+              }}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-t border-b-2 font-mono text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
                 tab === t.id
                   ? "border-[#76a035] text-[#76a035] bg-[#76a035]/10"
@@ -131,205 +210,182 @@ export function LoadoutModal({
         <div className="h-px bg-military/50 flex-shrink-0" />
 
         {/* Weapons tab */}
-        {tab === "weapons" && (
-          <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {mainWeapons.map((weapon) => {
-              const allowed = isAllowedForRole(weapon.category);
-              return (
-                <div
-                  key={weapon.id}
-                  className={`p-4 border rounded-md relative flex flex-col justify-between transition-all ${!allowed ? "border-red-900/50 bg-red-950/5 opacity-75" : weapon.equipped ? "border-emerald-500 bg-emerald-950/20" : "border-military bg-stone-900/40 hover:bg-stone-900/70"}`}
-                >
-                  {weapon.equipped && (
-                    <span
-                      className={`absolute top-3 right-3 text-[10px] px-2 py-0.5 font-mono font-bold tracking-wider rounded ${!allowed ? "bg-red-500 text-white animate-pulse" : "bg-emerald-500 text-black"}`}
-                    >
-                      {!allowed ? "RESTRICTED" : "EQUIPPED"}
-                    </span>
-                  )}
-                  <div>
-                    <div className="flex justify-between items-start mb-1">
-                      <div>
-                        <h3 className="font-display font-bold text-base tracking-wide text-white">
-                          {weapon.name}
-                        </h3>
-                        {!allowed && (
-                          <div className="text-[9px] font-mono font-bold text-red-400 mt-0.5 tracking-widest uppercase">
-                            ⚠️ INCOMPATIBLE — {profile.selectedRole}
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-[10px] font-mono text-stone-400 bg-stone-800 px-2 py-0.5 rounded ml-2 flex-shrink-0">
-                        {weapon.category}
-                      </span>
-                    </div>
-                    <p className="text-xs text-stone-400 font-sans mb-3 min-h-[28px]">
-                      {weapon.description}
-                    </p>
-                    <div className="space-y-1.5 mb-3 font-mono text-[10px]">
-                      {[
-                        {
-                          label: "DAMAGE",
-                          val: weapon.damage,
-                          color: "bg-red-500",
-                        },
-                        {
-                          label: "FIRE RATE",
-                          val: weapon.fireRate,
-                          color: "bg-blue-500",
-                        },
-                        {
-                          label: "ACCURACY",
-                          val: weapon.accuracy,
-                          color: "bg-emerald-500",
-                        },
-                        {
-                          label: "RANGE",
-                          val: weapon.range,
-                          color: "bg-yellow-500",
-                        },
-                      ].map((s) => (
-                        <div key={s.label}>
-                          <div className="flex justify-between mb-0.5 text-stone-300">
-                            <span>{s.label}</span>
-                            <span className="font-bold">{s.val}</span>
-                          </div>
-                          <div className="w-full bg-stone-800 h-1 rounded-full overflow-hidden">
-                            <div
-                              className={`${s.color} h-full`}
-                              style={{ width: `${Math.min(100, s.val)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-military/40 flex items-center justify-between">
-                    <span className="text-xs font-mono tracking-wider text-emerald-500">
-                      OWNED
-                    </span>
+        {tab === "weapons" && configuring && (
+          <div className="p-5 overflow-y-auto flex-1 space-y-4">
+            <div className="flex items-start justify-between gap-3 border-b border-military/40 pb-3">
+              <div>
+                <div className="font-mono text-[9px] text-stone-500 font-black uppercase tracking-widest">
+                  ATTACHMENT CONFIG · {configuring.category}
+                </div>
+                <h3 className="font-display font-bold text-lg text-white tracking-wide">
+                  {configuring.icon} {configuring.name}
+                </h3>
+                <p className="text-xs text-stone-400 font-sans">
+                  {configuring.description}
+                </p>
+              </div>
+              <button
+                onClick={() => setConfiguringId(null)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded text-[10px] font-mono font-bold uppercase border border-military text-stone-300 hover:bg-stone-800 transition-all flex-shrink-0"
+              >
+                ← BACK
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                {LOADOUT_ATTACHMENTS.map((att) => {
+                  const on = !!configuringAttachments[att.id];
+                  return (
                     <button
-                      onClick={() => onEquipToggle(weapon.id)}
-                      disabled={!allowed && !weapon.equipped}
-                      className={`px-3 py-1.5 rounded text-xs font-mono font-bold uppercase transition-all ${weapon.equipped ? "bg-amber-600/20 hover:bg-amber-600 hover:text-white border border-amber-600 text-amber-400" : !allowed ? "bg-red-950/20 border border-red-500/30 text-red-400 cursor-not-allowed" : "bg-[#76a035] hover:bg-[#86b53b] text-black cursor-pointer"}`}
+                      key={att.id}
+                      onClick={() => onToggleAttachment(configuring.id, att.id)}
+                      className={`w-full text-left p-3 rounded border transition-all ${on ? "border-cyan-500/60 bg-cyan-950/20" : "border-military bg-stone-900/40 hover:bg-stone-900/70"}`}
                     >
-                      {weapon.equipped
-                        ? "Unequip"
-                        : !allowed
-                          ? "RESTRICTED"
-                          : "Equip"}
+                      <div className="flex items-center justify-between">
+                        <span className="font-display font-bold text-sm text-white">
+                          {att.icon} {att.name}
+                        </span>
+                        <span
+                          className={`text-[9px] px-2 py-0.5 rounded font-mono font-bold tracking-wider ${on ? "bg-cyan-500 text-black" : "bg-stone-800 text-stone-400"}`}
+                        >
+                          {on ? "ATTACHED" : "ADD"}
+                        </span>
+                      </div>
+                      <div className="text-[10px] font-mono text-stone-400 mt-1">
+                        {att.effect}
+                      </div>
                     </button>
-                  </div>
-                </div>
-              );
-            })}
-            {mainWeapons.length === 0 && (
-              <div className="col-span-2 text-center py-16 text-stone-500 font-mono">
-                <div className="text-4xl mb-3">🔫</div>
-                <div className="font-bold uppercase tracking-widest">
-                  No weapons owned yet
-                </div>
-                <div className="text-xs mt-2">
-                  Visit the Store to purchase weapons.
+                  );
+                })}
+                <div className="text-[9px] font-mono text-stone-500 leading-relaxed pt-1">
+                  Attachments belong to this gun only. Only one gun is carried
+                  into a match — slot 1.
                 </div>
               </div>
-            )}
+
+              <div className="p-4 border border-military rounded bg-stone-900/40">
+                <div className="font-mono text-[9px] text-stone-500 font-black uppercase tracking-widest mb-2">
+                  BASE STATS
+                </div>
+                <WeaponStats weapon={configuring} />
+                <div className="mt-3 pt-3 border-t border-military/40 font-mono text-[10px] text-cyan-300 space-y-0.5">
+                  {configuringAttachments.laser && <div>+ LASER: −40% spread</div>}
+                  {configuringAttachments.scope && <div>+ SCOPE: +300 range</div>}
+                  {!configuringAttachments.laser && !configuringAttachments.scope && (
+                    <div className="text-stone-500">NO ATTACHMENTS FITTED</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => onSelectLoadoutWeapon("primary", configuring.id)}
+                  disabled={configuring.id === primaryId}
+                  className={`w-full mt-4 py-2 rounded text-xs font-mono font-bold uppercase transition-all ${configuring.id === primaryId ? "bg-stone-800 text-stone-500 border border-stone-700 cursor-not-allowed" : "bg-[#76a035] hover:bg-[#86b53b] text-black cursor-pointer"}`}
+                >
+                  {configuring.id === primaryId ? "EQUIPPED IN SLOT 1" : "EQUIP IN SLOT 1"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Attachments tab */}
-        {tab === "attachments" && (
-          <div className="p-6 overflow-y-auto flex-1 space-y-4">
-            <div className="text-[10px] font-mono text-stone-500 font-bold uppercase tracking-widest border-b border-military/30 pb-2">
-              Equip attachments to boost your weapon stats in-game.
-            </div>
-            {attachments.length === 0 ? (
-              <div className="text-center py-16 text-stone-500 font-mono">
-                <div className="text-4xl mb-3">🔧</div>
-                <div className="font-bold uppercase tracking-widest">
-                  No attachments owned
-                </div>
-                <div className="text-xs mt-2">
-                  Buy attachments from the Store → ATTACHMENTS tab.
-                </div>
+        {tab === "weapons" && !configuring && (
+          <div className="p-5 overflow-y-auto flex-1 space-y-6">
+            <section>
+              <div className="text-[10px] font-mono text-stone-400 font-black uppercase tracking-widest border-b border-military/30 pb-2 mb-3 flex items-center justify-between">
+                <span>SLOT 1 · GUNS</span>
+                <span className="text-stone-600 font-normal">
+                  click a gun to configure attachments
+                </span>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {attachments.map((att) => (
-                  <div
-                    key={att.id}
-                    className={`p-4 border rounded-md flex flex-col gap-3 transition-all ${att.equipped ? "border-cyan-500/60 bg-cyan-950/15" : "border-military bg-stone-900/40 hover:bg-stone-900/70"}`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-display font-bold text-sm tracking-wide text-white">
-                          {att.name}
-                        </h3>
-                        <span className="text-[9px] font-mono text-stone-400 uppercase tracking-widest">
-                          {att.category}
-                        </span>
-                      </div>
-                      {att.equipped && (
-                        <span className="text-[10px] px-2 py-0.5 font-mono font-bold tracking-wider rounded bg-cyan-500 text-black">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {guns.map((weapon) => {
+                  const isEquipped = weapon.id === primaryId;
+                  return (
+                    <div
+                      key={weapon.id}
+                      onClick={() => setConfiguringId(weapon.id)}
+                      className={`p-3 border rounded-md cursor-pointer relative transition-all ${isEquipped ? "border-emerald-500 bg-emerald-950/20" : "border-military bg-stone-900/40 hover:bg-stone-900/70"}`}
+                    >
+                      {isEquipped && (
+                        <span className="absolute top-3 right-3 text-[10px] px-2 py-0.5 font-mono font-bold tracking-wider rounded bg-emerald-500 text-black">
                           EQUIPPED
                         </span>
                       )}
-                    </div>
-                    <p className="text-xs text-stone-400 font-sans">
-                      {att.description}
-                    </p>
-                    <div className="grid grid-cols-4 gap-2 font-mono text-[9px]">
-                      {[
-                        ["ACC", att.accuracy, "text-emerald-400"],
-                        ["RNG", att.range, "text-yellow-400"],
-                        ["DMG", att.damage, "text-red-400"],
-                        ["RoF", att.fireRate, "text-blue-400"],
-                      ].map(([l, v, c]) => (
-                        <div
-                          key={l}
-                          className="text-center bg-black/30 rounded py-1"
+                      <h3 className="font-display font-bold text-base tracking-wide text-white pr-20">
+                        {weapon.icon} {weapon.name}
+                      </h3>
+                      <div className="text-[9px] font-mono text-stone-400 uppercase tracking-widest mb-2">
+                        {weapon.category} · DMG {weapon.damage} · MAG{" "}
+                        {weapon.magazine}
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-military/40">
+                        <span className="text-[9px] font-mono text-cyan-400 tracking-wider">
+                          {attachmentCount(weapon.id)} ATTACHMENT
+                          {attachmentCount(weapon.id) === 1 ? "" : "S"}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectLoadoutWeapon("primary", weapon.id);
+                          }}
+                          disabled={isEquipped}
+                          className={`px-3 py-1 rounded text-[10px] font-mono font-bold uppercase transition-all ${isEquipped ? "bg-stone-800 text-stone-500 cursor-not-allowed" : "bg-[#76a035] hover:bg-[#86b53b] text-black cursor-pointer"}`}
                         >
-                          <div className="text-stone-500">{l}</div>
-                          <div
-                            className={`font-bold ${c} ${Number(v) > 0 ? "" : Number(v) < 0 ? "text-red-400" : "text-stone-600"}`}
-                          >
-                            {Number(v) > 0 ? `+${v}` : v}
+                          {isEquipped ? "Equipped" : "Equip"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section>
+              <div className="text-[10px] font-mono text-stone-400 font-black uppercase tracking-widest border-b border-military/30 pb-2 mb-3">
+                SLOT 2 · MELEE
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {meleeWeapons.map((weapon) => {
+                  const isEquipped = weapon.id === secondaryId;
+                  return (
+                    <div
+                      key={weapon.id}
+                      className={`p-3 border rounded-md flex flex-col justify-between transition-all ${isEquipped ? "border-amber-500 bg-amber-950/20" : "border-military bg-stone-900/40 hover:bg-stone-900/70"}`}
+                    >
+                      <div>
+                        <h3 className="font-display font-bold text-sm tracking-wide text-white">
+                          {weapon.icon} {weapon.name}
+                        </h3>
+                        <p className="text-[10px] text-stone-400 font-sans mb-2 min-h-[26px]">
+                          {weapon.description}
+                        </p>
+                        <div className="font-mono text-[9px] text-stone-400 space-y-0.5 mb-2">
+                          <div>
+                            DMG <span className="text-white">{weapon.damage}</span>
+                          </div>
+                          <div>
+                            SWING{" "}
+                            <span className="text-white">{weapon.fireRate}/s</span>
+                          </div>
+                          <div>
+                            REACH <span className="text-white">{weapon.range}</span>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => onEquipToggle(att.id)}
-                      className={`w-full py-1.5 rounded text-xs font-mono font-bold uppercase transition-all cursor-pointer ${att.equipped ? "bg-amber-600/20 hover:bg-amber-600 hover:text-white border border-amber-600 text-amber-400" : "bg-cyan-600/80 hover:bg-cyan-500 text-white"}`}
-                    >
-                      {att.equipped ? "Remove Attachment" : "Equip Attachment"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Equipped summary */}
-            {attachments.filter((a) => a.equipped).length > 0 && (
-              <div className="border border-cyan-500/30 bg-cyan-950/10 rounded p-3 font-mono text-[10px]">
-                <div className="text-cyan-400 font-black uppercase tracking-wider mb-2">
-                  ACTIVE ATTACHMENTS (
-                  {attachments.filter((a) => a.equipped).length})
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {attachments
-                    .filter((a) => a.equipped)
-                    .map((a) => (
-                      <span
-                        key={a.id}
-                        className="bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 px-2 py-0.5 rounded font-bold text-[9px]"
+                      </div>
+                      <button
+                        onClick={() =>
+                          onSelectLoadoutWeapon("secondary", weapon.id)
+                        }
+                        disabled={isEquipped}
+                        className={`w-full py-1.5 rounded text-[10px] font-mono font-bold uppercase transition-all ${isEquipped ? "bg-stone-800 text-stone-500 cursor-not-allowed" : "bg-amber-500 hover:bg-amber-400 text-black cursor-pointer"}`}
                       >
-                        {a.name}
-                      </span>
-                    ))}
-                </div>
+                        {isEquipped ? "EQUIPPED" : "EQUIP"}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            )}
+            </section>
           </div>
         )}
 
@@ -371,7 +427,7 @@ export function LoadoutModal({
                       </div>
                       {isActive ? (
                         <div className="w-full">
-                          <span className="w-full block text-center text-xs text-purple-300 font-mono font-bold flex items-center justify-center gap-1">
+                          <span className="w-full text-center text-xs text-purple-300 font-mono font-bold flex items-center justify-center gap-1">
                             <Check size={12} /> ACTIVE IN-GAME
                           </span>
                           <button
@@ -414,6 +470,7 @@ export function LoadoutModal({
     </div>
   );
 }
+
 
 const STORE_TABS = [
   { id: "all", label: "ALL", icon: <Shield size={13} /> },

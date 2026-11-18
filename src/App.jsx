@@ -628,13 +628,35 @@ export default function App() {
   };
 
   // ── Weapon / store handlers (armory + shop purchases) ──────────
-  const handleEquipWeapon = (id) => {
-    updateLobbyState((s) => ({
-      ...s,
-      weapons: s.weapons.map((w) =>
-        w.id === id ? { ...w, equipped: !w.equipped } : w,
-      ),
-    }));
+  // Loadout: slot 1 is the gun carried into a match, slot 2 the melee weapon.
+  // Exactly one weapon per slot, saved into the in-match profile.
+  const handleSelectLoadoutWeapon = (slot, weaponId) => {
+    setGameProfile((prev) => {
+      if (!prev) return prev;
+      const next = {
+        ...prev,
+        loadout: { ...prev.loadout, [slot]: weaponId },
+      };
+      saveProfile(next);
+      return next;
+    });
+  };
+
+  // Attachments are stored per gun, so configuring one gun never changes another.
+  const handleToggleWeaponAttachment = (weaponId, attachmentId) => {
+    setGameProfile((prev) => {
+      if (!prev) return prev;
+      const current = prev.weaponAttachments?.[weaponId] || {};
+      const next = {
+        ...prev,
+        weaponAttachments: {
+          ...(prev.weaponAttachments || {}),
+          [weaponId]: { ...current, [attachmentId]: !current[attachmentId] },
+        },
+      };
+      saveProfile(next);
+      return next;
+    });
   };
 
   // this is for buying a weapon or cosmetic item: checks the player can afford it, then deducts
@@ -1035,6 +1057,7 @@ export default function App() {
             <div className="screen-shell">
               <Home
                 profile={lobbyProfile}
+                gameProfile={gameProfile}
                 friends={friends}
                 weapons={weapons}
                 storeItems={storeItems}
@@ -1076,7 +1099,8 @@ export default function App() {
                 onInviteFriend={(friend) =>
                   handleInviteToSquad(friend, "classic", "blue")
                 }
-                onEquipWeapon={handleEquipWeapon}
+                onSelectLoadoutWeapon={handleSelectLoadoutWeapon}
+                onToggleWeaponAttachment={handleToggleWeaponAttachment}
                 onBuyItem={handleBuyItem}
                 onBuyEmote={handleBuyEmote}
                 onSelectEmote={handleSelectEmote}
@@ -1244,6 +1268,7 @@ export default function App() {
               <OfflineLobby
                 profile={lobbyProfile}
                 weapons={weapons}
+                gameProfile={gameProfile}
                 activeMap={activeMap}
                 onUpdatePlace={handleUpdatePlace}
                 onAddRewards={handleOfflineRewards}
