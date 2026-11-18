@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
-  ArrowLeftRight,
   ArrowUp,
   Bomb,
   Crosshair,
@@ -9,6 +8,7 @@ import {
   Move,
   RotateCw,
 } from "lucide-react";
+import SwapIcon from "@/components/SwapIcon";
 import {
   DEFAULT_TOUCH_LAYOUT,
   MAX_TOUCH_SIZE,
@@ -38,7 +38,7 @@ const CONTROL_ICONS = {
   move: Move,
   jump: ArrowUp,
   down: ArrowDown,
-  swap: ArrowLeftRight,
+  swap: SwapIcon,
   reload: RotateCw,
   grenade: Bomb,
   aim: Crosshair,
