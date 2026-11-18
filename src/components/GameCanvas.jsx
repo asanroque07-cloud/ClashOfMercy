@@ -549,15 +549,74 @@ function findCoverNear(x, fromX, underground) {
 }
 
 // Find a ladder the player can grab at their current position.
-// Returns the ladder object if the player's x is within grab range and their y
-// is within (or just outside) the ladder's vertical span.
+// Returns the NEAREST ladder whose x is within grab range and whose vertical
+// span covers the player (or their feet, just after stepping off an end).
+const LADDER_GRAB_X = 30;
+const LADDER_COOLDOWN = 30; // frames before a ladder can be grabbed again
 function findLadderNear(x, y) {
+  let best = null;
+  let bestDist = Infinity;
   for (const lad of (WORLD.ladders || [])) {
-    if (Math.abs(x - lad.x) < 30 && y >= lad.topY - 12 && y <= lad.botY + 12) {
-      return lad;
+    const dx = Math.abs(x - lad.x);
+    if (dx >= LADDER_GRAB_X) continue;
+    if (y < lad.topY - 14 || y > lad.botY + 14) continue;
+    if (dx < bestDist) {
+      best = lad;
+      bestDist = dx;
     }
   }
+  return best;
+}
+
+// Ladder traversal state. The lower level is one continuous tunnel that both
+// teams can walk, so a ladder in the enemy field is a real flank route.
+function grabLadder(p, lad) {
+  if ((p.ladderCooldown || 0) > 0) return false;
+  p.onLadder = lad;
+  p.climbing = true;
+  p.x = lad.x;
+  p.vy = 0;
+  p.onGround = false;
+  p.fallingIntoPit = false;
+  return true;
+}
+
+// Step off a ladder. The player's height decides the layer they land on, which
+// also drives the camera, collisions, AI and the underground-only health kits.
+function releaseLadder(p) {
+  p.onLadder = null;
+  p.climbing = false;
+  p.climbDir = 0;
+  p.vy = 0;
+  p.onGround = false;
+  p.ladderCooldown = LADDER_COOLDOWN;
+  p.underground = p.y > GY + 2;
+}
+
+// Drop through an open pit / manhole / mine entrance into the lower level.
+// The player starts falling from the surface and lands on the tunnel floor.
+function dropIntoPit(p) {
+  p.underground = true;
+  p.onGround = false;
+  p.vy = 1;
+  p.fallingIntoPit = true;
+}
+
+function pitAt(x, y) {
+  if (Math.abs(y - GY) > 3) return null;
+  for (const pit of (WORLD.pits || [])) {
+    if (Math.abs(x - pit.x) < pit.w / 2 + 4) return pit;
+  }
   return null;
+}
+
+// How far the camera is panned down toward the underground layer.
+function undergroundCameraY(p) {
+  if (p.onLadder) {
+    // Follow the climber smoothly so the shaft is visible all the way down/up.
+    return Math.max(0, Math.min(p.y - GY, UNDERGROUND_Y - GY));
+  }
+  return p.underground ? UNDERGROUND_Y - GY : 0;
 }
 
 let _eid = 0,
@@ -1637,6 +1696,15 @@ export default function GameCanvas({
       return;
     }
 
+    // Ladders: USE grabs the ladder you are standing at, or lets go when you
+    // are already climbing one.
+    if (p.onLadder) {
+      releaseLadder(p);
+      return;
+    }
+    const ladder = findLadderNear(p.x, p.y);
+    if (ladder && grabLadder(p, ladder)) return;
+
     const ae = profileRef.current.activeEmote;
     if (ae) {
       const em = EMOTES.find((x) => x.id === ae);
@@ -1982,6 +2050,9 @@ export default function GameCanvas({
     p.underground = false;
     p.onLadder = null;
     p.climbing = false;
+    p.climbDir = 0;
+    p.ladderCooldown = 0;
+    p.fallingIntoPit = false;
     // Reset weapon animation state so respawn doesn't trigger a swap animation.
     p.weaponSwapTimer = 0;
     p.reloadDip = 0;
@@ -2208,12 +2279,15 @@ export default function GameCanvas({
           ? false // go down to escape
           : Math.random() < 0.5;
       p.climbing = true;
+      p.climbDir = climbUp ? -1 : 1;
       p.y += (climbUp ? -1 : 1) * SPD * 0.6 * (s._dtScale || 1);
       // Occasionally release the ladder
       if (Math.random() < 0.005) {
         p.onLadder = null;
         p.climbing = false;
+        p.climbDir = 0;
         p.vy = JUMP * 0.5;
+        p.underground = p.y > GY + 2;
       }
     } else if (wantsUnderground && !p.underground && p.onGround) {
       // Actively seek the nearest ladder/pit to go underground
@@ -2221,8 +2295,12 @@ export default function GameCanvas({
       if (lad) {
         p.onLadder = lad;
         p.climbing = true;
+        p.climbDir = 1;
         p.vy = 0;
         p.onGround = false;
+      } else if (pitAt(p.x, p.y)) {
+        // Standing on a shaft opening — drop in.
+        dropIntoPit(p);
       } else {
         // Move toward the nearest ladder/pit entrance
         let nearest = null,
@@ -2246,6 +2324,7 @@ export default function GameCanvas({
       if (lad) {
         p.onLadder = lad;
         p.climbing = true;
+        p.climbDir = 1;
         p.vy = 0;
         p.onGround = false;
       }
@@ -2257,6 +2336,7 @@ export default function GameCanvas({
         if (lad) {
           p.onLadder = lad;
           p.climbing = true;
+          p.climbDir = -1;
           p.vy = 0;
           p.onGround = false;
         }
@@ -2342,6 +2422,9 @@ export default function GameCanvas({
       } else me.vx = 0;
 
       // ── Ladder climbing controls (W/Up = climb up, S/Down = climb down) ──
+      // Down grabs a ladder on the surface (and keeps descending a shaft); Up
+      // grabs one from the underground level to climb back out. USE (E / the
+      // on-screen hand button) also grabs or lets go, see performInteract().
       const downKey =
         s.keys.has("s") || s.keys.has("arrowdown") || s.mobile.down;
       const upKey =
@@ -2349,29 +2432,25 @@ export default function GameCanvas({
       if (me.onLadder) {
         if (upKey) {
           me.climbing = true;
+          me.climbDir = -1;
           me.y -= SPD * 0.8 * dtScale;
         } else if (downKey) {
           me.climbing = true;
+          me.climbDir = 1;
           me.y += SPD * 0.8 * dtScale;
         } else {
-          me.climbing = false; // hold position on ladder
+          me.climbing = false; // hold position on the ladder
+          me.climbDir = 0;
         }
-        // Jump to release the ladder
-        if (s.keys.has(" ") && !upKey) {
-          me.onLadder = null;
-          me.climbing = false;
-          me.vy = JUMP * 0.7;
-          me.onGround = false;
-        }
-      } else if (upKey || downKey) {
-        // Try to grab a nearby ladder
+      } else if (downKey && !me.underground) {
         const lad = findLadderNear(me.x, me.y);
-        if (lad) {
-          me.onLadder = lad;
-          me.climbing = true;
-          me.vy = 0;
-          me.onGround = false;
-        }
+        if (lad) grabLadder(me, lad);
+        else if (pitAt(me.x, me.y)) dropIntoPit(me);
+      } else if (upKey) {
+        // Climb up from the tunnel, or up a rooftop ladder whose top is above
+        // the player. A surface-level tunnel ladder leaves UP free for jumping.
+        const lad = findLadderNear(me.x, me.y);
+        if (lad && me.y > lad.topY + 2) grabLadder(me, lad);
       }
 
       if (
@@ -2438,13 +2517,14 @@ export default function GameCanvas({
           }
           if (player.onLadder) {
             player.climbing = Boolean(jump || down);
-            if (jump) player.y -= SPD * 0.8 * dtScale;
-            else if (down) player.y += SPD * 0.8 * dtScale;
-            if (keys.has(" ") && !jump) {
-              player.onLadder = null;
-              player.climbing = false;
-              player.vy = JUMP * 0.7;
-              player.onGround = false;
+            if (jump) {
+              player.climbDir = -1;
+              player.y -= SPD * 0.8 * dtScale;
+            } else if (down) {
+              player.climbDir = 1;
+              player.y += SPD * 0.8 * dtScale;
+            } else {
+              player.climbDir = 0;
             }
           } else if (jump && player.onGround) {
             player.vy = JUMP;
@@ -2536,36 +2616,29 @@ export default function GameCanvas({
         p.onGround = true;
       } else {
         // ── Ladder climbing ──
-        // If the player is standing at/near a ladder x and presses up or down
-        // (AI decides on its own), they snap to the ladder and move vertically.
+        // The climb offset itself is applied by the input/AI pass above; here we
+        // snap to the ladder, keep gravity off, and hand the player over to the
+        // correct layer at each end. Descending past the surface line switches
+        // to the underground level, which pans the camera and enables the
+        // tunnel's collision, cover and health kits.
+        if (p.ladderCooldown > 0) p.ladderCooldown -= dtScale;
         if (p.onLadder) {
           const lad = p.onLadder;
           p.x = lad.x; // snap to ladder x
-          // Climbing speed (slightly slower than walking)
-          if (p.climbing) {
-            p.vy = 0; // override gravity while climbing
-            p.y += p.vy;
+          p.vy = 0; // hands on the rungs — no gravity while climbing
+          p.fallingIntoPit = false;
+          p.onGround = false;
+          p.y = Math.max(lad.topY, Math.min(p.y, lad.botY));
+          const climbDir = p.climbDir || 0;
+          if (p.y <= lad.topY && climbDir < 0) {
+            releaseLadder(p); // climbed off the top — surface/rooftop
+          } else if (p.y >= lad.botY && climbDir > 0) {
+            releaseLadder(p); // climbed off the bottom — into the tunnel
           } else {
-            // not actively climbing — apply gentle gravity so they slide down
-            p.vy += GRAV * dtScale;
-            p.y += p.vy * dtScale;
+            // Below the surface line the player is on the lower level.
+            p.underground = p.y > GY + 2;
           }
-          // Clamp to ladder extent
-          if (p.y < lad.topY) {
-            p.y = lad.topY;
-            p.vy = 0;
-            p.onLadder = null; // reached top — step off
-            p.climbing = false;
-          }
-          if (p.y > lad.botY) {
-            p.y = lad.botY;
-            p.vy = 0;
-          }
-          p.onGround = p.y >= lad.botY;
-          // If player moved horizontally away from ladder (handled by vx above),
-          // they leave the ladder. We detect this when |x - lad.x| > threshold.
-          // But since we snap x each frame, we instead let a "step off" key
-          // (jump) break the ladder hold.
+          p._prevFeetY = p.y;
         } else {
           const nx = Math.max(10, Math.min(p.x + p.vx * dtScale, WORLD_W - 10));
           p.x = resolveX(p.x, nx, p.y, p.underground);
@@ -2583,22 +2656,8 @@ export default function GameCanvas({
           } else {
             p.onGround = false;
           }
-          // ── Pit / manhole / mine entrance: drop into underground layer ──
-          // When the player walks over a pit opening while on the surface, they
-          // fall through to the underground floor. Instead of an instant
-          // teleport, we switch their layer but keep gravity carrying them down
-          // so there's a real fall + landing impact (IMPROVEMENT_TODO #14).
-          if (!p.underground && p.onGround && Math.abs(p.y - GY) < 2) {
-            for (const pit of (WORLD.pits || [])) {
-              if (p.x > pit.x - pit.w / 2 && p.x < pit.x + pit.w / 2) {
-                p.underground = true;
-                p.onGround = false;
-                p.vy = 1; // start falling — gravity accelerates the descent
-                p.fallingIntoPit = true; // suppress floor snap until landed
-                break;
-              }
-            }
-          }
+          // A landing on any floor (road or catwalk) ends the pit fall state.
+          if (p.onGround) p.fallingIntoPit = false;
           // While in the "falling into pit" state, gravity carries the player
           // down to the underground floor. We detect landing here and spawn a
           // dust cloud + small screen shake on impact (IMPROVEMENT_TODO #14).
@@ -2976,7 +3035,7 @@ export default function GameCanvas({
     s.cameraX = Math.max(0, Math.min(me.x - VIEW_W / 2, WORLD_W - VIEW_W));
     // Vertical camera: when the player goes underground, shift the view down
     // so the tunnel/sewer level is visible. Smoothly interpolate.
-    const targetCamY = me.underground ? UNDERGROUND_Y - GY : 0;
+    const targetCamY = undergroundCameraY(me);
     s.cameraY = (s.cameraY ?? 0) + (targetCamY - (s.cameraY ?? 0)) * 0.08 * dtScale;
 
     const nextHud = {
@@ -3977,18 +4036,18 @@ export default function GameCanvas({
       const px = lad.x;
       const py = Math.max(lad.topY, me.y - PH - 18);
       ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(px - 36, py - 12, 72, 16);
+      ctx.fillRect(px - 44, py - 12, 88, 16);
       ctx.fillStyle = "#a78bfa";
-      ctx.fillText("\u2191/\u2193 Climb", px, py);
+      ctx.fillText("USE / \u2191\u2193 CLIMB", px, py);
     }
     // Pit/manhole "drop" prompt — when standing over a pit on the surface
     if (!me.underground && Math.abs(me.y - GY) < 2) {
       for (const pit of (WORLD.pits || [])) {
         if (me.x > pit.x - pit.w / 2 - 6 && me.x < pit.x + pit.w / 2 + 6) {
           ctx.fillStyle = "rgba(0,0,0,0.6)";
-          ctx.fillRect(pit.x - 30, GY - 36, 60, 16);
+          ctx.fillRect(pit.x - 40, GY - 36, 80, 16);
           ctx.fillStyle = "#a78bfa";
-          ctx.fillText("\u2193 Drop", pit.x, GY - 24);
+          ctx.fillText("\u2193 PRESS DOWN", pit.x, GY - 24);
           break;
         }
       }
@@ -4006,6 +4065,19 @@ export default function GameCanvas({
       return;
     }
     const uy = tun.y;
+    // Carve the tunnel air out of the soil: the open space between the street
+    // slab and the tunnel floor. Without it the lower level reads as a slab of
+    // dirt with a road painted along the bottom.
+    const ceilingY = GY + 40;
+    const airGrad = ctx.createLinearGradient(0, ceilingY, 0, uy);
+    airGrad.addColorStop(0, "#05070a");
+    airGrad.addColorStop(0.55, "#0b0f13");
+    airGrad.addColorStop(1, "#171c22");
+    ctx.fillStyle = airGrad;
+    ctx.fillRect(tun.leftWall, ceilingY, tun.rightWall - tun.leftWall, uy - ceilingY);
+    // Underside of the street slab (the tunnel ceiling)
+    ctx.fillStyle = shade(mapDef.wallColor, -0.55);
+    ctx.fillRect(tun.leftWall, ceilingY, tun.rightWall - tun.leftWall, 7);
     // Underground floor strip (fills from tunnel floor to bottom of screen)
     ctx.fillStyle = shade(mapDef.groundColor, -0.5);
     ctx.fillRect(tun.leftWall, uy, tun.rightWall - tun.leftWall, VIEW_H - uy + 40);
@@ -4037,8 +4109,8 @@ export default function GameCanvas({
     ctx.fillRect(tun.leftWall + 6, uy + 2, tun.rightWall - tun.leftWall - 12, 1.5);
     // Side walls (the soil walls of the tunnel)
     ctx.fillStyle = shade(mapDef.wallColor, -0.45);
-    ctx.fillRect(tun.leftWall - 8, uy, 8, VIEW_H - uy + 40);
-    ctx.fillRect(tun.rightWall, uy, 8, VIEW_H - uy + 40);
+    ctx.fillRect(tun.leftWall - 8, ceilingY, 8, VIEW_H - ceilingY + 40);
+    ctx.fillRect(tun.rightWall, ceilingY, 8, VIEW_H - ceilingY + 40);
 
     // Tile / brick pattern on the underground floor for texture
     ctx.strokeStyle = "rgba(0,0,0,0.25)";
@@ -5003,6 +5075,7 @@ export default function GameCanvas({
     const mx = VIEW_W - mw - 10;
     const my = VIEW_H - mh - 10;
     const scale = mw / WORLD_W;
+    const myTeam = s.players.find((p) => p.id === "me")?.team;
 
     // Background
     ctx.fillStyle = "rgba(0,0,0,0.7)";
@@ -5067,7 +5140,7 @@ export default function GameCanvas({
         }
       }
       // "↓" marker for underground players
-      if (p.underground && (p.id === "me" || p.team === me.team || !p.inBush)) {
+      if (p.underground && (p.id === "me" || p.team === myTeam || !p.inBush)) {
         ctx.fillStyle = "#a78bfa";
         ctx.font = "bold 8px monospace";
         ctx.textAlign = "center";

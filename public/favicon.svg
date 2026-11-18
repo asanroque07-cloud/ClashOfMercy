@@ -1,3 +1,48 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Clash Of Mercy">
+  <defs>
+    <linearGradient id="com-bg" x1="0.1" y1="0" x2="0.75" y2="1">
+      <stop offset="0" stop-color="#2b3520"/>
+      <stop offset="0.55" stop-color="#14190f"/>
+      <stop offset="1" stop-color="#070a05"/>
+    </linearGradient>
+    <linearGradient id="com-metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fbf4dc"/>
+      <stop offset="0.5" stop-color="#e7d5a4"/>
+      <stop offset="1" stop-color="#b79a5d"/>
+    </linearGradient>
+    <radialGradient id="com-glow" cx="0.5" cy="0.4" r="0.62">
+      <stop offset="0" stop-color="#76a035" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#76a035" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#com-bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#com-glow)"/>
+  <rect x="14" y="14" width="484" height="484" rx="100" fill="none" stroke="url(#com-metal)" stroke-opacity="0.28" stroke-width="4"/>
+
+  <g fill="none" stroke="url(#com-metal)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Circular swap arrows -->
+    <path d="M 117 292 A 146 146 0 1 1 395 292"/>
+    <path d="M 395 204 A 146 146 0 1 1 117 204"/>
+  </g>
+  <g fill="url(#com-metal)">
+    <!-- Arrow heads: down on the right, up on the left -->
+    <path d="M 398 316 L 376 280 L 420 278 Z"/>
+    <path d="M 114 180 L 91 216 L 135 217 Z"/>
+  </g>
+
+  <g fill="none" stroke="url(#com-metal)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Three cartridges -->
+    <path d="M 166 240 Q 166 174 190 152 Q 214 174 214 240 L 214 352 L 166 352 Z"/>
+    <path d="M 232 240 Q 232 174 256 152 Q 280 174 280 240 L 280 352 L 232 352 Z"/>
+    <path d="M 298 240 Q 298 174 322 152 Q 346 174 346 240 L 346 352 L 298 352 Z"/>
+    <!-- Case rims -->
+    <path d="M 159 352 L 221 352 L 221 370 L 159 370 Z"/>
+    <path d="M 225 352 L 287 352 L 287 370 L 225 370 Z"/>
+    <path d="M 291 352 L 353 352 L 353 370 L 291 370 Z"/>
+    <!-- Extract grooves -->
+    <path d="M 166 306 L 214 306"/>
+    <path d="M 232 306 L 280 306"/>
+    <path d="M 298 306 L 346 306"/>
+  </g>
 </svg>
