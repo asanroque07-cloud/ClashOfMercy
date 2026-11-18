@@ -521,6 +521,49 @@ function segmentHitsBox(x0, y0, x1, y1, bx, by, bw, bh) {
   return true;
 }
 
+// Stairs are drawn as solid ramps, so a round has to stop on the slope instead
+// of flying through the concrete. Sampling the swept segment is plenty for the
+// short step a bullet takes in one frame.
+function pointInStair(s, x, y) {
+  if (x < s.x || x > s.x + s.w || y < s.y || y > GY) return false;
+  const t = Math.max(0, Math.min(1, (x - s.x) / s.w));
+  const surface = s.dir === "right" ? GY - s.h * t : GY - s.h * (1 - t);
+  return y >= surface;
+}
+
+function segmentHitsStair(x0, y0, x1, y1, s) {
+  for (let i = 0; i <= 8; i++) {
+    const t = i / 8;
+    if (pointInStair(s, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)) return true;
+  }
+  return false;
+}
+
+// The armory is a solid building on every map, so rounds stop on its side walls
+// and on the lintel above the doorway. The doorway itself stays open so both
+// sides can still trade shots through the door.
+function houseParts() {
+  const h = HOUSE;
+  return [
+    { x: h.x, y: h.y, w: Math.max(0, DOOR.x - h.x), h: GY - h.y },
+    {
+      x: DOOR.x + DOOR.w,
+      y: h.y,
+      w: Math.max(0, h.x + h.w - (DOOR.x + DOOR.w)),
+      h: GY - h.y,
+    },
+    { x: h.x, y: h.y, w: h.w, h: Math.max(0, GY - 52 - h.y) },
+  ];
+}
+
+function segmentHitsHouse(x0, y0, x1, y1) {
+  for (const p of houseParts()) {
+    if (p.w <= 0 || p.h <= 0) continue;
+    if (segmentHitsBox(x0, y0, x1, y1, p.x, p.y, p.w, p.h)) return true;
+  }
+  return false;
+}
+
 function resolveX(oldX, newX, y, underground) {
   if (underground) {
     // Confined to the tunnel span.
@@ -544,6 +587,23 @@ function resolveX(oldX, newX, y, underground) {
       return x;
     }
     return newX;
+  }
+  // The armory body is solid too — players walk in through the door rather than
+  // straight through its walls.
+  const h = HOUSE;
+  if (y > h.y) {
+    const walls = [
+      [h.x, DOOR.x],
+      [DOOR.x + DOOR.w, h.x + h.w],
+    ];
+    for (const [sL, sR] of walls) {
+      if (sR - sL <= 0) continue;
+      if (newX + PW / 2 > sL && newX - PW / 2 < sR) {
+        if (oldX + PW / 2 <= sL) return sL - PW / 2 - 0.5;
+        if (oldX - PW / 2 >= sR) return sR + PW / 2 + 0.5;
+        return oldX;
+      }
+    }
   }
   for (const s of WORLD.structures) {
     if (s.type === "stair") continue;
@@ -588,6 +648,7 @@ function isOccluded(meX, tx, underground) {
   const lo = Math.min(meX, tx),
     hi = Math.max(meX, tx);
   const eyeY = GY - PH * 0.65;
+  if (segmentHitsHouse(meX, eyeY, tx, eyeY)) return true;
   for (const s of WORLD.structures) {
     if (s.type === "stair" || s.type === "platform" || s.type === "bridge")
       continue;
@@ -2031,6 +2092,11 @@ export default function GameCanvas({
         tracer: true,
         prevX: muzzleX,
         prevY: muzzleY,
+        // First-frame sweep starts back at the gun so a point-blank wall still
+        // catches the round.
+        fresh: true,
+        fromX: gx,
+        fromY: gy2,
         underground: !!p.underground,
       });
     }
@@ -2395,6 +2461,19 @@ export default function GameCanvas({
       }
     }
 
+    // The armory blocks the ground path — walk to its doorway rather than
+    // pushing into the wall when the target is on the far side.
+    if (!p.underground && !p.inHouse) {
+      const h = HOUSE;
+      const doorC = DOOR.x + DOOR.w / 2;
+      const nearBuilding = p.x > h.x - 30 && p.x < h.x + h.w + 30;
+      const beyond = target.x < h.x - 10 || target.x > h.x + h.w + 10;
+      if (nearBuilding && beyond && Math.abs(p.x - doorC) > 10) {
+        p.vx = doorC > p.x ? SPD * 0.8 : -SPD * 0.8;
+        p.facing = doorC > p.x ? 1 : -1;
+      }
+    }
+
     // Shooting logic
     p.aiTimer--;
     const canSee = !isOccluded(p.x, target.x, p.underground);
@@ -2605,13 +2684,14 @@ export default function GameCanvas({
       const moveRight =
         s.keys.has("d") || s.keys.has("arrowright") || s.mobile.right;
       const moveX = moveLeft ? -1 : moveRight ? 1 : s.mobile.moveX;
-      if (moveX < -0.18) {
-        me.vx = SPD * moveX;
-        me.facing = -1;
-      } else if (moveX > 0.18) {
-        me.vx = SPD * moveX;
-        me.facing = 1;
-      } else me.vx = 0;
+      if (moveX < -0.18) me.facing = -1;
+      else if (moveX > 0.18) me.facing = 1;
+      // Ease into run speed instead of snapping to it: the operator picks up
+      // pace in about four frames and slides to a stop on release, which reads
+      // far less twitchy than the old instant on/off velocity.
+      const targetVx = Math.abs(moveX) > 0.18 ? SPD * moveX : 0;
+      const stepMax = (me.onGround ? 1.35 : 0.6) * dtScale;
+      me.vx += Math.max(-stepMax, Math.min(stepMax, targetVx - me.vx));
 
       // ── Ladder climbing controls (W/Up = climb up, S/Down = climb down) ──
       // Down grabs a ladder on the surface (and keeps descending a shaft); Up
@@ -2645,18 +2725,37 @@ export default function GameCanvas({
         if (lad && me.y > lad.topY + 2) grabLadder(me, lad);
       }
 
+      // Jump feel: a short coyote window after walking off a ledge, a small
+      // input buffer so a press just before landing still fires, and a shorter
+      // hop when the button is released early.
+      const jumpHeld =
+        s.keys.has("w") ||
+        s.keys.has(" ") ||
+        s.keys.has("arrowup") ||
+        s.mobile.jump;
+      if (me.onGround) me.coyote = 6;
+      else me.coyote = Math.max(0, (me.coyote ?? 0) - dtScale);
+      if (jumpHeld && !me._jumpHeld) me.jumpBuffer = 7;
+      else me.jumpBuffer = Math.max(0, (me.jumpBuffer ?? 0) - dtScale);
+      me._jumpHeld = jumpHeld;
       if (
-        (s.keys.has("w") ||
-          s.keys.has(" ") ||
-          s.keys.has("arrowup") ||
-          s.mobile.jump) &&
-        me.onGround &&
+        (jumpHeld || me.jumpBuffer > 0) &&
+        (me.onGround || me.coyote > 0) &&
         !me.onLadder
       ) {
         me.vy = JUMP;
         me.onGround = false;
+        me.coyote = 0;
+        me.jumpBuffer = 0;
+        me._jumpHold = 0;
         // Jump dust
         spawnFootstepDust(s.particles, me.x, me.y);
+      }
+      if (jumpHeld) me._jumpHold = (me._jumpHold ?? 0) + dtScale;
+      else if (me.vy < -6 && (me._jumpHold ?? 0) > 3) {
+        // Let go early and the arc is cut, so a tap is a short hop.
+        me.vy = -6;
+        me._jumpHold = 0;
       }
       if (s.mouse.down || s.mobile.fire) fire(me, s);
     }
@@ -2797,7 +2896,7 @@ export default function GameCanvas({
 
       // Health regen
       if (p.lastDamageTime > 0 && performance.now() - p.lastDamageTime > HEALTH_REGEN_DELAY && p.hp < p.maxHp) {
-        p.hp = Math.min(p.maxHp, p.hp + HEALTH_REGEN_RATE * dtScale / 60 * 60);
+        p.hp = Math.min(p.maxHp, p.hp + (HEALTH_REGEN_RATE * dtScale) / 60);
       }
 
       // Flash timer (hit flash)
@@ -2841,7 +2940,22 @@ export default function GameCanvas({
           p._prevFeetY = p.y;
         } else {
           const nx = Math.max(10, Math.min(p.x + p.vx * dtScale, WORLD_W - 10));
+          const beforeX = p.x;
           p.x = resolveX(p.x, nx, p.y, p.underground);
+          // Bots that grind into a wall (now including the armory) hop it or
+          // turn away instead of pushing forever.
+          if (
+            p.isAI &&
+            Math.abs(p.vx) > 0.6 &&
+            Math.abs(p.x - beforeX) < Math.abs(p.vx) * dtScale * 0.5
+          ) {
+            p.blockedFrames = (p.blockedFrames || 0) + dtScale;
+            if (p.blockedFrames > 12 && p.onGround) {
+              p.vy = JUMP;
+              p.onGround = false;
+              p.blockedFrames = 0;
+            }
+          } else p.blockedFrames = 0;
           // Capture feet position before applying vertical movement, so the
           // one-way platform check can tell whether the player was above the
           // platform last frame (IMPROVEMENT_TODO #1).
@@ -3043,6 +3157,17 @@ export default function GameCanvas({
 
     // Bullets
     s.bullets = s.bullets.filter((b) => {
+      // Sweep from the gun, not from the muzzle: when firing from right beside
+      // a wall the 22px muzzle offset can already be on the far side of it.
+      let sweepX = b.x;
+      let sweepY = b.y;
+      if (b.fresh) {
+        b.fresh = false;
+        if (b.fromX !== undefined) {
+          sweepX = b.fromX;
+          sweepY = b.fromY;
+        }
+      }
       b.prevX = b.x;
       b.prevY = b.y;
       if (b.isGrenade) {
@@ -3051,6 +3176,48 @@ export default function GameCanvas({
         b.y += b.vy * dtScale;
         b.dist += Math.hypot(b.vx, b.vy) * dtScale;
         if (b.explodeTimer !== undefined) b.explodeTimer -= dtScale;
+        // A rocket detonates on whatever it hits; a thrown grenade bounces off
+        // the wall instead of sailing through it.
+        if (b.explodeTimer !== undefined && b.explodeTimer > 0) {
+          const hitSolid = b.underground
+            ? UNDER_COVER().some((c) =>
+                segmentHitsBox(
+                  b.prevX,
+                  b.prevY,
+                  b.x,
+                  b.y,
+                  c.x - 1,
+                  UNDERGROUND_Y - c.h,
+                  c.w + 2,
+                  c.h,
+                ),
+              )
+            : segmentHitsHouse(b.prevX, b.prevY, b.x, b.y) ||
+              STRUCTURES().some(
+                (str) =>
+                  str.type !== "platform" &&
+                  str.type !== "bridge" &&
+                  str.type !== "stair" &&
+                  segmentHitsBox(
+                    b.prevX,
+                    b.prevY,
+                    b.x,
+                    b.y,
+                    str.x - 1,
+                    str.y,
+                    str.w + 2,
+                    str.h,
+                  ),
+              );
+          if (hitSolid) {
+            if (b.isRocket) b.explodeTimer = 0;
+            else {
+              b.vx *= -0.5;
+              b.x = b.prevX;
+              b.y = b.prevY;
+            }
+          }
+        }
         const grenadeGround = b.underground ? UNDERGROUND_Y : GY;
         if (b.y >= grenadeGround || (b.explodeTimer !== undefined && b.explodeTimer <= 0)) {
           _eid++;
@@ -3097,25 +3264,27 @@ export default function GameCanvas({
       // One-way platforms/bridges and stairs don't block bullets.
       // Surface structures don't block underground bullets and vice versa.
       if (!b.underground) {
+        // The armory building stops rounds except through its doorway.
+        if (segmentHitsHouse(sweepX, sweepY, b.x, b.y)) {
+          spawnImpactSparks(s.particles, b.x, b.y, Math.atan2(b.vy, b.vx));
+          return false;
+        }
         for (const str of STRUCTURES()) {
-          if (
-            str.type === "stair" ||
-            str.type === "platform" ||
-            str.type === "bridge"
-          )
-            continue;
-          if (
-            segmentHitsBox(
-              b.prevX,
-              b.prevY,
-              b.x,
-              b.y,
-              str.x - 1,
-              str.y,
-              str.w + 2,
-              str.h,
-            )
-          ) {
+          if (str.type === "platform" || str.type === "bridge") continue;
+          const blocked =
+            str.type === "stair"
+              ? segmentHitsStair(sweepX, sweepY, b.x, b.y, str)
+              : segmentHitsBox(
+                  sweepX,
+                  sweepY,
+                  b.x,
+                  b.y,
+                  str.x - 1,
+                  str.y,
+                  str.w + 2,
+                  str.h,
+                );
+          if (blocked) {
             spawnImpactSparks(s.particles, b.x, b.y, Math.atan2(b.vy, b.vx));
             return false;
           }
@@ -3131,8 +3300,8 @@ export default function GameCanvas({
         for (const c of UNDER_COVER()) {
           if (
             segmentHitsBox(
-              b.prevX,
-              b.prevY,
+              sweepX,
+              sweepY,
               b.x,
               b.y,
               c.x - 1,
