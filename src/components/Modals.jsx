@@ -25,7 +25,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { ADMIRALS_AVATARS, LOBBY_EMOTES } from "@/lib/lobbyData";
-import { WEAPONS, weaponById } from "@/lib/gameTypes";
+import { WEAPONS, weaponById, HEROES } from "@/lib/gameTypes";
 
 // This file holds the popup dialogs opened from the Home screen: Loadout (equip weapons/attachments/
 // emotes), Store (buy skins/badges/crates), History (past matches), and Menu (settings/logout).
@@ -93,6 +93,8 @@ export function LoadoutModal({
   onSelectLoadoutWeapon,
   onToggleAttachment,
   onSelectEmote,
+  onBuyHero,
+  onSelectHero,
 }) {
   const [tab, setTab] = useState("weapons");
   // When set, the weapons tab shows that gun's attachment configuration.
@@ -112,6 +114,8 @@ export function LoadoutModal({
 
   const ownedEmotes = LOBBY_EMOTES.filter((e) => ownedEmoteIds.includes(e.id));
   const activeEmoteId = gameProfile.activeEmoteId ?? gameProfile.activeEmote;
+  const ownedHeroes = gameProfile.ownedHeroes || ["jack"];
+  const activeHeroId = gameProfile.hero || "jack";
 
   const TABS = [
     {
@@ -119,6 +123,12 @@ export function LoadoutModal({
       label: "WEAPONS",
       icon: <Swords size={13} />,
       count: guns.length + meleeWeapons.length,
+    },
+    {
+      id: "heroes",
+      label: "HEROES",
+      icon: <Star size={13} />,
+      count: ownedHeroes.length,
     },
     {
       id: "emotes",
@@ -386,6 +396,85 @@ export function LoadoutModal({
                 })}
               </div>
             </section>
+          </div>
+        )}
+
+        {/* Heroes tab */}
+        {tab === "heroes" && (
+          <div className="p-5 overflow-y-auto flex-1 space-y-4">
+            <div className="flex items-center justify-between border-b border-military/30 pb-2">
+              <div className="text-[10px] font-mono text-stone-500 font-bold uppercase tracking-widest">
+                Buy a hero, then take their skill into the match (V or SKILL)
+              </div>
+              <div className="flex items-center gap-1 font-mono text-xs font-bold text-yellow-400">
+                <Coins size={13} className="text-yellow-500" />
+                {(gameProfile.coins ?? 0).toLocaleString()}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {HEROES.map((hero) => {
+                const owned = ownedHeroes.includes(hero.id);
+                const equipped = activeHeroId === hero.id;
+                const affordable = (gameProfile.coins ?? 0) >= hero.cost;
+                return (
+                  <div
+                    key={hero.id}
+                    className={`p-3 border rounded-md flex flex-col justify-between transition-all ${equipped ? "border-[#76a035] bg-[#76a035]/10" : owned ? "border-military bg-stone-900/40" : "border-military/60 bg-stone-900/20"}`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="font-display font-bold text-base tracking-wide text-white">
+                            {hero.name}
+                          </h3>
+                          <div className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">
+                            {hero.subtitle}
+                          </div>
+                        </div>
+                        <span className="text-[9px] px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 flex-shrink-0">
+                          {hero.ability}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-stone-400 font-sans mt-1.5 mb-2 min-h-[32px]">
+                        {hero.abilityDescription}
+                      </p>
+                      <div className="font-mono text-[9px] text-stone-500">
+                        COOLDOWN {(hero.cooldownMs / 1000).toFixed(0)}S
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-military/40 flex items-center justify-between">
+                      {owned ? (
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-emerald-500">
+                          OWNED
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 font-mono text-xs font-bold text-yellow-400">
+                          <Coins size={12} className="text-yellow-500" />
+                          {hero.cost.toLocaleString()}
+                        </span>
+                      )}
+                      {owned ? (
+                        <button
+                          onClick={() => onSelectHero(hero.id)}
+                          disabled={equipped}
+                          className={`px-3 py-1 rounded text-[10px] font-mono font-bold uppercase transition-all ${equipped ? "bg-stone-800 text-stone-500 cursor-not-allowed" : "bg-[#76a035] hover:bg-[#86b53b] text-black cursor-pointer"}`}
+                        >
+                          {equipped ? "EQUIPPED" : "EQUIP"}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => onBuyHero(hero.id)}
+                          disabled={!affordable}
+                          className={`px-3 py-1 rounded text-[10px] font-mono font-bold uppercase transition-all ${affordable ? "bg-amber-500 hover:bg-amber-400 text-black cursor-pointer" : "bg-stone-800 text-stone-500 border border-stone-700 cursor-not-allowed"}`}
+                        >
+                          {affordable ? "BUY HERO" : "NEED COINS"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

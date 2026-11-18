@@ -7,6 +7,7 @@ import {
   Hand,
   Move,
   RotateCw,
+  Zap,
 } from "lucide-react";
 import SwapIcon from "@/components/SwapIcon";
 import {
@@ -31,6 +32,7 @@ const CONTROL_LABELS = {
   grenade: "GRENADE",
   aim: "AIM / FIRE",
   use: "USE",
+  skill: "HERO SKILL",
 };
 
 // Same glyphs the match uses, so the editor and the pad look identical.
@@ -43,6 +45,7 @@ const CONTROL_ICONS = {
   grenade: Bomb,
   aim: Crosshair,
   use: Hand,
+  skill: Zap,
 };
 
 /**

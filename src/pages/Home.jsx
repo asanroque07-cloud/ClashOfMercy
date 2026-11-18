@@ -39,6 +39,8 @@ export default function Home({
   onInviteFriend,
   onSelectLoadoutWeapon,
   onToggleWeaponAttachment,
+  onBuyHero,
+  onSelectHero,
   onBuyItem,
   onBuyEmote,
   onSelectEmote,
@@ -139,6 +141,8 @@ export default function Home({
         ownedEmoteIds={ownedEmoteIds}
         onSelectLoadoutWeapon={onSelectLoadoutWeapon}
         onToggleAttachment={onToggleWeaponAttachment}
+        onBuyHero={onBuyHero}
+        onSelectHero={onSelectHero}
         onSelectEmote={onSelectEmote}
       />
 
