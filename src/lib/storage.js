@@ -22,10 +22,18 @@ export function loadProfile() {
     const raw = localStorage.getItem(GAME_KEY);
     if (!raw) return DEFAULT_PROFILE;
     const p = JSON.parse(raw);
+    const equipped = { ...DEFAULT_PROFILE.equipped, ...(p.equipped || {}) };
     return {
       ...DEFAULT_PROFILE,
       ...p,
-      equipped: { ...DEFAULT_PROFILE.equipped, ...(p.equipped || {}) },
+      equipped,
+      // Older saves predate the two-slot loadout: seed slot 1 from whatever gun
+      // the role table had equipped so nobody loses their weapon on upgrade.
+      loadout: {
+        ...DEFAULT_PROFILE.loadout,
+        primary: p.loadout?.primary || equipped.core || DEFAULT_PROFILE.loadout.primary,
+        ...(p.loadout || {}),
+      },
       attachments: { ...DEFAULT_PROFILE.attachments, ...(p.attachments || {}) },
       weaponAttachments: { ...(p.weaponAttachments || {}) },
     };
