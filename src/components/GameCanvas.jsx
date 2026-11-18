@@ -24,6 +24,7 @@ import {
   loadTouchLayout,
   saveTouchLayout,
 } from "../lib/touchControls";
+import { GENERATED_GUN_KEYS, renderGunBuffers } from "../lib/weaponAudio";
 import {
   ArrowUp,
   ArrowDown,
@@ -68,10 +69,12 @@ const PLAYER_SPRITE_PATHS = {
   blue: { stand: "/sprites/blue-stand.png", run: "/sprites/blue-run.png" },
   red: { stand: "/sprites/red-stand.png", run: "/sprites/red-run.png" },
 };
+// Gunfire is synthesised at load time (see lib/weaponAudio) instead of being
+// streamed from small mp3s, so these three keys have a volume but no src.
 const SFX_CONFIG = {
-  machinegun: { src: "/sfx/machinegun.mp3", volume: 0.24 },
-  pistol: { src: "/sfx/pistol.mp3", volume: 0.34 },
-  sniper: { src: "/sfx/sniper.mp3", volume: 0.5 },
+  machinegun: { volume: 0.46 },
+  pistol: { volume: 0.56 },
+  sniper: { volume: 0.72 },
   reload: { src: "/sfx/reload.mp3", volume: 0.45 },
   load: { src: "/sfx/load.mp3", volume: 0.4 },
   bomb: { src: "/sfx/bomb.mp3", volume: 0.58 },
@@ -1063,6 +1066,9 @@ export default function GameCanvas({
   const spriteRef = useRef({});
   const audioCtxRef = useRef(null);
   const sfxBuffersRef = useRef({});
+  // Everything audible goes through one compressor, so a burst of automatic
+  // fire (or a grenade on top of it) ducks instead of clipping the output.
+  const sfxBusRef = useRef(null);
   const [over, setOver] = useState(null);
   const [paused, setPaused] = useState(false);
   const [hud, setHud] = useState({
@@ -1141,6 +1147,12 @@ export default function GameCanvas({
     if (ctx.state !== "running") return;
     const buffer = sfxBuffersRef.current[key];
     if (!buffer) return;
+    // Generated gunfire keeps several variants; rotate through them so repeated
+    // shots are not bit-identical. Recorded sounds stay a single buffer.
+    const shot = Array.isArray(buffer)
+      ? buffer[Math.floor(Math.random() * buffer.length)]
+      : buffer;
+    if (!shot) return;
 
     const config = SFX_CONFIG[key];
     let volume = config.volume;
@@ -1161,19 +1173,20 @@ export default function GameCanvas({
     }
 
     const sourceNode = ctx.createBufferSource();
-    sourceNode.buffer = buffer;
+    sourceNode.buffer = shot;
 
     const gain = ctx.createGain();
     gain.gain.value = volume;
 
+    const bus = sfxBusRef.current ?? ctx.destination;
     sourceNode.connect(gain);
     if (pan !== 0 && typeof ctx.createStereoPanner === "function") {
       const panner = ctx.createStereoPanner();
       panner.pan.value = pan;
       gain.connect(panner);
-      panner.connect(ctx.destination);
+      panner.connect(bus);
     } else {
-      gain.connect(ctx.destination);
+      gain.connect(bus);
     }
     sourceNode.start(0);
   }, []);
@@ -1477,23 +1490,48 @@ export default function GameCanvas({
     const ctx = new AudioCtx();
     audioCtxRef.current = ctx;
 
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -18;
+    compressor.knee.value = 14;
+    compressor.ratio.value = 5;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.2;
+    const master = ctx.createGain();
+    master.gain.value = 0.92;
+    compressor.connect(master);
+    master.connect(ctx.destination);
+    sfxBusRef.current = compressor;
+
     let cancelled = false;
     const loadAll = async () => {
-      const entries = Object.entries(SFX_CONFIG);
-      await Promise.all(
-        entries.map(async ([key, config]) => {
+      // Recorded sounds (reload, grenade, load) stream from /sfx.
+      const recorded = Object.entries(SFX_CONFIG).filter(
+        ([key, config]) => config.src && !GENERATED_GUN_KEYS.includes(key),
+      );
+      const loadRecorded = Promise.all(
+        recorded.map(async ([key, config]) => {
           const res = await fetch(config.src);
           const arr = await res.arrayBuffer();
           const buf = await ctx.decodeAudioData(arr.slice(0));
           if (!cancelled) sfxBuffersRef.current[key] = buf;
         }),
       );
+      // Gunfire is rendered in an OfflineAudioContext, which needs no gesture.
+      const synthesised = (async () => {
+        const shots = await renderGunBuffers();
+        if (cancelled) return;
+        Object.entries(shots).forEach(([key, variants]) => {
+          if (variants?.length) sfxBuffersRef.current[key] = variants;
+        });
+      })();
+      await Promise.all([loadRecorded, synthesised]);
     };
 
     void loadAll().catch(() => {});
     return () => {
       cancelled = true;
       sfxBuffersRef.current = {};
+      sfxBusRef.current = null;
       void ctx.close().catch(() => {});
       audioCtxRef.current = null;
     };
