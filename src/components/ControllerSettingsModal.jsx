@@ -236,8 +236,8 @@ export default function ControllerSettingsModal({ onClose }) {
             <div className="controller-settings-eyebrow">TOUCH CONTROLLER</div>
             <h2 id="controller-settings-title">Match controller</h2>
             <p className="controller-settings-help">
-              Drag any control to place it, tap one to select it, then resize it
-              below.
+              Drag any control to place it, tap one to select it, then resize
+              that control only. The others keep their own size.
             </p>
           </div>
           <button
@@ -262,23 +262,6 @@ export default function ControllerSettingsModal({ onClose }) {
               onChange={(event) => setSize(selected, Number(event.target.value))}
             />
             <span>{Math.round(selectedSize * 100)}%</span>
-          </label>
-          <label className="controller-settings-size controller-settings-size--all">
-            <span>All</span>
-            <input
-              type="range"
-              min="0.65"
-              max="1.5"
-              step="0.05"
-              value={layout.scale}
-              onChange={(event) =>
-                setLayout((current) => ({
-                  ...current,
-                  scale: Number(event.target.value),
-                }))
-              }
-            />
-            <span>{Math.round(layout.scale * 100)}%</span>
           </label>
           <div className="controller-settings-buttons">
             <button
