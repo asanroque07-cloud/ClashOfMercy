@@ -28,13 +28,13 @@ import { GENERATED_GUN_KEYS, renderGunBuffers } from "../lib/weaponAudio";
 import {
   ArrowUp,
   ArrowDown,
-  ArrowLeftRight,
   RotateCw,
   Bomb,
   Hand,
   Move,
   Crosshair,
 } from "lucide-react";
+import SwapIcon from "./SwapIcon";
 
 // ──── Constants (tunable game-feel numbers: world size, gravity, jump strength, speed) ────
 const VIEW_W = 960,
@@ -6343,7 +6343,7 @@ export default function GameCanvas({
                   className={`touch-button touch-button--wide ${pressedControls.swap ? "is-active" : ""}`}
                   style={touchControlStyle("swap")}
                 >
-                  <ArrowLeftRight size={20} strokeWidth={3} />
+                  <SwapIcon size={21} strokeWidth={2.4} />
                 </button>
               </div>
             </div>
