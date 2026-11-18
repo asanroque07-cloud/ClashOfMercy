@@ -33,6 +33,7 @@ const CONTROL_LABELS = {
   use: "USE",
 };
 
+// Same glyphs the match uses, so the editor and the pad look identical.
 const CONTROL_ICONS = {
   move: Move,
   jump: ArrowUp,
@@ -44,15 +45,41 @@ const CONTROL_ICONS = {
   use: Hand,
 };
 
+/**
+ * Touch controller editor.
+ *
+ * The preview deliberately reuses the real in-match widget classes
+ * (touch-stick / touch-button) at the real anchors and scale, so what you drag
+ * here is exactly what you get when the match starts.
+ *
+ * Tapping a control selects it; the selected control gets its own size slider
+ * on top of the global pad size.
+ */
 export default function ControllerSettingsModal({ onClose }) {
   const [layout, setLayout] = useState(loadTouchLayout);
   const [selected, setSelected] = useState("jump");
+  // The arena is 960x540. Widgets keep their in-game pixel size, so the whole
+  // pad is scaled by the ratio between the preview and a real match screen.
+  const [stageScale, setStageScale] = useState(0.6);
   const previewRef = useRef(null);
   const dragRef = useRef(null);
 
   useEffect(() => {
     saveTouchLayout(layout);
   }, [layout]);
+
+  useEffect(() => {
+    const element = previewRef.current;
+    if (!element) return undefined;
+    const measure = () => {
+      const width = element.getBoundingClientRect().width;
+      if (width > 0) setStageScale(width / 960);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const sizeOf = (id) => layout.sizes?.[id] ?? 1;
   const setSize = (id, value) =>
@@ -66,7 +93,6 @@ export default function ControllerSettingsModal({ onClose }) {
     if (!target || !event.currentTarget.contains(target)) return;
     event.preventDefault();
     event.stopPropagation();
-    target.setPointerCapture(event.pointerId);
     const id = target.dataset.controlId;
     setSelected(id); // tapping a control selects it for resizing
     dragRef.current = {
@@ -138,8 +164,8 @@ export default function ControllerSettingsModal({ onClose }) {
       >
         <div className="controller-settings-header">
           <div>
-            <div className="controller-settings-eyebrow">TACTICAL SYSTEMS</div>
-            <h2 id="controller-settings-title">Controller settings</h2>
+            <div className="controller-settings-eyebrow">TOUCH CONTROLLER</div>
+            <h2 id="controller-settings-title">Match controller</h2>
           </div>
           <button
             type="button"
@@ -152,9 +178,9 @@ export default function ControllerSettingsModal({ onClose }) {
         </div>
 
         <p className="controller-settings-help">
-          Drag a control to move it, then use the size slider to resize that
-          button on its own. Changes apply to your next match and are saved on
-          this device.
+          This is the live match screen. Drag any control to move it, tap one to
+          select it, then use its size slider to resize that button on its own.
+          The preview uses the same positions and sizes the match will use.
         </p>
 
         <div
@@ -166,27 +192,64 @@ export default function ControllerSettingsModal({ onClose }) {
           onPointerCancelCapture={finishDrag}
         >
           <span className="controller-settings-preview__title">
-            TOUCH LAYOUT PREVIEW
+            LIVE MATCH LAYOUT
           </span>
+
+          {/* Static mock of the in-match HUD so the layout is judged in context */}
+          <div className="controller-settings-hud" aria-hidden="true">
+            <div className="controller-settings-hud__panel">
+              <span className="controller-settings-hud__name">CALLSIGN</span>
+              <span className="controller-settings-hud__bar">
+                <i />
+              </span>
+              <span className="controller-settings-hud__meta">AR-15 · 30/30</span>
+            </div>
+            <div className="controller-settings-hud__score">
+              <span>★ 0</span>
+              <b>VS</b>
+              <span>★ 0</span>
+            </div>
+          </div>
+
           {TOUCH_CONTROL_IDS.map((id) => {
             const position = layout.positions[id] || { x: 0, y: 0 };
             const controlPosition = getTouchControlPosition(id, position);
             const isStick = id === "move" || id === "aim";
             const Icon = CONTROL_ICONS[id];
+            const className = [
+              isStick ? "touch-stick" : "touch-button touch-button--wide",
+              id === "move" ? "touch-stick--move" : "",
+              id === "aim" ? "touch-stick--aim" : "",
+              "controller-settings-ghost",
+              id === selected ? "is-selected" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
             return (
               <button
                 key={id}
                 type="button"
                 data-control-id={id}
-                aria-label={`${CONTROL_LABELS[id]} control${id === selected ? " (selected)" : ""}`}
-                className={`controller-settings-control ${isStick ? "controller-settings-control--stick" : ""} ${id === "aim" ? "controller-settings-control--aim" : ""} ${id === selected ? "is-selected" : ""}`}
+                aria-label={`${CONTROL_LABELS[id]} control — drag to reposition${id === selected ? " (selected)" : ""}`}
+                className={className}
                 style={{
                   left: `${controlPosition.x * 100}%`,
                   top: `${controlPosition.y * 100}%`,
-                  transform: `translate(-50%, -50%) scale(${layout.scale * sizeOf(id)})`,
+                  "--touch-control-scale": String(
+                    layout.scale * sizeOf(id) * stageScale,
+                  ),
                 }}
               >
-                <Icon size={18} strokeWidth={3} />
+                {isStick ? (
+                  <>
+                    <span className="touch-stick__label">
+                      <Icon size={13} strokeWidth={3} />
+                    </span>
+                    <span className="touch-stick__thumb" />
+                  </>
+                ) : (
+                  <Icon size={20} strokeWidth={3} />
+                )}
               </button>
             );
           })}
@@ -214,30 +277,31 @@ export default function ControllerSettingsModal({ onClose }) {
           </button>
         </div>
 
-        <label className="controller-settings-size">
-          <span>All controls</span>
-          <input
-            type="range"
-            min="0.65"
-            max="1.5"
-            step="0.05"
-            value={layout.scale}
-            onChange={(event) =>
-              setLayout((current) => ({
-                ...current,
-                scale: Number(event.target.value),
-              }))
-            }
-          />
-          <span>{Math.round(layout.scale * 100)}%</span>
-        </label>
-
         <div className="controller-settings-actions">
+          <label className="controller-settings-size">
+            <span>All controls</span>
+            <input
+              type="range"
+              min="0.65"
+              max="1.5"
+              step="0.05"
+              value={layout.scale}
+              onChange={(event) =>
+                setLayout((current) => ({
+                  ...current,
+                  scale: Number(event.target.value),
+                }))
+              }
+            />
+            <span>{Math.round(layout.scale * 100)}%</span>
+          </label>
           <div className="controller-settings-buttons">
             <button
               type="button"
               className="controller-settings-button"
-              onClick={() => setLayout(DEFAULT_TOUCH_LAYOUT)}
+              onClick={() =>
+                setLayout({ ...DEFAULT_TOUCH_LAYOUT, positions: {} })
+              }
             >
               Reset layout
             </button>

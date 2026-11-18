@@ -5957,10 +5957,20 @@ export default function GameCanvas({
     setAimStick({ x: 0, y: 0, active: false });
   }, []);
 
+  // Briefly light up a tapped button so single-press controls (swap, reload,
+  // grenade, use) confirm the touch the same way the held ones do.
+  const flashControl = useCallback((id) => {
+    setPressedControls((previous) => ({ ...previous, [id]: true }));
+    window.setTimeout(() => {
+      setPressedControls((previous) => ({ ...previous, [id]: false }));
+    }, 130);
+  }, []);
+
   const tapAction = useCallback(
     (action) => {
       ensureAudioUnlocked();
       void requestImmersiveMode();
+      flashControl(action === "interact" ? "use" : action);
       if (networkSessionRef.current?.role === "guest") {
         pendingNetworkActionsRef.current.add(action);
       }
@@ -5973,7 +5983,7 @@ export default function GameCanvas({
         if (action === "swap") cycleWeaponSlot(me);
       });
     },
-    [ensureAudioUnlocked, requestImmersiveMode, runPlayerAction],
+    [ensureAudioUnlocked, requestImmersiveMode, runPlayerAction, flashControl],
   );
 
   // ── Touch pointer router ───────────────────────────────────────────────
@@ -6219,7 +6229,7 @@ export default function GameCanvas({
                   type="button"
                   data-control-id="swap"
                   aria-label="Swap weapon"
-                  className="touch-button touch-button--wide"
+                  className={`touch-button touch-button--wide ${pressedControls.swap ? "is-active" : ""}`}
                   style={touchControlStyle("swap")}
                 >
                   <ArrowLeftRight size={20} strokeWidth={3} />
@@ -6233,7 +6243,7 @@ export default function GameCanvas({
                   type="button"
                   data-control-id="reload"
                   aria-label="Reload"
-                  className="touch-button touch-button--wide"
+                  className={`touch-button touch-button--wide ${pressedControls.reload ? "is-active" : ""}`}
                   style={touchControlStyle("reload")}
                 >
                   <RotateCw size={20} strokeWidth={3} />
@@ -6242,7 +6252,7 @@ export default function GameCanvas({
                   type="button"
                   data-control-id="grenade"
                   aria-label="Throw grenade"
-                  className="touch-button touch-button--wide"
+                  className={`touch-button touch-button--wide ${pressedControls.grenade ? "is-active" : ""}`}
                   style={touchControlStyle("grenade")}
                 >
                   <Bomb size={20} strokeWidth={3} />
@@ -6269,7 +6279,7 @@ export default function GameCanvas({
                 type="button"
                 data-control-id="use"
                 aria-label="Use"
-                className="touch-button touch-button--wide"
+                className={`touch-button touch-button--wide ${pressedControls.use ? "is-active" : ""}`}
                 style={touchControlStyle("use")}
               >
                 <Hand size={20} strokeWidth={3} />

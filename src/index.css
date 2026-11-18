@@ -556,8 +556,11 @@ button.home-settings-controller {
 .controller-settings-preview {
   position: relative;
   width: 100%;
-  height: min(36vh, 300px);
-  min-height: 210px;
+  /* Same 16:9 frame as the arena, so the pad is judged in a real match shape */
+  aspect-ratio: 16 / 9;
+  height: auto;
+  max-height: min(40vh, 340px);
+  min-height: 190px;
   overflow: hidden;
   border: 1px solid rgba(118, 160, 53, 0.35);
   border-radius: 10px;
@@ -577,34 +580,89 @@ button.home-settings-controller {
   pointer-events: none;
 }
 
-.controller-settings-control {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  width: 58px;
-  height: 42px;
-  padding: 3px;
-  border: 1px solid rgba(137, 164, 104, 0.58);
-  border-radius: 10px;
-  background: rgba(28, 36, 24, 0.96);
-  color: #e6f4d2;
-  font: 700 8px/1.1 var(--font-mono);
-  text-align: center;
-  touch-action: none;
-  user-select: none;
+/* The preview reuses the real in-match widgets (touch-stick / touch-button) so
+   the layout you drag here is exactly the layout you play with. */
+.controller-settings-preview .touch-stick,
+.controller-settings-preview .touch-button {
+  pointer-events: auto;
   cursor: grab;
+  touch-action: none;
 }
 
-.controller-settings-control--stick {
-  width: 58px;
-  height: 58px;
-  border-radius: 999px;
+.controller-settings-preview .touch-stick__thumb {
+  pointer-events: none;
 }
 
-.controller-settings-control--aim {
-  border-color: rgba(248, 113, 113, 0.75);
-  background: rgba(70, 19, 19, 0.95);
-  color: #ffe4e4;
+.controller-settings-ghost {
+  outline: 1px dashed rgba(170, 221, 84, 0.3);
+  outline-offset: 3px;
+  user-select: none;
+}
+
+.controller-settings-ghost:active {
+  cursor: grabbing;
+  outline-color: rgba(214, 245, 170, 0.85);
+}
+
+/* Mock match HUD, so the pad is tuned against the real play screen. */
+.controller-settings-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.controller-settings-hud__panel {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid rgba(118, 160, 53, 0.35);
+  border-radius: 4px;
+  background: rgba(6, 10, 6, 0.78);
+  color: #9ab86a;
+  font: 700 7px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+}
+
+.controller-settings-hud__bar {
+  height: 5px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.controller-settings-hud__bar i {
+  display: block;
+  height: 100%;
+  width: 78%;
+  background: linear-gradient(90deg, #34d399, #86efac);
+}
+
+.controller-settings-hud__meta {
+  color: #cbd5c0;
+}
+
+.controller-settings-hud__score {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px;
+  border: 1px solid rgba(132, 204, 22, 0.6);
+  border-radius: 4px;
+  background: rgba(8, 12, 8, 0.85);
+  color: #86efac;
+  font: 800 10px/1 var(--font-mono);
+}
+
+.controller-settings-hud__score b {
+  color: #8a8f86;
+  font-size: 8px;
 }
 
 .controller-settings-size {
@@ -2781,4 +2839,10 @@ html.mobile-game-ui .home-settings-menu {
   padding: 7px 10px;
   font-size: 9px;
   white-space: nowrap;
+}
+
+/* Selected control highlight in the match-accurate preview */
+.controller-settings-ghost.is-selected {
+  border-color: #d7f0ab;
+  box-shadow: 0 0 0 2px rgba(170, 221, 84, 0.6);
 }

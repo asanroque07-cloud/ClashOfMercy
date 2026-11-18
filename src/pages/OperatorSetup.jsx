@@ -73,7 +73,7 @@ export default function OperatorSetup({
         <div className="operator-setup__card w-full max-w-2xl border border-military bg-stone-950/70 backdrop-blur-sm shadow-2xl rounded overflow-hidden">
           <div className="px-5 py-4 border-b border-military bg-zinc-900/50">
             <div className="display text-[#76a035] text-2xl tracking-widest uppercase">
-              OP:WARTACTICS
+              CLASH OF MERCY
             </div>
             <div className="font-mono text-[10px] text-stone-400 tracking-widest uppercase mt-1">
               Operator registration required
