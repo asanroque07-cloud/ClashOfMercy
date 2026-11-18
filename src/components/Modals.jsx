@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { ADMIRALS_AVATARS, LOBBY_EMOTES } from "@/lib/lobbyData";
 import { WEAPONS, weaponById, HEROES } from "@/lib/gameTypes";
+import GunIcon from "./GunIcon";
 
 // This file holds the popup dialogs opened from the Home screen: Loadout (equip weapons/attachments/
 // emotes), Store (buy skins/badges/crates), History (past matches), and Menu (settings/logout).
@@ -169,8 +170,9 @@ export function LoadoutModal({
               SLOT 1
             </span>
             <div className="min-w-0">
-              <div className="font-display font-bold text-sm text-white truncate">
-                {primary.icon} {primary.name}
+              <div className="font-display font-bold text-sm text-white truncate flex items-center gap-2">
+                <GunIcon id={primary.id} className="h-5" />
+                {primary.name}
               </div>
               <div className="font-mono text-[9px] text-stone-400 uppercase tracking-widest">
                 PRIMARY · {attachmentCount(primary.id)} ATTACHMENT
@@ -228,8 +230,13 @@ export function LoadoutModal({
                 <div className="font-mono text-[9px] text-stone-500 font-black uppercase tracking-widest">
                   ATTACHMENT CONFIG · {configuring.category}
                 </div>
-                <h3 className="font-display font-bold text-lg text-white tracking-wide">
-                  {configuring.icon} {configuring.name}
+                <h3 className="font-display font-bold text-lg text-white tracking-wide flex items-center gap-2">
+                  {configuring.isMelee ? (
+                    configuring.icon
+                  ) : (
+                    <GunIcon id={configuring.id} className="h-7" />
+                  )}
+                  {configuring.name}
                 </h3>
                 <p className="text-xs text-stone-400 font-sans">
                   {configuring.description}
@@ -322,9 +329,12 @@ export function LoadoutModal({
                           EQUIPPED
                         </span>
                       )}
-                      <h3 className="font-display font-bold text-base tracking-wide text-white pr-20">
-                        {weapon.icon} {weapon.name}
-                      </h3>
+                      <div className="flex items-center gap-2 pr-20">
+                        <GunIcon id={weapon.id} className="h-7" />
+                        <h3 className="font-display font-bold text-base tracking-wide text-white truncate">
+                          {weapon.name}
+                        </h3>
+                      </div>
                       <div className="text-[9px] font-mono text-stone-400 uppercase tracking-widest mb-2">
                         {weapon.category} · DMG {weapon.damage} · MAG{" "}
                         {weapon.magazine}
@@ -361,7 +371,10 @@ export function LoadoutModal({
                   return (
                     <div
                       key={weapon.id}
-                      className={`p-3 border rounded-md flex flex-col justify-between transition-all ${isEquipped ? "border-amber-500 bg-amber-950/20" : "border-military bg-stone-900/40 hover:bg-stone-900/70"}`}
+                      onClick={() => {
+                        if (!isEquipped) onSelectLoadoutWeapon("secondary", weapon.id);
+                      }}
+                      className={`p-3 border rounded-md flex flex-col justify-between transition-all ${isEquipped ? "border-amber-500 bg-amber-950/20" : "border-military bg-stone-900/40 hover:bg-stone-900/70 cursor-pointer"}`}
                     >
                       <div>
                         <h3 className="font-display font-bold text-sm tracking-wide text-white">
@@ -384,9 +397,10 @@ export function LoadoutModal({
                         </div>
                       </div>
                       <button
-                        onClick={() =>
-                          onSelectLoadoutWeapon("secondary", weapon.id)
-                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectLoadoutWeapon("secondary", weapon.id);
+                        }}
                         disabled={isEquipped}
                         className={`w-full py-1.5 rounded text-[10px] font-mono font-bold uppercase transition-all ${isEquipped ? "bg-stone-800 text-stone-500 cursor-not-allowed" : "bg-amber-500 hover:bg-amber-400 text-black cursor-pointer"}`}
                       >
@@ -705,9 +719,14 @@ export function StoreModal({
                     >
                       <div>
                         <div className="flex justify-between items-start mb-1 gap-2">
-                          <h4 className="font-display font-bold text-white text-sm leading-tight">
-                            {weapon.name}
-                          </h4>
+                          <div className="flex items-center gap-2 min-w-0">
+                            {!weapon.isMelee && (
+                              <GunIcon id={weapon.id} className="h-6" />
+                            )}
+                            <h4 className="font-display font-bold text-white text-sm leading-tight">
+                              {weapon.name}
+                            </h4>
+                          </div>
                           <span className="text-[9px] bg-[#76a035]/10 border border-[#76a035]/30 text-[#76a035] px-1.5 py-0.5 rounded font-mono uppercase whitespace-nowrap flex-shrink-0">
                             {weapon.category}
                           </span>

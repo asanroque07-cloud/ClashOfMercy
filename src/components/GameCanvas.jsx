@@ -42,7 +42,12 @@ import SwapIcon from "./SwapIcon";
 // ──── Constants (tunable game-feel numbers: world size, gravity, jump strength, speed) ────
 const VIEW_W = 960,
   VIEW_H = 540,
-  WORLD_W = 3600;
+  // The battlefield was authored at 3600 units wide for the original 58px
+  // operators. Characters are noticeably bigger now, so the ground is stretched
+  // to 4860 units (see MAP_X_SCALE below) to keep the same breathing room.
+  BASE_WORLD_W = 3600,
+  MAP_X_SCALE = 1.35,
+  WORLD_W = Math.round(BASE_WORLD_W * MAP_X_SCALE);
 // The canvas draws in 960×540 world units but backs those with 2× the pixels,
 // so rounded cartoon shapes and gradients come out crisp instead of chunky.
 const RENDER_SCALE = 2;
@@ -389,6 +394,48 @@ const WORLDS = {
   },
 };
 
+// ──── Map scaling ────
+// The hand-authored layouts above use absolute X coordinates tuned for smaller
+// characters. Stretch every horizontal coordinate by MAP_X_SCALE once at load
+// so walls, cover, pits, ladders and pickups keep their spacing relative to the
+// larger operators. Heights (Y) are untouched: ground level, jump arcs, ladder
+// lengths and platform stacking stay exactly as tuned.
+function scaleWorldHorizontally(world) {
+  const sx = (v) => Math.round(v * MAP_X_SCALE);
+  for (const s of world.structures) {
+    s.x = sx(s.x);
+    s.w = sx(s.w);
+  }
+  for (const b of world.bushes) b.x = sx(b.x);
+  for (const l of world.ladders) l.x = sx(l.x);
+  for (const p of world.pits || []) {
+    p.x = sx(p.x);
+    p.w = sx(p.w);
+  }
+  for (const c of world.underCover || []) {
+    c.x = sx(c.x);
+    c.w = sx(c.w);
+  }
+  for (const p of world.underPlatforms || []) {
+    p.x = sx(p.x);
+    p.w = sx(p.w);
+  }
+  world.hkitX = (world.hkitX || []).map(sx);
+  if (world.hkitXUnderground) {
+    world.hkitXUnderground = world.hkitXUnderground.map(sx);
+  }
+  if (world.houseX !== undefined) world.houseX = sx(world.houseX);
+  if (world.houseW !== undefined) world.houseW = sx(world.houseW);
+  const under = world.tunnel || world.trench;
+  if (under) {
+    // The side walls hug the two ends of the world, so rescale the margin
+    // rather than the absolute coordinate.
+    under.leftWall = sx(under.leftWall);
+    under.rightWall = WORLD_W - sx(BASE_WORLD_W - under.rightWall);
+  }
+}
+for (const world of Object.values(WORLDS)) scaleWorldHorizontally(world);
+
 // Active world (set per match). Defaults to city so the module-level helpers
 // always have something valid before the first match initializes.
 let WORLD = WORLDS.city;
@@ -441,6 +488,37 @@ function getFloorAt(x, underground, prevFeetY) {
     }
   }
   return fl;
+}
+
+// Did the segment (x0,y0)→(x1,y1) touch the box at (bx,by,bw,bh)? Used for
+// bullet flight, because a round can cover more distance in one frame than a
+// thin wall is wide — a point test would let it appear on the far side.
+function segmentHitsBox(x0, y0, x1, y1, bx, by, bw, bh) {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  let t0 = 0;
+  let t1 = 1;
+  const axes = [
+    [x0, dx, bx, bx + bw],
+    [y0, dy, by, by + bh],
+  ];
+  for (const [p, d, lo, hi] of axes) {
+    if (Math.abs(d) < 1e-6) {
+      if (p < lo || p > hi) return false;
+      continue;
+    }
+    let ta = (lo - p) / d;
+    let tb = (hi - p) / d;
+    if (ta > tb) {
+      const tmp = ta;
+      ta = tb;
+      tb = tmp;
+    }
+    if (ta > t0) t0 = ta;
+    if (tb < t1) t1 = tb;
+    if (t0 > t1) return false;
+  }
+  return true;
 }
 
 function resolveX(oldX, newX, y, underground) {
@@ -3027,10 +3105,16 @@ export default function GameCanvas({
           )
             continue;
           if (
-            b.x >= str.x - 1 &&
-            b.x <= str.x + str.w + 1 &&
-            b.y >= str.y &&
-            b.y <= str.y + str.h
+            segmentHitsBox(
+              b.prevX,
+              b.prevY,
+              b.x,
+              b.y,
+              str.x - 1,
+              str.y,
+              str.w + 2,
+              str.h,
+            )
           ) {
             spawnImpactSparks(s.particles, b.x, b.y, Math.atan2(b.vy, b.vx));
             return false;
@@ -3046,10 +3130,16 @@ export default function GameCanvas({
         // Underground cover objects block bullets (IMPROVEMENT_TODO #12)
         for (const c of UNDER_COVER()) {
           if (
-            b.x >= c.x - 1 &&
-            b.x <= c.x + c.w + 1 &&
-            b.y >= UNDERGROUND_Y - c.h &&
-            b.y <= UNDERGROUND_Y
+            segmentHitsBox(
+              b.prevX,
+              b.prevY,
+              b.x,
+              b.y,
+              c.x - 1,
+              UNDERGROUND_Y - c.h,
+              c.w + 2,
+              c.h,
+            )
           ) {
             spawnImpactSparks(s.particles, b.x, b.y, Math.atan2(b.vy, b.vx));
             return false;
@@ -5429,7 +5519,7 @@ export default function GameCanvas({
       me.slot === 0
         ? `[1] ${w?.name.slice(0, 13) ?? "GUN"}`
         : me.slot === 1
-          ? "[2] KNIFE"
+          ? `[2] ${(weaponById(me.meleeWeaponId)?.name ?? "MELEE").toUpperCase()}`
           : "[3] GRENADE",
       14,
       66,
