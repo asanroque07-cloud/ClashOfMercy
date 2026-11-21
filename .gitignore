@@ -3,6 +3,8 @@ dist/
 .env
 .env.*
 !.env.example
+# Public build settings (publishable key only) so CI/Vercel builds work.
+!.env.production
 .freebuff/
 *.apk
 
