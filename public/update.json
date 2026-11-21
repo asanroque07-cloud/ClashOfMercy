@@ -1,0 +1,12 @@
+{
+  "version": "1.6.5",
+  "versionCode": 21,
+  "released": "2026-11-21T13:47:05.498Z",
+  "size": 5491997,
+  "apkUrl": "https://raw.githubusercontent.com/asanroque07-cloud/ClashOfMercy/main/public/download/clash-of-mercy.apk",
+  "notes": [
+    "In-app updater: see the new version, the download size and what changed before you install.",
+    "Download progress is shown in MB, and the app restarts once the update is installed.",
+    "Player accounts: create an account with your email, or sign in to play online."
+  ]
+}

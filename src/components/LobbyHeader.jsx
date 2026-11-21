@@ -44,6 +44,7 @@ export function LobbyHeader({
   onToggleMusic,
   onToggleSound,
   onOpenTutorial,
+  onOpenAccount,
   cloudAccount,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -256,12 +257,12 @@ export function LobbyHeader({
           ) : cloudAccount.configured ? (
             <button
               type="button"
-              onClick={() => void cloudAccount.connectGoogle?.()}
+              onClick={onOpenAccount}
               disabled={cloudAccount.busy}
-              aria-label="Log in with Google"
+              aria-label="Log in or create an account"
               title={
                 cloudAccount.error ||
-                "Log in with Google to save your account and add friends"
+                "Log in or create an account to play online with friends"
               }
               className="flex h-[38px] items-center gap-2 rounded border border-military-active bg-[#76a035]/10 px-2.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#76a035] transition-all hover:bg-[#76a035]/25 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -315,7 +316,7 @@ export function LobbyHeader({
                   <span className="home-settings-row__copy">
                     <span className="home-settings-row__label">
                       {cloudAccount.user
-                        ? "Google account connected"
+                        ? "Account connected"
                         : cloudAccount.configured
                           ? "Save your account"
                           : "Guest profile"}
@@ -326,7 +327,7 @@ export function LobbyHeader({
                           ? `@${cloudAccount.playerProfile.username}`
                           : cloudAccount.user.email
                         : cloudAccount.configured
-                          ? "Log in with an existing Google account, or keep playing as a guest."
+                          ? "Log in to play online, or keep playing as a guest."
                           : "Your progress is saved on this device."}
                     </span>
                   </span>
@@ -335,12 +336,12 @@ export function LobbyHeader({
                   <div className="home-settings-account__actions">
                     <button
                       type="button"
-                      onClick={() => void cloudAccount.switchAccount?.()}
+                      onClick={onOpenAccount}
                       disabled={cloudAccount.busy}
-                      title="Log in with a different Google account"
+                      title="Switch or create a player account"
                       className="home-settings-account__button"
                     >
-                      {cloudAccount.busy ? "PLEASE WAIT…" : "SWITCH ACCOUNT"}
+                      SWITCH ACCOUNT
                     </button>
                     <button
                       type="button"
@@ -354,11 +355,11 @@ export function LobbyHeader({
                 ) : cloudAccount.configured ? (
                   <button
                     type="button"
-                    onClick={cloudAccount.connectGoogle}
+                    onClick={onOpenAccount}
                     disabled={cloudAccount.busy}
                     className="home-settings-account__button"
                   >
-                    {cloudAccount.busy ? "CONNECTING…" : "CONNECT GOOGLE"}
+                    SIGN IN / CREATE ACCOUNT
                   </button>
                 ) : null}
                 {cloudAccount.error && (

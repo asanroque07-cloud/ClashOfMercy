@@ -290,6 +290,34 @@ export function useCloudAccount() {
     }
   }, []);
 
+  // Email + password accounts. A confirmation email may be required before the
+  // first sign-in, which `signUpWithEmail` reports back to the account window.
+  const signInWithEmail = useCallback(async (email, password) => {
+    if (!supabase) {
+      throw new Error("Player accounts are not available in this build.");
+    }
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: String(email).trim(),
+      password,
+    });
+    if (authError) throw authError;
+  }, []);
+
+  const signUpWithEmail = useCallback(async (email, password, displayName) => {
+    if (!supabase) {
+      throw new Error("Player accounts are not available in this build.");
+    }
+    const { data, error: authError } = await supabase.auth.signUp({
+      email: String(email).trim(),
+      password,
+      options: {
+        data: { full_name: String(displayName || "").trim() || undefined },
+      },
+    });
+    if (authError) throw authError;
+    return { needsConfirmation: !data?.session };
+  }, []);
+
   const findPlayer = useCallback(async (searchTerm) => {
     if (!supabase || !user) {
       throw new Error("Connect a Google account before finding players.");
@@ -416,6 +444,8 @@ export function useCloudAccount() {
     error,
     setError,
     connectGoogle,
+    signInWithEmail,
+    signUpWithEmail,
     switchAccount,
     disconnectGoogle,
     findPlayer,
