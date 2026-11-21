@@ -9,7 +9,8 @@
     "serve": "vite preview",
     "android:sync": "npm run build && node -e \"require('node:fs').rmSync('dist/download',{recursive:true,force:true})\" && npx cap sync android",
     "android:apk": "npm run android:sync && cd android && gradlew.bat assembleRelease",
-    "release:manifest": "node scripts/write-update-manifest.mjs"
+    "release:manifest": "node scripts/write-update-manifest.mjs",
+    "prebuild": "node scripts/check-supabase-env.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.10",
