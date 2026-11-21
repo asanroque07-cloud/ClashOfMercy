@@ -28,8 +28,6 @@ import {
 } from "../lib/touchControls";
 import { GENERATED_GUN_KEYS, renderGunBuffers } from "../lib/weaponAudio";
 import {
-  ArrowUp,
-  ArrowDown,
   RotateCw,
   Bomb,
   Hand,
@@ -38,6 +36,7 @@ import {
   Zap,
 } from "lucide-react";
 import SwapIcon from "./SwapIcon";
+import { JumpIcon, DropIcon } from "./PadIcons";
 
 // ──── Constants (tunable game-feel numbers: world size, gravity, jump strength, speed) ────
 const VIEW_W = 960,
@@ -57,21 +56,6 @@ const PW = 22,
 const GRAV = 0.55,
   JUMP = -13.5,
   SPD = 4.2;
-// House (enterable armory) base geometry. The x-position is set per-map via
-// each WORLDS entry's `houseX` field so it never overlaps battlefield
-// structures (see IMPROVEMENT_TODO item #2). `houseW` may also be overridden
-// per map when the clear gap is narrower than the default.
-const HOUSE_DEF = { w: 280, h: 180 };
-// HOUSE/DOOR are resolved at match start (see init()). Defaults keep the
-// module-level helpers valid before the first match.
-let HOUSE = { x: 1360, y: GY - 180, w: 280, h: 180 };
-let DOOR = { x: HOUSE.x + 110, w: 60 };
-function resolveHouse(mapDef) {
-  const w = mapDef?.houseW ?? HOUSE_DEF.w;
-  const x = mapDef?.houseX ?? 1360;
-  HOUSE = { x, y: GY - 180, w, h: 180 };
-  DOOR = { x: x + Math.round(w / 2) - 30, w: 60 };
-}
 // Character box height. The operator art is authored 56px tall, so this is also
 // the on-screen size of the hero: bigger reads better on a phone.
 const PLAYER_SPRITE_HEIGHT = 72;
@@ -191,8 +175,6 @@ const WORLDS = {
       { x: 1600, w: 200, y: UNDERGROUND_Y - 84 },
       { x: 2500, w: 190, y: UNDERGROUND_Y - 220 },
     ],
-    // House (armory) placed in the clear 1320–1710 gap (IMPROVEMENT_TODO #2)
-    houseX: 1360,
   },
 
   // ── JUNGLE: Dense Jungle — mine tunnels, rope bridges, rocks ──
@@ -260,8 +242,6 @@ const WORLDS = {
       { x: 1720, w: 190, y: UNDERGROUND_Y - 84 },
       { x: 2650, w: 190, y: UNDERGROUND_Y - 220 },
     ],
-    // House placed in the jungle's clearest gap (1540–1710) — narrower (IMPROVEMENT_TODO #2)
-    houseX: 1540, houseW: 170,
   },
 
   // ── DESERT: Scorched Desert — trenches, sandbag bunkers, rock outcrops ──
@@ -326,8 +306,6 @@ const WORLDS = {
       { x: 1700, w: 180, y: UNDERGROUND_Y - 84 },
       { x: 2600, w: 190, y: UNDERGROUND_Y - 220 },
     ],
-    // House placed in the clear 1290–1710 gap (IMPROVEMENT_TODO #2)
-    houseX: 1360,
   },
 
   // ── BUNKER: Underground — vertical shafts with ladders, catwalks ──
@@ -389,8 +367,6 @@ const WORLDS = {
       { x: 1650, w: 180, y: UNDERGROUND_Y - 84 },
       { x: 2550, w: 200, y: UNDERGROUND_Y - 220 },
     ],
-    // House placed in the clear 1380–1710 gap (IMPROVEMENT_TODO #2)
-    houseX: 1400,
   },
 };
 
@@ -424,8 +400,6 @@ function scaleWorldHorizontally(world) {
   if (world.hkitXUnderground) {
     world.hkitXUnderground = world.hkitXUnderground.map(sx);
   }
-  if (world.houseX !== undefined) world.houseX = sx(world.houseX);
-  if (world.houseW !== undefined) world.houseW = sx(world.houseW);
   const under = world.tunnel || world.trench;
   if (under) {
     // The side walls hug the two ends of the world, so rescale the margin
@@ -434,6 +408,59 @@ function scaleWorldHorizontally(world) {
     under.rightWall = WORLD_W - sx(BASE_WORLD_W - under.rightWall);
   }
 }
+// Extra battlefield dressing, merged into the layouts above before the maps are
+// scaled. The old armory building sat in the widest central gap, so the middle
+// of every map was a long empty run: these pieces turn it into a proper firefight
+// with broken cover, a raised firing step and scrub to hide in, and they fill
+// the other long dead stretches too. Coordinates are in pre-scale map units and
+// every piece is kept clear of walls, pits, ladders and the two spawn pockets.
+const MAP_EXTRAS = {
+  city: [
+    { x: 1000, y: GY - 60, w: 44, h: 60, type: "rock" },
+    { x: 1390, y: GY - 46, w: 52, h: 46, type: "sandbag" },
+    { x: 1486, y: GY - 68, w: 44, h: 68, type: "rock" },
+    { x: 1580, y: GY - 76, w: 110, h: 14, type: "platform" },
+    { x: 1878, y: GY - 62, w: 50, h: 62, type: "rock" },
+    { x: 2210, y: GY - 38, w: 60, h: 38, type: "sandbag" },
+    { x: 2330, y: GY - 58, w: 48, h: 58, type: "rock" },
+    { x: 1020, y: GY, r: 32, type: "bush" },
+    { x: 2040, y: GY, r: 28, type: "bush" },
+  ],
+  jungle: [
+    { x: 1250, y: GY - 66, w: 46, h: 66, type: "rock" },
+    { x: 2060, y: GY - 52, w: 44, h: 52, type: "box" },
+    { x: 2180, y: GY - 38, w: 70, h: 38, type: "sandbag" },
+    { x: 2970, y: GY - 54, w: 46, h: 54, type: "rock" },
+    { x: 1880, y: GY, r: 32, type: "bush" },
+  ],
+  desert: [
+    { x: 1320, y: GY - 40, w: 90, h: 40, type: "sandbag" },
+    { x: 1500, y: GY - 62, w: 60, h: 62, type: "rock" },
+    { x: 1620, y: GY - 40, w: 70, h: 40, type: "sandbag" },
+    { x: 2050, y: GY - 58, w: 50, h: 58, type: "rock" },
+    { x: 3210, y: GY - 38, w: 70, h: 38, type: "sandbag" },
+    { x: 1240, y: GY, r: 30, type: "bush" },
+    { x: 3000, y: GY, r: 30, type: "bush" },
+  ],
+  bunker: [
+    { x: 1400, y: GY - 50, w: 46, h: 50, type: "box" },
+    { x: 1520, y: GY - 120, w: 130, h: 14, type: "platform" },
+    { x: 1660, y: GY - 60, w: 40, h: 60, type: "rock" },
+    { x: 1870, y: GY - 40, w: 80, h: 40, type: "sandbag" },
+    { x: 2170, y: GY - 40, w: 70, h: 40, type: "sandbag" },
+    { x: 2340, y: GY - 56, w: 48, h: 56, type: "rock" },
+    { x: 1030, y: GY, r: 30, type: "bush" },
+  ],
+};
+for (const [id, extras] of Object.entries(MAP_EXTRAS)) {
+  const world = WORLDS[id];
+  if (!world) continue;
+  for (const piece of extras) {
+    if (piece.type === "bush") world.bushes.push(piece);
+    else world.structures.push(piece);
+  }
+}
+
 for (const world of Object.values(WORLDS)) scaleWorldHorizontally(world);
 
 // Active world (set per match). Defaults to city so the module-level helpers
@@ -539,31 +566,6 @@ function segmentHitsStair(x0, y0, x1, y1, s) {
   return false;
 }
 
-// The armory is a solid building on every map, so rounds stop on its side walls
-// and on the lintel above the doorway. The doorway itself stays open so both
-// sides can still trade shots through the door.
-function houseParts() {
-  const h = HOUSE;
-  return [
-    { x: h.x, y: h.y, w: Math.max(0, DOOR.x - h.x), h: GY - h.y },
-    {
-      x: DOOR.x + DOOR.w,
-      y: h.y,
-      w: Math.max(0, h.x + h.w - (DOOR.x + DOOR.w)),
-      h: GY - h.y,
-    },
-    { x: h.x, y: h.y, w: h.w, h: Math.max(0, GY - 52 - h.y) },
-  ];
-}
-
-function segmentHitsHouse(x0, y0, x1, y1) {
-  for (const p of houseParts()) {
-    if (p.w <= 0 || p.h <= 0) continue;
-    if (segmentHitsBox(x0, y0, x1, y1, p.x, p.y, p.w, p.h)) return true;
-  }
-  return false;
-}
-
 function resolveX(oldX, newX, y, underground) {
   if (underground) {
     // Confined to the tunnel span.
@@ -587,23 +589,6 @@ function resolveX(oldX, newX, y, underground) {
       return x;
     }
     return newX;
-  }
-  // The armory body is solid too — players walk in through the door rather than
-  // straight through its walls.
-  const h = HOUSE;
-  if (y > h.y) {
-    const walls = [
-      [h.x, DOOR.x],
-      [DOOR.x + DOOR.w, h.x + h.w],
-    ];
-    for (const [sL, sR] of walls) {
-      if (sR - sL <= 0) continue;
-      if (newX + PW / 2 > sL && newX - PW / 2 < sR) {
-        if (oldX + PW / 2 <= sL) return sL - PW / 2 - 0.5;
-        if (oldX - PW / 2 >= sR) return sR + PW / 2 + 0.5;
-        return oldX;
-      }
-    }
   }
   for (const s of WORLD.structures) {
     if (s.type === "stair") continue;
@@ -648,7 +633,6 @@ function isOccluded(meX, tx, underground) {
   const lo = Math.min(meX, tx),
     hi = Math.max(meX, tx);
   const eyeY = GY - PH * 0.65;
-  if (segmentHitsHouse(meX, eyeY, tx, eyeY)) return true;
   for (const s of WORLD.structures) {
     if (s.type === "stair" || s.type === "platform" || s.type === "bridge")
       continue;
@@ -1026,14 +1010,6 @@ function getLoadoutWeapon(profile, role, mode) {
     (mode === "classic" ? profile.equipped.core : profile.equipped[role]);
   const u = profile.upgrades[eqId] || { damage: 0, fireRate: 0, magazine: 0 };
   return applyUpgrades(weaponById(eqId), u);
-}
-function getAvailableGuns(profile, mode) {
-  const all = WEAPONS.filter(
-    (w) => !w.isMelee && !w.isThrowable && w.category === "weapon",
-  );
-  return mode === "classic"
-    ? all
-    : all.filter((w) => profile.ownedWeapons.includes(w.id));
 }
 function findBestTarget(me, s) {
   const candidates = s.players
@@ -1445,15 +1421,12 @@ export default function GameCanvas({
     // mkPlayer runs. The WORLD variable is read by STRUCTURES()/BUSHES()/HKIT_X()
     // and the floor/collision helpers, so it must match the selected map.
     WORLD = WORLDS[mapId] || WORLDS.city;
-    // Resolve the per-map house position so it never overlaps structures.
-    resolveHouse(WORLD);
     const myW = getLoadoutWeapon(profile, role, mode);
     // Slot 2 is whatever melee weapon the loadout has equipped.
     const meleeWeaponId = profile.loadout?.secondary || "knife";
     const hasGrenade = profile.ownedWeapons.includes("grenade");
     // The equipped hero is what gives the player their skill (see useAbility).
     const myHero = heroById(profile.hero);
-    const availHouseWeapons = getAvailableGuns(profile, mode);
     const aiNames = ["Ghost", "Viper", "Thorn", "Rook", "Ares", "Blaze"];
 
     function mkPlayer(id, name, team, isAI, wId, aiRole) {
@@ -1504,8 +1477,6 @@ export default function GameCanvas({
         mag: w?.magazine ?? 30,
         reloading: false,
         hasFlag: false,
-        inHouse: false,
-        nearDoor: false,
         alive: true,
         respawnTimer: 0,
         emoteTimer: 0,
@@ -1635,9 +1606,7 @@ export default function GameCanvas({
       },
       cameraX: 0,
       over: false,
-      inHouse: false,
-      houseWeaponIndex: 0,
-      availHouseWeapons,
+
       matchStartTime: performance.now(),
       particles: [],
       damageNumbers: [],
@@ -1825,32 +1794,6 @@ export default function GameCanvas({
   }
 
   function performInteract(p, s) {
-    if (p.nearDoor) {
-      p.inHouse = !p.inHouse;
-      s.inHouse = p.inHouse;
-      if (p.inHouse) {
-        p.x = HOUSE.x + HOUSE.w / 2;
-        p.y = GY;
-      }
-      return;
-    }
-
-    if (p.inHouse) {
-      const hw = s.availHouseWeapons[s.houseWeaponIndex];
-      if (hw) {
-        if (hw.id !== p.primaryWeaponId) {
-          p.primaryWeaponId = hw.id; // gun-change animation triggered below
-          triggerWeaponSwap(p);
-        }
-        p.ammo = hw.magazine;
-        p.mag = hw.magazine;
-        p.reloading = false;
-        p.lootWeaponId = hw.id;
-        playSfx("load", p);
-      }
-      return;
-    }
-
     // Ladders: USE grabs the ladder you are standing at, or lets go when you
     // are already climbing one.
     if (p.onLadder) {
@@ -1898,7 +1841,7 @@ export default function GameCanvas({
   // ──── Hero abilities ────
   // One skill per hero, on its own cooldown. V / the SKILL pad button fires it.
   function useAbility(p, s) {
-    if (!p.alive || !p.heroId || p.inHouse) return;
+    if (!p.alive || !p.heroId) return;
     if (p.heroAbilityCd > 0) return;
     const hero = heroById(p.heroId);
     if (!hero) return;
@@ -2302,7 +2245,6 @@ export default function GameCanvas({
     p.ammo = w?.magazine ?? 30;
     p.mag = w?.magazine ?? 30;
     p.reloading = false;
-    p.inHouse = false;
     p.lastDamageTime = 0;
     p.recoil = 0;
     p.underground = false;
@@ -2458,19 +2400,6 @@ export default function GameCanvas({
             }
           }
         }
-      }
-    }
-
-    // The armory blocks the ground path — walk to its doorway rather than
-    // pushing into the wall when the target is on the far side.
-    if (!p.underground && !p.inHouse) {
-      const h = HOUSE;
-      const doorC = DOOR.x + DOOR.w / 2;
-      const nearBuilding = p.x > h.x - 30 && p.x < h.x + h.w + 30;
-      const beyond = target.x < h.x - 10 || target.x > h.x + h.w + 10;
-      if (nearBuilding && beyond && Math.abs(p.x - doorC) > 10) {
-        p.vx = doorC > p.x ? SPD * 0.8 : -SPD * 0.8;
-        p.facing = doorC > p.x ? 1 : -1;
       }
     }
 
@@ -2652,11 +2581,11 @@ export default function GameCanvas({
     }
     const roundFrozen = rs.phase !== "live";
 
-    if (!me.inHouse && !showTouchControls) {
+    if (!showTouchControls) {
       const wx = s.mouse.x + s.cameraX;
       me.aimAngle = Math.atan2(s.mouse.y - (me.y - PH / 2 - 4), wx - me.x);
       me.facing = wx > me.x ? 1 : -1;
-    } else if (!me.inHouse && showTouchControls) {
+    } else if (showTouchControls) {
       if (s.mobile.fire) {
         me.aimAngle = Math.atan2(s.mobile.aimY, s.mobile.aimX);
         me.facing = s.mobile.aimX >= 0 ? 1 : -1;
@@ -2678,7 +2607,7 @@ export default function GameCanvas({
     me.recoil = Math.max(0, me.recoil - 0.04 * dtScale);
 
     // During round transitions the player is frozen at base — ignore input.
-    if (me.alive && !me.inHouse && !roundFrozen) {
+    if (me.alive && !roundFrozen) {
       const moveLeft =
         s.keys.has("a") || s.keys.has("arrowleft") || s.mobile.left;
       const moveRight =
@@ -2759,22 +2688,17 @@ export default function GameCanvas({
       }
       if (s.mouse.down || s.mobile.fire) fire(me, s);
     }
-    if (me.alive && me.inHouse && !roundFrozen) {
-      const moveLeft =
-        s.keys.has("a") || s.keys.has("arrowleft") || s.mobile.left;
-      const moveRight =
-        s.keys.has("d") || s.keys.has("arrowright") || s.mobile.right;
-      const moveX = moveLeft ? -1 : moveRight ? 1 : s.mobile.moveX;
-      if (moveX < -0.18) me.vx = SPD * moveX;
-      else if (moveX > 0.18) me.vx = SPD * moveX;
-      else me.vx = 0;
-    }
-
     if (networkSessionRef.current?.role === "host" && !roundFrozen) {
       for (const player of s.players) {
         if (player.isAI || player.id === "me" || !player.alive) continue;
         const input = remoteInputsRef.current.get(player.id);
         if (!input) continue;
+        // A guest whose tab stalled or dropped connection must not keep running
+        // and firing on their last held keys.
+        if (input.receivedAt && performance.now() - input.receivedAt > 1200) {
+          player.vx = 0;
+          continue;
+        }
         const previous = player.networkInput || {};
         const keys = new Set(input.keys || []);
         const mobile = input.mobile || {};
@@ -2786,9 +2710,7 @@ export default function GameCanvas({
         player.aimAngle = input.aimAngle ?? player.aimAngle;
         player.facing = Math.cos(player.aimAngle) >= 0 ? 1 : -1;
 
-        if (player.inHouse) {
-          player.vx = Math.abs(moveX) > 0.18 ? SPD * moveX : 0;
-        } else {
+        {
           player.vx = Math.abs(moveX) > 0.18 ? SPD * moveX : 0;
           const jump =
             keys.has("w") ||
@@ -2905,15 +2827,7 @@ export default function GameCanvas({
       // Recoil recovery for AI
       if (p.isAI) p.recoil = Math.max(0, p.recoil - 0.04 * dtScale);
 
-      if (p.inHouse) {
-        p.x = Math.max(
-          HOUSE.x + 8,
-          Math.min(p.x + p.vx * dtScale, HOUSE.x + HOUSE.w - 8),
-        );
-        p.y = GY;
-        p.vy = 0;
-        p.onGround = true;
-      } else {
+      {
         // ── Ladder climbing ──
         // The climb offset itself is applied by the input/AI pass above; here we
         // snap to the ladder, keep gravity off, and hand the player over to the
@@ -3011,10 +2925,6 @@ export default function GameCanvas({
       updatePlayerAnim(p, dtScale);
 
       p.inBush = isInBush(p.x, p.y);
-      p.nearDoor =
-        !p.inHouse &&
-        Math.abs(p.x - (DOOR.x + DOOR.w / 2)) < 45 &&
-        Math.abs(p.y - GY) < 5;
 
       if (p.reloading) {
         p.reloadTimer -= 16.67 * dtScale;
@@ -3192,8 +3102,7 @@ export default function GameCanvas({
                   c.h,
                 ),
               )
-            : segmentHitsHouse(b.prevX, b.prevY, b.x, b.y) ||
-              STRUCTURES().some(
+            : STRUCTURES().some(
                 (str) =>
                   str.type !== "platform" &&
                   str.type !== "bridge" &&
@@ -3264,11 +3173,6 @@ export default function GameCanvas({
       // One-way platforms/bridges and stairs don't block bullets.
       // Surface structures don't block underground bullets and vice versa.
       if (!b.underground) {
-        // The armory building stops rounds except through its doorway.
-        if (segmentHitsHouse(sweepX, sweepY, b.x, b.y)) {
-          spawnImpactSparks(s.particles, b.x, b.y, Math.atan2(b.vy, b.vx));
-          return false;
-        }
         for (const str of STRUCTURES()) {
           if (str.type === "platform" || str.type === "bridge") continue;
           const blocked =
@@ -3607,7 +3511,6 @@ export default function GameCanvas({
     // Players
     for (const p of s.players) {
       if (!p.alive) continue;
-      if (p.inHouse && p.id !== "me") continue;
       // Players on different layers (surface vs underground) can't see each
       // other through the ground — unless we're both at a pit opening.
       let layerHidden = false;
@@ -3718,8 +3621,6 @@ export default function GameCanvas({
 
     // Damage numbers
     drawDamageNumbers(ctx, s.damageNumbers);
-
-    drawHouse(ctx, me, s);
 
     ctx.restore(); // camera translate
     ctx.restore(); // shake translate
@@ -4414,7 +4315,7 @@ export default function GameCanvas({
   // Shows "↑/↓ Climb" near a ladder and "↓ Drop" over a pit when the player
   // is close enough to interact.
   function drawInteractionPrompts(ctx, me) {
-    if (!me || !me.alive || me.inHouse) return;
+    if (!me || !me.alive) return;
     ctx.textAlign = "center";
     ctx.font = "bold 10px monospace";
     // Ladder prompt
@@ -5189,115 +5090,6 @@ export default function GameCanvas({
     }
   }
 
-  function drawHouse(ctx, me, s) {
-    const h = HOUSE;
-    let wallC = "#3a3a4a",
-      roofC = "#2a2a3a",
-      interiorC = "#1a1a2a";
-    if (mapId === "jungle") {
-      wallC = "#2a4a2a";
-      roofC = "#1a3a1a";
-      interiorC = "#0d1a0d";
-    } else if (mapId === "desert") {
-      wallC = "#5a4a20";
-      roofC = "#4a3a14";
-      interiorC = "#2a2010";
-    } else if (mapId === "bunker") {
-      wallC = "#2a2a2a";
-      roofC = "#1a1a1a";
-      interiorC = "#0a0a0a";
-    }
-
-    ctx.fillStyle = "rgba(0,0,0,0.22)";
-    ctx.fillRect(h.x + 10, GY - 4, h.w, 8);
-    ctx.fillStyle = wallC;
-    ctx.fillRect(h.x, h.y, h.w, h.h);
-    ctx.fillStyle = roofC;
-    ctx.beginPath();
-    ctx.moveTo(h.x - 15, h.y);
-    ctx.lineTo(h.x + h.w / 2, h.y - 45);
-    ctx.lineTo(h.x + h.w + 15, h.y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "rgba(132,204,22,0.4)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(h.x - 15, h.y);
-    ctx.lineTo(h.x + h.w + 15, h.y);
-    ctx.stroke();
-    ctx.fillStyle = me.inHouse ? "rgba(132,204,22,0.1)" : "rgba(0,0,0,0.8)";
-    ctx.fillRect(DOOR.x, GY - 52, DOOR.w, 52);
-    ctx.strokeStyle = "#84cc16";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(DOOR.x, GY - 52, DOOR.w, 52);
-    ctx.fillStyle = "#84cc16";
-    ctx.font = "bold 11px monospace";
-    ctx.textAlign = "center";
-    ctx.fillText("ARMORY", h.x + h.w / 2, h.y - 52);
-    ctx.textAlign = "left";
-    for (const wx of [h.x + 18, h.x + h.w - 58]) {
-      ctx.fillStyle = "rgba(253,224,71,0.1)";
-      ctx.fillRect(wx, h.y + 28, 36, 28);
-      ctx.strokeStyle = "rgba(132,204,22,0.4)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(wx, h.y + 28, 36, 28);
-      ctx.beginPath();
-      ctx.moveTo(wx + 18, h.y + 28);
-      ctx.lineTo(wx + 18, h.y + 56);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(wx, h.y + 42);
-      ctx.lineTo(wx + 36, h.y + 42);
-      ctx.stroke();
-    }
-    if (me.inHouse) {
-      ctx.fillStyle = interiorC;
-      ctx.fillRect(h.x + 2, h.y + 1, h.w - 4, h.h - 2);
-      ctx.fillStyle = "#2a2a1a";
-      ctx.fillRect(h.x + 16, h.y + 16, h.w - 32, 14);
-      const aw = s.availHouseWeapons;
-      if (aw.length > 0) {
-        const slW = Math.min(48, (h.w - 36) / aw.length);
-        for (let i = 0; i < aw.length; i++) {
-          const wx2 = h.x + 18 + i * slW,
-            isSel = i === s.houseWeaponIndex;
-          ctx.fillStyle = isSel ? "#84cc16" : "#3a3a1a";
-          ctx.fillRect(wx2, h.y + 14, slW - 3, 18);
-          ctx.fillStyle = isSel ? "#000" : "#fde047";
-          ctx.font = "9px monospace";
-          ctx.textAlign = "center";
-          ctx.fillText(aw[i].icon, wx2 + slW / 2 - 1, h.y + 26);
-          ctx.textAlign = "left";
-        }
-        const sel = aw[s.houseWeaponIndex];
-        ctx.fillStyle = "#84cc16";
-        ctx.font = "bold 10px monospace";
-        ctx.textAlign = "center";
-        ctx.fillText(sel.name, h.x + h.w / 2, h.y + 50);
-        ctx.fillStyle = "#aaa";
-        ctx.font = "8px monospace";
-        ctx.fillText(
-          `DMG:${sel.damage} RoF:${sel.fireRate} Mag:${sel.magazine}`,
-          h.x + h.w / 2,
-          h.y + 63,
-        );
-        ctx.fillText("[Q/F] Browse  [E] Equip", h.x + h.w / 2, h.y + 76);
-        ctx.textAlign = "left";
-      }
-    }
-    if (me.nearDoor) {
-      ctx.fillStyle = "rgba(253,224,71,0.95)";
-      ctx.font = "bold 12px monospace";
-      ctx.textAlign = "center";
-      ctx.fillText(
-        `[E] ${me.inHouse ? "EXIT" : "ENTER"} ARMORY`,
-        h.x + h.w / 2,
-        GY - 58,
-      );
-      ctx.textAlign = "left";
-    }
-  }
-
   function drawBase(ctx, x, team) {
     const col = team === "blue" ? "#3b82f6" : "#ef4444";
     ctx.fillStyle = col + "22";
@@ -5400,7 +5192,7 @@ export default function GameCanvas({
   }
 
   function drawCrosshair(ctx, me, s) {
-    if (me.inHouse || !me.alive || showTouchControls) return;
+    if (!me.alive || showTouchControls) return;
     const mx = s.mouse.x;
     const my = s.mouse.y;
     const w = weaponById(me.primaryWeaponId);
@@ -5487,7 +5279,7 @@ export default function GameCanvas({
 
     // Players
     for (const p of s.players) {
-      if (!p.alive || p.inHouse) continue;
+      if (!p.alive) continue;
       if (p.inBush && p.id !== "me") continue;
       // Underground players are drawn as hollow/dimmer dots with a "↓" marker
       // so you can tell who's on the lower layer (IMPROVEMENT_TODO #7).
@@ -5746,25 +5538,6 @@ export default function GameCanvas({
       );
       ctx.textAlign = "left";
     }
-    if (me.nearDoor && !me.inHouse) {
-      ctx.fillStyle = "rgba(253,224,71,0.9)";
-      ctx.font = "bold 13px monospace";
-      ctx.textAlign = "center";
-      ctx.fillText("[E] ENTER ARMORY", VIEW_W / 2, VIEW_H - 68);
-      ctx.textAlign = "left";
-    }
-    if (me.inHouse) {
-      ctx.fillStyle = "rgba(132,204,22,0.9)";
-      ctx.font = "bold 11px monospace";
-      ctx.textAlign = "center";
-      ctx.fillText(
-        "INSIDE ARMORY  •  Go near door + [E] to exit",
-        VIEW_W / 2,
-        VIEW_H - 50,
-      );
-      ctx.textAlign = "left";
-    }
-
     // Flag carrier indicator
     if (me.hasFlag) {
       ctx.fillStyle = "rgba(253,224,71,0.9)";
@@ -6007,18 +5780,10 @@ export default function GameCanvas({
       if (e.key === "2" && me.meleeWeaponId && me.slot !== 1) { me.slot = 1; triggerWeaponSwap(me); }
       if (e.key === "3" && me.grenadeCount > 0 && me.slot !== 2) { me.slot = 2; triggerWeaponSwap(me); }
       if (e.key.toLowerCase() === "e") performInteract(me, s);
-      if (e.key.toLowerCase() === "q" && me.inHouse)
-        s.houseWeaponIndex =
-          (s.houseWeaponIndex - 1 + s.availHouseWeapons.length) %
-          s.availHouseWeapons.length;
-      if (e.key.toLowerCase() === "f" && me.inHouse)
-        s.houseWeaponIndex =
-          (s.houseWeaponIndex + 1) % s.availHouseWeapons.length;
-      if (e.key.toLowerCase() === "g" && me.grenadeCount > 0 && !me.inHouse)
+      if (e.key.toLowerCase() === "g" && me.grenadeCount > 0)
         throwGrenade(me, s);
-      if (e.key.toLowerCase() === "v" && !me.inHouse) useAbility(me, s);
-      if (e.key.toLowerCase() === "r" && me.slot === 0 && !me.inHouse)
-        startReload(me);
+      if (e.key.toLowerCase() === "v") useAbility(me, s);
+      if (e.key.toLowerCase() === "r" && me.slot === 0) startReload(me);
     };
     const onKeyUp = (e) => {
       const s = stateRef.current;
@@ -6040,7 +5805,7 @@ export default function GameCanvas({
       s.mouse.down = true;
       if (e.button === 0) {
         const me = s.players.find((p) => p.id === "me");
-        if (me && me.alive && !me.inHouse) fire(me, s);
+        if (me && me.alive) fire(me, s);
       }
     };
     const onMouseUp = () => {
@@ -6136,6 +5901,7 @@ export default function GameCanvas({
           Number.isInteger(input.slot) && input.slot >= 0 && input.slot <= 2
             ? input.slot
             : player.slot,
+        receivedAt: performance.now(),
       });
     };
     const handleState = ({ payload }) => {
@@ -6151,7 +5917,6 @@ export default function GameCanvas({
         mobile: current.mobile,
         cameraX: current.cameraX,
         showScoreboard: current.showScoreboard,
-        inHouse: current.inHouse,
       };
       const normalizeId = (id) => {
         if (id === session.userId) return "me";
@@ -6169,28 +5934,44 @@ export default function GameCanvas({
         const previous = previousPlayers.get(id);
         networkTargetsRef.current.set(id, { x: player.x, y: player.y });
         if (!previous) return { ...player, id };
+        if (id !== "me") return { ...player, id, x: previous.x, y: previous.y };
 
-        const localPrediction =
-          id === "me"
-            ? {
-                vx: previous.vx,
-                vy: previous.vy,
-                onGround: previous.onGround,
-                facing: previous.facing,
-                aimAngle: previous.aimAngle,
-                inHouse: previous.inHouse,
-                onLadder: previous.onLadder,
-                climbing: previous.climbing,
-                underground: previous.underground,
-                fallingIntoPit: previous.fallingIntoPit,
-              }
-            : {};
+        // The guest predicts its own movement, so that prediction is kept. The
+        // host still owns everything the guest cannot predict: a respawn, a pit
+        // drop or ladder grab, a layer change, or a correction big enough that
+        // the two have drifted apart.
+        const drift = Math.hypot(player.x - previous.x, player.y - previous.y);
+        const respawned = Boolean(player.alive) && !previous.alive;
+        const changedLayer =
+          Boolean(player.underground) !== Boolean(previous.underground);
+        const ladderChanged =
+          Boolean(player.onLadder) !== Boolean(previous.onLadder);
+        if (drift > 150 || respawned || changedLayer || ladderChanged) {
+          return {
+            ...player,
+            id,
+            x: player.x,
+            y: player.y,
+            vx: player.vx,
+            vy: player.vy,
+          };
+        }
+        // Small drift: hold the prediction but ease a quarter of the way toward
+        // the host every snapshot, so the two copies never wander apart for long.
         return {
           ...player,
           id,
-          x: previous.x,
-          y: previous.y,
-          ...localPrediction,
+          x: previous.x + (player.x - previous.x) * 0.25,
+          y: previous.y + (player.y - previous.y) * 0.25,
+          vx: previous.vx,
+          vy: previous.vy,
+          onGround: previous.onGround,
+          facing: previous.facing,
+          aimAngle: previous.aimAngle,
+          onLadder: previous.onLadder,
+          climbing: previous.climbing,
+          underground: previous.underground,
+          fallingIntoPit: previous.fallingIntoPit,
         };
       });
       const bullets = snapshot.bullets.map((bullet) => ({
@@ -6315,7 +6096,6 @@ export default function GameCanvas({
           score: current.score,
           over: current.over,
           winnerTeam: current.winnerTeam,
-          houseWeaponIndex: current.houseWeaponIndex,
           matchStartTime: current.matchStartTime,
           damageNumbers: current.damageNumbers,
           killFeed: current.killFeed,
@@ -6474,10 +6254,8 @@ export default function GameCanvas({
         pendingNetworkActionsRef.current.add(action);
       }
       runPlayerAction((me, s) => {
-        if (action === "reload" && me.slot === 0 && !me.inHouse)
-          startReload(me);
-        if (action === "grenade" && me.grenadeCount > 0 && !me.inHouse)
-          throwGrenade(me, s);
+        if (action === "reload" && me.slot === 0) startReload(me);
+        if (action === "grenade" && me.grenadeCount > 0) throwGrenade(me, s);
         if (action === "interact") performInteract(me, s);
         if (action === "swap") cycleWeaponSlot(me);
         if (action === "skill") useAbility(me, s);
@@ -6716,7 +6494,7 @@ export default function GameCanvas({
                   className={`touch-button touch-button--wide ${pressedControls.jump ? "is-active" : ""}`}
                   style={touchControlStyle("jump")}
                 >
-                  <ArrowUp size={22} strokeWidth={3} />
+                  <JumpIcon size={24} strokeWidth={2.2} />
                 </button>
                 <button
                   type="button"
@@ -6725,7 +6503,7 @@ export default function GameCanvas({
                   className={`touch-button touch-button--wide ${pressedControls.down ? "is-active" : ""}`}
                   style={touchControlStyle("down")}
                 >
-                  <ArrowDown size={22} strokeWidth={3} />
+                  <DropIcon size={24} strokeWidth={2.2} />
                 </button>
                 <button
                   type="button"
