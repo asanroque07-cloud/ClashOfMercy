@@ -1,12 +1,12 @@
 {
-  "version": "1.6.5",
-  "versionCode": 21,
-  "released": "2026-11-21T13:47:05.498Z",
-  "size": 5491997,
+  "version": "1.6.6",
+  "versionCode": 22,
+  "released": "2026-11-21T14:25:16.908Z",
+  "size": 5492635,
   "apkUrl": "https://raw.githubusercontent.com/asanroque07-cloud/ClashOfMercy/main/public/download/clash-of-mercy.apk",
   "notes": [
-    "In-app updater: see the new version, the download size and what changed before you install.",
-    "Download progress is shown in MB, and the app restarts once the update is installed.",
-    "Player accounts: create an account with your email, or sign in to play online."
+    "Online accounts are live: create your player account with an email and password, or sign in with Google.",
+    "Progress, friends, invites and match history now sync through the cloud database.",
+    "The in-app updater keeps showing the new version, its size and these notes."
   ]
 }
