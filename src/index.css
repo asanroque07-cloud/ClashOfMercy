@@ -1713,6 +1713,7 @@ html.mobile-game-ui .lobby-menu__offline button > div:last-child > span:last-chi
 
 .download-button {
   min-height: 46px;
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;

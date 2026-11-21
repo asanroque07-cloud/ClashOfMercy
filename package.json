@@ -1,14 +1,14 @@
 {
   "name": "@workspace/clash-of-mercy",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "serve": "vite preview",
-    "android:sync": "npm run build && npx cap sync android",
-    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug"
+    "android:sync": "npm run build && node -e \"require('node:fs').rmSync('dist/download',{recursive:true,force:true})\" && npx cap sync android",
+    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleRelease"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.10",
