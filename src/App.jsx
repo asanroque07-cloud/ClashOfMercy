@@ -23,7 +23,10 @@ import GameCanvas from "@/components/GameCanvas";
 import GameErrorBoundary from "@/components/GameErrorBoundary";
 import TutorialModal, { TUTORIAL_KEY } from "@/components/TutorialModal";
 import UpdatePrompt from "@/components/UpdatePrompt";
+import UpdateOverlay from "@/components/UpdateOverlay";
+import AccountModal from "@/components/AccountModal";
 import { useUpdateAvailable } from "@/hooks/useUpdateAvailable";
+import { useAppUpdate } from "@/hooks/useAppUpdate";
 import BackgroundMusic from "@/components/BackgroundMusic";
 import DownloadPage from "@/pages/DownloadPage";
 import Home from "@/pages/Home";
@@ -230,7 +233,11 @@ export default function App() {
   const [alerts, setAlerts] = useState([]); // toast notifications shown top-right
   const [pendingModal, setPendingModal] = useState(null); // which popup dialog Home should open, if any
   const [tutorialOpen, setTutorialOpen] = useState(false); // first-run walkthrough
+  const [accountOpen, setAccountOpen] = useState(false); // email/Google account window
   const updateAvailable = useUpdateAvailable(!showDownloadPage);
+  // In the installed Android app this checks the published release feed and
+  // offers the new APK with its size and release notes on the boot screen.
+  const appUpdate = useAppUpdate(!showDownloadPage);
   const previousOnlineRoomRef = useRef(null);
   const onlineMatchActiveRef = useRef(false);
   const [gameProfile, setGameProfile] = useState(loadProfile()); // in-match profile (coins/loadout/upgrades)
@@ -910,7 +917,14 @@ export default function App() {
   }
 
   if (loading) {
-    return <LoadingScreen onDone={() => setLoading(false)} />;
+    return (
+      <>
+        <LoadingScreen onDone={() => setLoading(false)} />
+        {appUpdate.available && !appUpdate.dismissed && (
+          <UpdateOverlay update={appUpdate} />
+        )}
+      </>
+    );
   }
 
   if (!lobbyState) {
@@ -1084,6 +1098,7 @@ export default function App() {
           onOpenSettings={() => setPendingModal("settings")}
           onAddCurrency={handleAddCurrency}
           onOpenTutorial={() => setTutorialOpen(true)}
+          onOpenAccount={() => setAccountOpen(true)}
           cloudAccount={cloudAccount}
         />
 
@@ -1122,6 +1137,7 @@ export default function App() {
                 ownedEmoteIds={ownedEmoteIds}
                 pendingModal={pendingModal}
                 onClearModal={() => setPendingModal(null)}
+                onOpenAccount={() => setAccountOpen(true)}
                 accountConnected={!!cloudAccount.user}
                 cloudConfigured={cloudAccount.configured}
                 cloudAccount={cloudAccount}
@@ -1381,6 +1397,14 @@ export default function App() {
       {updateAvailable.available && (
         <UpdatePrompt onRestart={updateAvailable.restart} />
       )}
+      {appUpdate.available && !appUpdate.dismissed && (
+        <UpdateOverlay update={appUpdate} />
+      )}
+      <AccountModal
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        cloudAccount={cloudAccount}
+      />
       {showRotateOverlay && (
         <div className="rotate-device-overlay">
           <div className="rotate-device-card">

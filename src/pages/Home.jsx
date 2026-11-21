@@ -28,6 +28,7 @@ export default function Home({
   accountConnected,
   cloudConfigured,
   cloudAccount,
+  onOpenAccount,
   incomingFriendRequests,
   onNavigate,
   onStartMatchmaking,
@@ -176,6 +177,7 @@ export default function Home({
         profile={profile}
         onUpdateProfile={onUpdateProfile}
         cloudAccount={cloudAccount}
+        onOpenAccount={onOpenAccount}
       />
     </div>
   );

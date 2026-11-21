@@ -1191,7 +1191,14 @@ function getGameId(profile) {
   return `#OPW${String(seed % 9999).padStart(4, "0")}`;
 }
 
-export function MenuModal({ isOpen, onClose, profile, onUpdateProfile, cloudAccount }) {
+export function MenuModal({
+  isOpen,
+  onClose,
+  profile,
+  onUpdateProfile,
+  cloudAccount,
+  onOpenAccount,
+}) {
   const [tab, setTab] = useState("profile");
   const [name, setName] = useState(profile.name);
 
@@ -1302,7 +1309,7 @@ export function MenuModal({ isOpen, onClose, profile, onUpdateProfile, cloudAcco
                 <LogIn size={14} className="text-[#76a035]" />
                 <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-stone-300">
                   {cloudAccount?.user
-                    ? "GOOGLE ACCOUNT CONNECTED"
+                    ? "ACCOUNT CONNECTED"
                     : cloudAccount?.configured
                       ? "CONNECT AN ACCOUNT"
                       : "GUEST PROFILE"}
@@ -1314,7 +1321,7 @@ export function MenuModal({ isOpen, onClose, profile, onUpdateProfile, cloudAcco
                     cloudAccount.playerProfile?.username ||
                     "Signed in"
                   : cloudAccount?.configured
-                    ? "Log in with an existing Google account to save your progress and play with friends. Guest progress stays on this device."
+                    ? "Log in to save your progress in the cloud and play online with friends. Guest progress stays on this device."
                     : "Your progress is saved on this device. Cloud saves and online friends unlock with a signed-in account."}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -1322,7 +1329,7 @@ export function MenuModal({ isOpen, onClose, profile, onUpdateProfile, cloudAcco
                   <>
                     <button
                       type="button"
-                      onClick={() => void cloudAccount.switchAccount?.()}
+                      onClick={onOpenAccount}
                       disabled={cloudAccount.busy}
                       className="flex-1 min-w-[130px] flex items-center justify-center gap-1.5 py-2 rounded border border-[#76a035]/50 bg-[#76a035]/15 text-[#d6f5aa] font-mono text-[10px] font-bold uppercase tracking-widest hover:bg-[#76a035]/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
@@ -1342,12 +1349,12 @@ export function MenuModal({ isOpen, onClose, profile, onUpdateProfile, cloudAcco
                 ) : cloudAccount?.configured ? (
                   <button
                     type="button"
-                    onClick={() => void cloudAccount?.connectGoogle?.()}
+                    onClick={onOpenAccount}
                     disabled={cloudAccount?.busy}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded border border-[#76a035]/50 bg-[#76a035]/15 text-[#d6f5aa] font-mono text-[10px] font-bold uppercase tracking-widest hover:bg-[#76a035]/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <LogIn size={12} />
-                    {cloudAccount?.busy ? "CONNECTING…" : "LOG IN WITH GOOGLE"}
+                    SIGN IN / CREATE ACCOUNT
                   </button>
                 ) : null}
               </div>

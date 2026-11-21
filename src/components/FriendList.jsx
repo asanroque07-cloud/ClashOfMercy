@@ -106,12 +106,11 @@ export function FriendList({
         <div className="p-3 bg-zinc-950 border-b border-military font-mono text-[11px] space-y-2.5">
           {!cloudConfigured ? (
             <p className="text-amber-300">
-              Cloud friends need a Supabase project. Add its URL and publishable
-              key, then connect Google in Settings.
+              Sign in to a player account from Settings to find and add friends.
             </p>
           ) : !accountConnected ? (
             <p className="text-amber-300">
-              Connect Google in Settings to find and add real players.
+              Sign in to your player account to find and add real players.
             </p>
           ) : (
             <>
