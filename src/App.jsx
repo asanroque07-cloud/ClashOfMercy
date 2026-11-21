@@ -68,6 +68,21 @@ function toGameMapId(mapName) {
   return "city";
 }
 
+// True when the page is running inside the Capacitor shell (installed APK/App
+// Store build) rather than a normal browser tab.
+function isNativeApp() {
+  try {
+    if (typeof window.Capacitor === "undefined") return false;
+    // The bridge always exposes isNativePlatform(); fall back to "the bridge is
+    // present" so an older WebView can never land on the marketing page.
+    return window.Capacitor.isNativePlatform
+      ? window.Capacitor.isNativePlatform()
+      : true;
+  } catch {
+    return false;
+  }
+}
+
 function requestPhoneFullscreen(force = false) {
   const isTouchDevice =
     (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) ||
@@ -194,6 +209,9 @@ function OnlineMatchOverlay({
 export default function App() {
   const [showDownloadPage, setShowDownloadPage] = useState(() => {
     if (typeof window === "undefined") return false;
+    // Inside the installed Android app there is nothing to install, so skip the
+    // marketing page and boot straight into the game.
+    if (isNativeApp()) return false;
     return new URLSearchParams(window.location.search).get("play") !== "1";
   });
   const [loading, setLoading] = useState(true); // true while the boot-up LoadingScreen is showing
