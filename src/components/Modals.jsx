@@ -1303,7 +1303,9 @@ export function MenuModal({ isOpen, onClose, profile, onUpdateProfile, cloudAcco
                 <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-stone-300">
                   {cloudAccount?.user
                     ? "GOOGLE ACCOUNT CONNECTED"
-                    : "CONNECT AN ACCOUNT"}
+                    : cloudAccount?.configured
+                      ? "CONNECT AN ACCOUNT"
+                      : "GUEST PROFILE"}
                 </span>
               </div>
               <p className="font-mono text-[10px] text-stone-500 leading-relaxed break-all">
@@ -1311,7 +1313,9 @@ export function MenuModal({ isOpen, onClose, profile, onUpdateProfile, cloudAcco
                   ? cloudAccount.user.email ||
                     cloudAccount.playerProfile?.username ||
                     "Signed in"
-                  : "Log in with an existing Google account to save your progress and play with friends. Guest progress stays on this device."}
+                  : cloudAccount?.configured
+                    ? "Log in with an existing Google account to save your progress and play with friends. Guest progress stays on this device."
+                    : "Your progress is saved on this device. Cloud saves and online friends unlock with a signed-in account."}
               </p>
               <div className="flex flex-wrap gap-2">
                 {cloudAccount?.user ? (
@@ -1335,28 +1339,18 @@ export function MenuModal({ isOpen, onClose, profile, onUpdateProfile, cloudAcco
                       {cloudAccount.busy ? "PLEASE WAIT…" : "LOG OUT"}
                     </button>
                   </>
-                ) : (
+                ) : cloudAccount?.configured ? (
                   <button
                     type="button"
                     onClick={() => void cloudAccount?.connectGoogle?.()}
-                    disabled={!cloudAccount?.configured || cloudAccount?.busy}
+                    disabled={cloudAccount?.busy}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded border border-[#76a035]/50 bg-[#76a035]/15 text-[#d6f5aa] font-mono text-[10px] font-bold uppercase tracking-widest hover:bg-[#76a035]/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <LogIn size={12} />
-                    {cloudAccount?.busy
-                      ? "CONNECTING…"
-                      : cloudAccount?.configured
-                        ? "LOG IN WITH GOOGLE"
-                        : "LOGIN UNAVAILABLE"}
+                    {cloudAccount?.busy ? "CONNECTING…" : "LOG IN WITH GOOGLE"}
                   </button>
-                )}
+                ) : null}
               </div>
-              {cloudAccount && !cloudAccount.configured && (
-                <p className="font-mono text-[9px] text-amber-500/80">
-                  Cloud login needs VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
-                  in the app environment.
-                </p>
-              )}
               {cloudAccount?.error && (
                 <p className="font-mono text-[9px] text-red-400" role="alert">
                   {cloudAccount.error}
