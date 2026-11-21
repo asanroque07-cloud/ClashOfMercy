@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ArrowDownToLine,
   ArrowRight,
@@ -26,59 +26,16 @@ function isAppleMobile() {
   );
 }
 
+// The Android build ships as a real APK, so the install button hands the phone
+// that file: the browser downloads it and Android's package installer takes
+// over. iPhones/iPads can't install APKs, so they get Safari's Add to Home
+// Screen steps instead.
+const APK_HREF = "/download/clash-of-mercy.apk";
+const APK_FILENAME = "ClashOfMercy.apk";
+
 export default function DownloadPage({ onPlay }) {
-  const [installPrompt, setInstallPrompt] = useState(null);
   const [showInstallHelp, setShowInstallHelp] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [installError, setInstallError] = useState("");
-
-  useEffect(() => {
-    const handleInstallPrompt = (event) => {
-      event.preventDefault();
-      setInstallPrompt(event);
-    };
-    const handleInstalled = () => {
-      setIsInstalled(true);
-      setInstallPrompt(null);
-      setShowInstallHelp(false);
-    };
-
-    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
-    window.addEventListener("appinstalled", handleInstalled);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
-      window.removeEventListener("appinstalled", handleInstalled);
-    };
-  }, []);
-
-  const handleInstall = async () => {
-    setInstallError("");
-    if (!installPrompt) {
-      setShowInstallHelp((open) => !open);
-      return;
-    }
-
-    try {
-      await installPrompt.prompt();
-      const choice = await installPrompt.userChoice;
-      if (choice.outcome === "accepted") setIsInstalled(true);
-    } catch {
-      setInstallError(
-        "The install prompt could not be opened. Use your browser menu to add the game to your home screen.",
-      );
-    } finally {
-      setInstallPrompt(null);
-    }
-  };
-
-  const installLabel = isInstalled
-    ? "Open Clash Of Mercy"
-    : installPrompt
-      ? "Install the app"
-      : isAppleMobile()
-        ? "Add to Home Screen"
-        : "Install on your phone";
+  const appleDevice = isAppleMobile();
 
   return (
     <main className="download-landing">
@@ -109,18 +66,25 @@ export default function DownloadPage({ onPlay }) {
             take the fight into classic, ranked, custom, or offline matches.
           </p>
           <div className="download-hero__actions" id="install">
-            <button
-              type="button"
-              className="download-button download-button--primary"
-              onClick={isInstalled ? onPlay : handleInstall}
-            >
-              {isInstalled ? (
-                <Gamepad2 size={18} />
-              ) : (
+            {appleDevice ? (
+              <button
+                type="button"
+                className="download-button download-button--primary"
+                onClick={() => setShowInstallHelp((open) => !open)}
+              >
                 <ArrowDownToLine size={18} />
-              )}
-              {installLabel}
-            </button>
+                Add to Home Screen
+              </button>
+            ) : (
+              <a
+                className="download-button download-button--primary"
+                href={APK_HREF}
+                download={APK_FILENAME}
+              >
+                <ArrowDownToLine size={18} />
+                Install the app
+              </a>
+            )}
             <button
               type="button"
               className="download-button download-button--secondary"
@@ -131,9 +95,10 @@ export default function DownloadPage({ onPlay }) {
           </div>
           <div className="download-compatibility">
             <Smartphone size={15} />
-            Install on Android with Chrome or iPhone/iPad with Safari.
+            Android: downloads the Clash Of Mercy APK, then allow installs from
+            this source. iPhone/iPad: Add to Home Screen from Safari.
           </div>
-          {showInstallHelp && (
+          {showInstallHelp && appleDevice && (
             <div className="download-install-help" role="status">
               <button
                 type="button"
@@ -142,14 +107,7 @@ export default function DownloadPage({ onPlay }) {
               >
                 <X size={15} />
               </button>
-              {isAppleMobile()
-                ? "In Safari, tap Share, then choose Add to Home Screen."
-                : "Open this page in Chrome on Android, tap the menu, then choose Install app or Add to Home screen."}
-            </div>
-          )}
-          {installError && (
-            <div className="download-install-help" role="alert">
-              {installError}
+              In Safari, tap Share, then choose Add to Home Screen.
             </div>
           )}
         </div>

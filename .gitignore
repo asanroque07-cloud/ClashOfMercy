@@ -5,3 +5,7 @@ dist/
 !.env.example
 .freebuff/
 *.apk
+
+# The landing page hands out the Android build; this one file is published.
+!public/download/
+!public/download/clash-of-mercy.apk
