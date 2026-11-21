@@ -253,27 +253,29 @@ export function LobbyHeader({
                   : cloudAccount.user.email || "ACCOUNT"}
               </span>
             </div>
-          ) : (
+          ) : cloudAccount.configured ? (
             <button
               type="button"
               onClick={() => void cloudAccount.connectGoogle?.()}
-              disabled={!cloudAccount.configured || cloudAccount.busy}
+              disabled={cloudAccount.busy}
               aria-label="Log in with Google"
               title={
                 cloudAccount.error ||
-                (cloudAccount.configured
-                  ? "Log in with Google to save your account and add friends"
-                  : "Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable login")
+                "Log in with Google to save your account and add friends"
               }
               className="flex h-[38px] items-center gap-2 rounded border border-military-active bg-[#76a035]/10 px-2.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#76a035] transition-all hover:bg-[#76a035]/25 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <LogIn size={14} />
-              {cloudAccount.busy
-                ? "SIGNING IN…"
-                : cloudAccount.configured
-                  ? "LOGIN"
-                  : "SET UP"}
+              {cloudAccount.busy ? "SIGNING IN…" : "LOGIN"}
             </button>
+          ) : (
+            <div
+              title="Progress is saved on this device"
+              className="flex h-[38px] items-center gap-2 rounded border border-military bg-stone-900/60 px-2.5 font-mono text-[10px] font-bold uppercase tracking-wider text-stone-400"
+            >
+              <span className="h-2 w-2 rounded-full bg-stone-500" />
+              GUEST
+            </div>
           )}
         </div>
 
@@ -312,14 +314,20 @@ export function LobbyHeader({
                   </span>
                   <span className="home-settings-row__copy">
                     <span className="home-settings-row__label">
-                      {cloudAccount.user ? "Google account connected" : "Save your account"}
+                      {cloudAccount.user
+                        ? "Google account connected"
+                        : cloudAccount.configured
+                          ? "Save your account"
+                          : "Guest profile"}
                     </span>
                     <span className="home-settings-row__hint">
                       {cloudAccount.user
                         ? cloudAccount.playerProfile?.username
                           ? `@${cloudAccount.playerProfile.username}`
                           : cloudAccount.user.email
-                        : "Log in with an existing Google account, or keep playing as a guest."}
+                        : cloudAccount.configured
+                          ? "Log in with an existing Google account, or keep playing as a guest."
+                          : "Your progress is saved on this device."}
                     </span>
                   </span>
                 </div>
@@ -343,26 +351,16 @@ export function LobbyHeader({
                       {cloudAccount.busy ? "PLEASE WAIT…" : "DISCONNECT"}
                     </button>
                   </div>
-                ) : (
+                ) : cloudAccount.configured ? (
                   <button
                     type="button"
                     onClick={cloudAccount.connectGoogle}
-                    disabled={!cloudAccount.configured || cloudAccount.busy}
+                    disabled={cloudAccount.busy}
                     className="home-settings-account__button"
                   >
-                    {cloudAccount.busy
-                      ? "CONNECTING…"
-                      : cloudAccount.configured
-                        ? "CONNECT GOOGLE"
-                        : "SET UP SUPABASE"}
+                    {cloudAccount.busy ? "CONNECTING…" : "CONNECT GOOGLE"}
                   </button>
-                )}
-                {!cloudAccount.configured && (
-                  <div className="home-settings-account__note">
-                    Add the Supabase URL and publishable key to the app
-                    environment before connecting.
-                  </div>
-                )}
+                ) : null}
                 {cloudAccount.error && (
                   <div className="home-settings-account__error" role="alert">
                     {cloudAccount.error}
