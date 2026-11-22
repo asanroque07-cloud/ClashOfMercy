@@ -22,21 +22,32 @@ function readCallback(url) {
  * Android re-opens the app through the auth-callback deep link after Google
  * sign-in. Close the browser tab and hand the code to Supabase so the PKCE
  * verifier stored on this device completes the session.
- *
+ */
+async function completeSignIn(url) {
+  if (!url || !url.startsWith(AUTH_CALLBACK_PREFIX)) return;
+
+  const { code, error: oauthError } = readCallback(url);
+  await Browser.close().catch(() => {});
+
+  if (oauthError || !code || !supabase) return;
+
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  if (error) console.warn("[auth] Google sign-in failed:", error.message);
+}
+
+/**
  * Returns a function that removes the listener.
  */
 export async function installNativeAuthListener() {
-  const handle = await App.addListener("appUrlOpen", async ({ url }) => {
-    if (!url || !url.startsWith(AUTH_CALLBACK_PREFIX)) return;
-
-    const { code, error: oauthError } = readCallback(url);
-    await Browser.close().catch(() => {});
-
-    if (oauthError || !code || !supabase) return;
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) console.warn("[auth] Google sign-in failed:", error.message);
+  const handle = await App.addListener("appUrlOpen", ({ url }) => {
+    void completeSignIn(url);
   });
+
+  // When Android killed the app while Google was still open, the deep link
+  // arrives as the launch URL instead of an appUrlOpen event.
+  App.getLaunchUrl()
+    .then((launch) => completeSignIn(launch?.url))
+    .catch(() => {});
 
   return () => handle.remove();
 }

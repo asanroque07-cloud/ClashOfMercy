@@ -3,6 +3,7 @@
 // shows a recovery panel and lets the player return to the lobby instead of
 // leaving them stuck on an empty page.
 import { Component } from "react";
+import MatchBackGuard from "@/components/MatchBackGuard";
 
 export default class GameErrorBoundary extends Component {
   state = { failed: false, message: "" };
@@ -22,7 +23,16 @@ export default class GameErrorBoundary extends Component {
   };
 
   render() {
-    if (!this.state.failed) return this.props.children;
+    if (!this.state.failed) {
+      return (
+        <>
+          {this.props.children}
+          {/* Only mounted during a match, so Android's back button always asks
+              before the running match is dropped. */}
+          <MatchBackGuard onLeave={this.handleReturn} />
+        </>
+      );
+    }
 
     return (
       <div
