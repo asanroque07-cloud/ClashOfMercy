@@ -38,11 +38,15 @@
       Supabase falls back to the plain Site URL instead of /auth-callback.html
       the code would be stranded on this website. Hand any OAuth result that
       lands on the site root to the relay page, which re-opens the app (and
-      offers a manual button if the app is not installed).
+      offers a manual button if the app is not installed). The relay lives at a
+      different path, so a redirect cannot loop back here.
     -->
     <script>
       (function () {
         try {
+          var path = window.location.pathname;
+          if (path !== "/" && path !== "/index.html") return;
+
           var search = window.location.search || "";
           var hash = window.location.hash || "";
           var query = new URLSearchParams(search);
@@ -57,9 +61,6 @@
             fragment.has("error_description");
           if (!hasResult) return;
 
-          var path = window.location.pathname;
-          if (path !== "/" && path !== "/index.html") return;
-
           // Inside the installed app (https://localhost) the code is handled by
           // nativeAuth.js, so never redirect there.
           var host = window.location.hostname;
@@ -71,9 +72,6 @@
           ) {
             return;
           }
-
-          if (window.sessionStorage.getItem("com-auth-relay") === "1") return;
-          window.sessionStorage.setItem("com-auth-relay", "1");
 
           window.location.replace("/auth-callback.html" + search + hash);
         } catch (error) {
