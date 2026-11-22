@@ -1,21 +1,64 @@
 import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
-import { supabase } from "@/lib/supabaseClient";
+import {
+  NATIVE_AUTH_RELAY_URL,
+  NATIVE_AUTH_SCHEME,
+  supabase,
+} from "@/lib/supabaseClient";
 
-// The redirect Supabase sends the browser back to once Google has finished.
-const AUTH_CALLBACK_PREFIX = "com.clashofmercy.game://auth-callback";
+// Supabase returns to the relay page on the site, which re-opens the app through
+// the custom scheme; when the scheme itself is allow-listed the app is opened
+// directly. Both forms are accepted here.
+const AUTH_CALLBACK_PREFIXES = [NATIVE_AUTH_SCHEME, NATIVE_AUTH_RELAY_URL];
 
 // Read the PKCE code out of the redirect URL (or the OAuth error, if any).
 function readCallback(url) {
   try {
-    const params = new URL(url).searchParams;
+    const parsed = new URL(url);
+    const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ""));
     return {
-      code: params.get("code") || "",
-      error: params.get("error_description") || params.get("error") || "",
+      code: parsed.searchParams.get("code") || hashParams.get("code") || "",
+      error:
+        parsed.searchParams.get("error_description") ||
+        parsed.searchParams.get("error") ||
+        hashParams.get("error_description") ||
+        hashParams.get("error") ||
+        "",
     };
   } catch {
     return { code: "", error: "" };
   }
+}
+
+// The player comes back from the browser too late for the login window, so the
+// result is reported on top of the game instead.
+function showAuthNotice(message) {
+  if (typeof document === "undefined" || !document.body) return;
+  const previous = document.getElementById("com-auth-notice");
+  if (previous) previous.remove();
+
+  const notice = document.createElement("div");
+  notice.id = "com-auth-notice";
+  notice.textContent = message;
+  notice.style.cssText = [
+    "position:fixed",
+    "left:50%",
+    "bottom:24px",
+    "transform:translateX(-50%)",
+    "z-index:9999",
+    "max-width:90vw",
+    "padding:12px 18px",
+    "border:1px solid #8ec63f",
+    "background:#10140c",
+    "color:#d7e8b8",
+    "font-family:inherit",
+    "font-size:13px",
+    "letter-spacing:0.04em",
+    "text-align:center",
+    "box-shadow:0 8px 24px rgba(0,0,0,0.6)",
+  ].join(";");
+  document.body.appendChild(notice);
+  window.setTimeout(() => notice.remove(), 10000);
 }
 
 /**
@@ -24,15 +67,32 @@ function readCallback(url) {
  * verifier stored on this device completes the session.
  */
 async function completeSignIn(url) {
-  if (!url || !url.startsWith(AUTH_CALLBACK_PREFIX)) return;
+  if (
+    !url ||
+    !AUTH_CALLBACK_PREFIXES.some((prefix) => url.startsWith(prefix))
+  ) {
+    return;
+  }
 
   const { code, error: oauthError } = readCallback(url);
   await Browser.close().catch(() => {});
 
-  if (oauthError || !code || !supabase) return;
+  if (oauthError) {
+    showAuthNotice(`Google sign-in was cancelled: ${oauthError}`);
+    return;
+  }
+  if (!code || !supabase) return;
 
   const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) console.warn("[auth] Google sign-in failed:", error.message);
+  if (error) {
+    console.warn("[auth] Google sign-in failed:", error.message);
+    showAuthNotice(`Google sign-in failed: ${error.message}`);
+    return;
+  }
+
+  showAuthNotice(
+    "Signed in with Google. Restart Clash Of Mercy if your name has not updated.",
+  );
 }
 
 /**
