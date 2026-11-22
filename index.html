@@ -32,6 +32,53 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!--
+      Sign-in safety net. Google sign-in belongs to the installed game, but if
+      Supabase falls back to the plain Site URL instead of /auth-callback.html
+      the code would be stranded on this website. Hand any OAuth result that
+      lands on the site root to the relay page, which re-opens the app (and
+      offers a manual button if the app is not installed). The relay lives at a
+      different path, so a redirect cannot loop back here.
+    -->
+    <script>
+      (function () {
+        try {
+          var path = window.location.pathname;
+          if (path !== "/" && path !== "/index.html") return;
+
+          var search = window.location.search || "";
+          var hash = window.location.hash || "";
+          var query = new URLSearchParams(search);
+          var fragment = new URLSearchParams(hash.replace(/^#/, ""));
+          var hasResult =
+            query.has("code") ||
+            query.has("error") ||
+            query.has("error_description") ||
+            fragment.has("code") ||
+            fragment.has("access_token") ||
+            fragment.has("error") ||
+            fragment.has("error_description");
+          if (!hasResult) return;
+
+          // Inside the installed app (https://localhost) the code is handled by
+          // nativeAuth.js, so never redirect there.
+          var host = window.location.hostname;
+          if (!host || host === "localhost" || host === "127.0.0.1") return;
+          if (
+            window.Capacitor &&
+            typeof window.Capacitor.isNativePlatform === "function" &&
+            window.Capacitor.isNativePlatform()
+          ) {
+            return;
+          }
+
+          window.location.replace("/auth-callback.html" + search + hash);
+        } catch (error) {
+          /* never block the page on the safety net */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
