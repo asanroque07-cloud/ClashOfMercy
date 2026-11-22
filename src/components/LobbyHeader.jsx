@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { ADMIRALS_AVATARS } from "@/lib/lobbyData";
 import ControllerSettingsModal from "@/components/ControllerSettingsModal";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import { exitApp, installBackButtonHandler } from "@/lib/nativeShell";
 
 // this is for choosing the avatar frame color shown around the player's portrait in the header
 const BORDER_STYLES = {
@@ -49,7 +51,9 @@ export function LobbyHeader({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [controllerSettingsOpen, setControllerSettingsOpen] = useState(false);
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
   const menuRef = useRef(null);
+  const exitConfirmOpenRef = useRef(false);
 
   const avatar =
     ADMIRALS_AVATARS.find((a) => a.id === profile.avatarId) ||
@@ -66,6 +70,26 @@ export function LobbyHeader({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    exitConfirmOpenRef.current = exitConfirmOpen;
+  }, [exitConfirmOpen]);
+
+  // Android back button: close the prompt or the settings menu when they are
+  // open, otherwise ask before quitting instead of leaving silently.
+  useEffect(
+    () =>
+      installBackButtonHandler(() => {
+        if (exitConfirmOpenRef.current) {
+          setExitConfirmOpen(false);
+          return true;
+        }
+        setMenuOpen(false);
+        setExitConfirmOpen(true);
+        return true;
+      }),
+    [],
+  );
 
   // this is for picking the badge color/abbreviation shown for the player's current rank tier
   const getRankStats = (rankName) => {
@@ -463,12 +487,12 @@ export function LobbyHeader({
                 />
               </button>
 
-              {/* Exit */}
+              {/* Exit: ask first, then quit the app instead of reloading it */}
               <div className="home-settings-menu__footer">
                 <button
                   onClick={() => {
                     setMenuOpen(false);
-                    window.location.reload();
+                    setExitConfirmOpen(true);
                   }}
                   className="home-settings-exit"
                 >
@@ -487,6 +511,19 @@ export function LobbyHeader({
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={exitConfirmOpen}
+        title="Exit game"
+        message="Do you want to exit Clash Of Mercy?"
+        confirmLabel="EXIT GAME"
+        cancelLabel="CANCEL"
+        onCancel={() => setExitConfirmOpen(false)}
+        onConfirm={() => {
+          setExitConfirmOpen(false);
+          void exitApp();
+        }}
+      />
     </div>
   );
 }
