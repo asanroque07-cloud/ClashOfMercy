@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabaseClient";
+import { Browser } from "@capacitor/browser";
+import {
+  OAUTH_REDIRECT_URL,
+  isNativeApp,
+  isSupabaseConfigured,
+  supabase,
+} from "@/lib/supabaseClient";
+import { installNativeAuthListener } from "@/lib/nativeAuth";
 
 const PROFILE_COLUMNS = "user_id, username, display_name, avatar_id";
 
@@ -138,6 +145,26 @@ export function useCloudAccount() {
     };
   }, []);
 
+  // In the Android app Google sign-in comes back through a deep link, so the
+  // PKCE code has to be exchanged here instead of by the browser tab.
+  useEffect(() => {
+    if (!isNativeApp || !supabase) return undefined;
+
+    let active = true;
+    let removeListener = () => {};
+    installNativeAuthListener()
+      .then((cleanup) => {
+        if (active) removeListener = cleanup;
+        else cleanup();
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+      removeListener();
+    };
+  }, []);
+
   useEffect(() => {
     if (!supabase || !user) {
       setFriends([]);
@@ -223,23 +250,37 @@ export function useCloudAccount() {
   // Google remembers the last account used in a browser, so a plain sign-in
   // silently reuses it. Asking for the account chooser every time means a
   // player can log in with any existing Google account they own.
+  //
+  // In the installed Android app the OAuth tab cannot redirect back into the
+  // WebView, so the browser is opened by hand and Supabase returns through the
+  // com.clashofmercy.game://auth-callback deep link (PKCE code exchange, see
+  // nativeAuth.js). On the web nothing changes.
   const signInWithGoogle = useCallback(async () => {
     if (!supabase) {
-      setError("Cloud accounts are not configured. Add the Supabase project URL and publishable key first.");
+      setError(
+        "Cloud accounts are not configured. Add the Supabase project URL and publishable key first.",
+      );
       return;
     }
 
     setBusy(true);
     setError("");
     try {
-      const { error: authError } = await supabase.auth.signInWithOAuth({
+      const { data, error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: OAUTH_REDIRECT_URL,
+          skipBrowserRedirect: isNativeApp,
           queryParams: { prompt: "select_account" },
         },
       });
-      if (authError) setError(getErrorMessage(authError));
+      if (authError) {
+        setError(getErrorMessage(authError));
+        return;
+      }
+      if (isNativeApp && data?.url) {
+        await Browser.open({ url: data.url });
+      }
     } catch (authError) {
       setError(getErrorMessage(authError));
     } finally {
@@ -253,7 +294,9 @@ export function useCloudAccount() {
   // appears instead of signing the current player straight back in.
   const switchAccount = useCallback(async () => {
     if (!supabase) {
-      setError("Cloud accounts are not configured. Add the Supabase project URL and publishable key first.");
+      setError(
+        "Cloud accounts are not configured. Add the Supabase project URL and publishable key first.",
+      );
       return;
     }
 
@@ -272,7 +315,6 @@ export function useCloudAccount() {
       return;
     }
     setBusy(false);
-
     await signInWithGoogle();
   }, [signInWithGoogle]);
 
@@ -318,114 +360,127 @@ export function useCloudAccount() {
     return { needsConfirmation: !data?.session };
   }, []);
 
-  const findPlayer = useCallback(async (searchTerm) => {
-    if (!supabase || !user) {
-      throw new Error("Connect a Google account before finding players.");
-    }
+  const findPlayer = useCallback(
+    async (searchTerm) => {
+      if (!supabase || !user) {
+        throw new Error("Connect a Google account before finding players.");
+      }
 
-    const normalizedSearchTerm = searchTerm.trim();
-    if (!normalizedSearchTerm) {
-      throw new Error("Enter a display name, username, or user ID to search.");
-    }
-    if (normalizedSearchTerm.length > 80) {
-      throw new Error("Search terms must be 80 characters or fewer.");
-    }
+      const normalizedSearchTerm = searchTerm.trim();
+      if (!normalizedSearchTerm) {
+        throw new Error("Enter a display name, username, or user ID to search.");
+      }
+      if (normalizedSearchTerm.length > 80) {
+        throw new Error("Search terms must be 80 characters or fewer.");
+      }
 
-    const escapedSearchTerm = normalizedSearchTerm.replace(/[\\%_]/g, "\\$&");
-    const isUserId =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        normalizedSearchTerm,
-      );
-    const [displayNameResult, usernameResult, userIdResult] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select(PROFILE_COLUMNS)
-        .ilike("display_name", `%${escapedSearchTerm}%`)
-        .limit(10),
-      supabase
-        .from("profiles")
-        .select(PROFILE_COLUMNS)
-        .ilike("username", `%${escapedSearchTerm}%`)
-        .limit(10),
-      isUserId
-        ? supabase
+      const escapedSearchTerm = normalizedSearchTerm.replace(/[\\%_]/g, "\\$&");
+      const isUserId =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          normalizedSearchTerm,
+        );
+      const [displayNameResult, usernameResult, userIdResult] =
+        await Promise.all([
+          supabase
             .from("profiles")
             .select(PROFILE_COLUMNS)
-            .eq("user_id", normalizedSearchTerm)
-            .maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-    ]);
+            .ilike("display_name", `%${escapedSearchTerm}%`)
+            .limit(10),
+          supabase
+            .from("profiles")
+            .select(PROFILE_COLUMNS)
+            .ilike("username", `%${escapedSearchTerm}%`)
+            .limit(10),
+          isUserId
+            ? supabase
+                .from("profiles")
+                .select(PROFILE_COLUMNS)
+                .eq("user_id", normalizedSearchTerm)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+        ]);
 
-    if (displayNameResult.error) throw displayNameResult.error;
-    if (usernameResult.error) throw usernameResult.error;
-    if (userIdResult.error) throw userIdResult.error;
+      if (displayNameResult.error) throw displayNameResult.error;
+      if (usernameResult.error) throw usernameResult.error;
+      if (userIdResult.error) throw userIdResult.error;
 
-    const profiles = new Map(
-      [
-        ...(displayNameResult.data || []),
-        ...(usernameResult.data || []),
-        ...(userIdResult.data ? [userIdResult.data] : []),
-      ]
-        .filter((profile) => profile.user_id !== user.id)
-        .map((profile) => [profile.user_id, profile]),
-    );
-
-    return [...profiles.values()].map((profile) => ({
-      id: profile.user_id,
-      username: profile.username,
-      name: profile.display_name || profile.username,
-      avatarId: profile.avatar_id || "avatar_default",
-    }));
-  }, [user]);
-
-  const sendFriendRequest = useCallback(async (playerId) => {
-    if (!supabase || !user) {
-      throw new Error("Connect a Google account before adding friends.");
-    }
-
-    const { data: existing, error: existingError } = await supabase
-      .from("friend_requests")
-      .select("id, from_user, to_user, status")
-      .or(
-        `and(from_user.eq.${user.id},to_user.eq.${playerId}),and(from_user.eq.${playerId},to_user.eq.${user.id})`,
+      const profiles = new Map(
+        [
+          ...(displayNameResult.data || []),
+          ...(usernameResult.data || []),
+          ...(userIdResult.data ? [userIdResult.data] : []),
+        ]
+          .filter((profile) => profile.user_id !== user.id)
+          .map((profile) => [profile.user_id, profile]),
       );
-    if (existingError) throw existingError;
 
-    if (existing?.some((request) => request.status === "accepted")) {
-      throw new Error("You are already friends.");
-    }
-    if (existing?.some((request) => request.status === "pending")) {
-      throw new Error("A friend request is already pending.");
-    }
+      return [...profiles.values()].map((profile) => ({
+        id: profile.user_id,
+        username: profile.username,
+        name: profile.display_name || profile.username,
+        avatarId: profile.avatar_id || "avatar_default",
+      }));
+    },
+    [user],
+  );
 
-    const { error: insertError } = await supabase
-      .from("friend_requests")
-      .insert({ from_user: user.id, to_user: playerId });
-    if (insertError) throw insertError;
-    await refreshFriends();
-  }, [refreshFriends, user]);
+  const sendFriendRequest = useCallback(
+    async (playerId) => {
+      if (!supabase || !user) {
+        throw new Error("Connect a Google account before adding friends.");
+      }
 
-  const acceptFriendRequest = useCallback(async (requestId) => {
-    if (!supabase || !user) return;
-    const { error: updateError } = await supabase
-      .from("friend_requests")
-      .update({ status: "accepted" })
-      .eq("id", requestId)
-      .eq("to_user", user.id)
-      .eq("status", "pending");
-    if (updateError) throw updateError;
-    await refreshFriends();
-  }, [refreshFriends, user]);
+      const { data: existing, error: existingError } = await supabase
+        .from("friend_requests")
+        .select("id, from_user, to_user, status")
+        .or(
+          `and(from_user.eq.${user.id},to_user.eq.${playerId}),and(from_user.eq.${playerId},to_user.eq.${user.id})`,
+        );
+      if (existingError) throw existingError;
 
-  const removeFriend = useCallback(async (requestId) => {
-    if (!supabase || !user) return;
-    const { error: deleteError } = await supabase
-      .from("friend_requests")
-      .delete()
-      .eq("id", requestId);
-    if (deleteError) throw deleteError;
-    await refreshFriends();
-  }, [refreshFriends, user]);
+      if (existing?.some((request) => request.status === "accepted")) {
+        throw new Error("You are already friends.");
+      }
+      if (existing?.some((request) => request.status === "pending")) {
+        throw new Error("A friend request is already pending.");
+      }
+
+      const { error: insertError } = await supabase
+        .from("friend_requests")
+        .insert({ from_user: user.id, to_user: playerId });
+      if (insertError) throw insertError;
+      await refreshFriends();
+    },
+    [refreshFriends, user],
+  );
+
+  const acceptFriendRequest = useCallback(
+    async (requestId) => {
+      if (!supabase || !user) return;
+      const { error: updateError } = await supabase
+        .from("friend_requests")
+        .update({ status: "accepted" })
+        .eq("id", requestId)
+        .eq("to_user", user.id)
+        .eq("status", "pending");
+      if (updateError) throw updateError;
+      await refreshFriends();
+    },
+    [refreshFriends, user],
+  );
+
+  const removeFriend = useCallback(
+    async (requestId) => {
+      if (!supabase || !user) return;
+      const { error: deleteError } = await supabase
+        .from("friend_requests")
+        .delete()
+        .eq("id", requestId);
+      if (deleteError) throw deleteError;
+      await refreshFriends();
+    },
+    [refreshFriends, user],
+  );
 
   return {
     configured: isSupabaseConfigured,
