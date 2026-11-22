@@ -14,6 +14,8 @@ export const VERSION_LABEL = `V ${APP_VERSION}`;
 // `scripts/write-update-manifest.mjs` publishes this list to public/update.json.
 export const RELEASE_NOTES = [
   "Google sign-in now returns straight to the game instead of opening the website.",
+  "Exit now asks for confirmation and really closes the app instead of restarting it.",
+  "The Android back button asks before leaving a match, so the game no longer keeps running.",
   "Online accounts are live: create your player account with an email and password, or sign in with Google.",
   "Progress, friends, invites and match history now sync through the cloud database.",
   "The in-app updater keeps showing the new version, its size and these notes.",
