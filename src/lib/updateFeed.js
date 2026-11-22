@@ -19,6 +19,13 @@ export function compareVersions(a, b) {
   return 0;
 }
 
+// The file name shown while an update downloads ("clash-of-mercy.apk").
+export function releaseFileName(release) {
+  const url = String(release?.apkUrl || "").split(/[?#]/)[0];
+  const name = url.slice(url.lastIndexOf("/") + 1);
+  return name || "clash-of-mercy.apk";
+}
+
 // Fetch the published manifest. The query string and no-store header keep a CDN
 // from handing the app a stale copy right after a release.
 export async function fetchLatestRelease() {
