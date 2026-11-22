@@ -3,80 +3,58 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Clash Of Mercy - Sign in</title>
+    <title>Clash Of Mercy</title>
     <meta name="robots" content="noindex" />
     <style>
       :root {
         color-scheme: dark;
       }
+      html,
       body {
         margin: 0;
         min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         background: #0b0f08;
-        color: #d7e8b8;
-        font-family: ui-monospace, Menlo, Consolas, monospace;
-        text-align: center;
-        padding: 24px;
-      }
-      main {
-        max-width: 420px;
-      }
-      h1 {
-        font-size: 20px;
-        letter-spacing: 0.18em;
-        margin: 0 0 16px;
-        color: #a6d64b;
-      }
-      p {
-        font-size: 14px;
-        line-height: 1.5;
-        color: #b8c9a2;
-        margin: 0 0 20px;
-      }
-      a.button {
-        display: inline-block;
-        padding: 14px 22px;
-        border: 1px solid #8ec63f;
-        background: #8ec63f;
-        color: #0b0f08;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-decoration: none;
-      }
-      .hint {
-        margin-top: 18px;
-        font-size: 12px;
-        color: #6f7f5f;
       }
     </style>
   </head>
   <body>
-    <main>
-      <h1>SIGN IN</h1>
-      <p id="status">Returning to Clash Of Mercy...</p>
-      <a id="open" class="button" href="#" hidden>OPEN CLASH OF MERCY</a>
-      <p class="hint">
-        Google sent you here because the game finishes sign-in in the installed
-        app. If the app does not open by itself, tap the button above.
-      </p>
-    </main>
     <script>
       (function () {
-        var APP_SCHEME = "com.clashofmercy.game://auth-callback";
-        var target = APP_SCHEME + (window.location.search || "") + (window.location.hash || "");
-        var openLink = document.getElementById("open");
-        var status = document.getElementById("status");
-        openLink.setAttribute("href", target);
+        var SCHEME = "com.clashofmercy.game:";
+        var PACKAGE = "com.clashofmercy.game";
+        var suffix =
+          (window.location.search || "") + (window.location.hash || "");
+        var customSchemeUrl = SCHEME + "//auth-callback" + suffix;
+        var isAndroid = /android/i.test(navigator.userAgent);
 
+        function openGame() {
+          if (isAndroid) {
+            window.location.replace(
+              "intent://auth-callback" +
+                suffix +
+                "#Intent;scheme=" +
+                SCHEME.replace(/:$/, "") +
+                ";package=" +
+                PACKAGE +
+                ";end"
+            );
+          } else {
+            window.location.replace(customSchemeUrl);
+          }
+        }
+
+        openGame();
+
+        // Some browsers drop the first custom-scheme navigation; retry once.
+        window.setTimeout(openGame, 700);
+
+        // If the game never took over (browser-only play), finish sign-in in the
+        // web app instead of leaving the player on a blank page.
         window.setTimeout(function () {
-          status.textContent = "Tap the button to finish signing in.";
-          openLink.hidden = false;
-        }, 1500);
-
-        window.location.replace(target);
+          if (document.visibilityState === "visible") {
+            window.location.replace("/" + suffix);
+          }
+        }, 2500);
       })();
     </script>
   </body>
