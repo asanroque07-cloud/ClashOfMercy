@@ -14,7 +14,7 @@ export const VERSION_LABEL = `V ${APP_VERSION}`;
 // "What's new" shown on the loading screen when an update is available.
 // `scripts/write-update-manifest.mjs` publishes this list to public/update.json.
 export const RELEASE_NOTES = [
-  "Updates now download in the background and ask you to restart the game when they are ready.",
+  "Updates download in the background while you are in the lobby or on the loading screen, then ask you to restart the game when they are ready.",
   "The loading screen shows the download percentage and the update file while it downloads.",
   "Google sign-in now returns straight to the game instead of opening the website.",
   "Exit now asks for confirmation and really closes the app instead of restarting it.",

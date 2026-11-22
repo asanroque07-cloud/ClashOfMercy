@@ -1,13 +1,14 @@
+import { useEffect } from "react";
 import { ArrowDownToLine, Download, RefreshCw, ShieldCheck } from "lucide-react";
 import { APP_VERSION } from "@/lib/version";
 import { formatSize } from "@/lib/nativeUpdater";
 import { releaseFileName } from "@/lib/updateFeed";
 
-// The update flow. A newer build downloads by itself in the background, so the
-// player never has to wait in a menu: while the file is coming down only a
-// compact strip is shown (it sits over the loading screen too, so the boot
-// screen shows the percentage and the file name). Once the APK is on the
-// device, the popup asks for a restart to finish installing it.
+// The update flow. A newer build downloads by itself while the player is on the
+// loading screen or inside a lobby, so nobody waits in a menu: while the file
+// is coming down only a compact strip is shown (it sits over the loading screen
+// too, so the boot screen shows the percentage and the file name). Once the APK
+// is on the device, the popup asks for a restart to finish installing it.
 export default function UpdateOverlay({ update }) {
   const {
     release,
@@ -18,6 +19,15 @@ export default function UpdateOverlay({ update }) {
     openInstaller,
     dismiss,
   } = update;
+
+  // App renders this overlay on the boot screen and in the lobby, but not while
+  // a match is running. Starting the download from here is what keeps a live
+  // match free of download traffic; returning to the lobby remounts the overlay,
+  // which then starts the download (or shows the progress already made).
+  useEffect(() => {
+    if (release && status === "idle") void startDownload();
+  }, [release, status, startDownload]);
+
   if (!release) return null;
 
   const total = Number(progress.total) || Number(release.size) || 0;
@@ -112,7 +122,7 @@ export default function UpdateOverlay({ update }) {
                   key={note}
                   className="flex gap-2 font-mono text-[11px] leading-relaxed text-stone-300"
                 >
-                  <span className="text-[#76a035]">▸</span>
+                  <span className="text-[#76a035]">▪</span>
                   <span>{note}</span>
                 </li>
               ))}
