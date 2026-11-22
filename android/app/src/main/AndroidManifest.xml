@@ -23,6 +23,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Google sign-in comes back from the browser through this deep link
+                 instead of landing on the website. @capacitor/app reports it to
+                 the WebView, where nativeAuth.js finishes the PKCE exchange. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="com.clashofmercy.game"
+                    android:host="auth-callback" />
+            </intent-filter>
+
         </activity>
 
         <provider
@@ -45,5 +57,7 @@
 
     <!-- The game is a landscape touch shooter. -->
     <uses-feature android:name="android.hardware.touchscreen" android:required="true" />
-    <uses-feature android:name="android.hardware.screen.landscape" android:required="false" />
+    <uses-feature
+        android:name="android.hardware.screen.landscape"
+        android:required="false" />
 </manifest>

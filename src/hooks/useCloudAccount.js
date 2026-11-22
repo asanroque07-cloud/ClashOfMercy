@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabaseClient";
+import { Browser } from "@capacitor/browser";
+import { OAUTH_REDIRECT_URL, isNativeApp, isSupabaseConfigured, supabase } from "@/lib/supabaseClient";
+import { installNativeAuthListener } from "@/lib/nativeAuth";
 
 const PROFILE_COLUMNS = "user_id, username, display_name, avatar_id";
 
@@ -138,6 +140,26 @@ export function useCloudAccount() {
     };
   }, []);
 
+  // In the Android app Google sign-in comes back through a deep link, so the
+  // PKCE code has to be exchanged here instead of by the browser tab.
+  useEffect(() => {
+    if (!isNativeApp || !supabase) return undefined;
+
+    let active = true;
+    let removeListener = () => {};
+    installNativeAuthListener()
+      .then((cleanup) => {
+        if (active) removeListener = cleanup;
+        else cleanup();
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+      removeListener();
+    };
+  }, []);
+
   useEffect(() => {
     if (!supabase || !user) {
       setFriends([]);
@@ -223,6 +245,10 @@ export function useCloudAccount() {
   // Google remembers the last account used in a browser, so a plain sign-in
   // silently reuses it. Asking for the account chooser every time means a
   // player can log in with any existing Google account they own.
+  //
+  // In the installed Android app the OAuth tab cannot redirect back into the
+  // WebView, so the browser is opened by hand and Supabase returns through the
+  // com.clashofmercy.game://auth-callback deep link. On the web nothing changes.
   const signInWithGoogle = useCallback(async () => {
     if (!supabase) {
       setError("Cloud accounts are not configured. Add the Supabase project URL and publishable key first.");
@@ -232,14 +258,19 @@ export function useCloudAccount() {
     setBusy(true);
     setError("");
     try {
-      const { error: authError } = await supabase.auth.signInWithOAuth({
+      const { data, error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: OAUTH_REDIRECT_URL,
+          skipBrowserRedirect: isNativeApp,
           queryParams: { prompt: "select_account" },
         },
       });
-      if (authError) setError(getErrorMessage(authError));
+      if (authError) {
+        setError(getErrorMessage(authError));
+        return;
+      }
+      if (isNativeApp && data?.url) await Browser.open({ url: data.url });
     } catch (authError) {
       setError(getErrorMessage(authError));
     } finally {
